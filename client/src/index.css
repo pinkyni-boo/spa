@@ -1,0 +1,15 @@
+/* Đặt ở đầu file CSS chính, ví dụ src/index.css */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  box-sizing: border-box;
+  overflow-x: hidden; /* Ngăn scroll ngang */
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
