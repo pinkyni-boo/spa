@@ -1,51 +1,38 @@
 import React from 'react';
 import { Layout, Card, Tabs, Typography } from 'antd';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Footer from './component/Global/Footer.jsx';
-import Nav from './component/Global/Nav.jsx';
-import ServicePage from './component/Service/Services.jsx';
-
+import Footer from './Pages/Global/Footer.jsx';
+import Nav from './Pages/Global/Nav.jsx';
+import ScrollToTop from './Pages/Global/ScrollToTop.jsx';
+import ServicePage from './Pages/Service/Services.jsx';
+import CombosPage from './Pages/Combo/Combo.jsx';
+import Incentives from './Pages/Incentives/Incentives.jsx';
+import Feedback from './Pages/Feedback/Feedback.jsx';
+import About from './Pages/About.jsx';
+import Policies from './Pages/Policies.jsx';
+import Careers from './Pages/Careers.jsx';
+import Training from './Pages/Training.jsx';
+import Home from './Pages/Home.jsx';
 const { Content } = Layout;
 const { Title } = Typography;
 
-const Home = () => (
-  <Content style={{
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: '50px 20px'
-  }}>
-    <Card
-      style={{
-        width: '100%',
-        maxWidth: 400,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-        borderRadius: '12px'
-      }}
-    >
-      <Title level={3} style={{ textAlign: 'center', marginBottom: 24 }}>
-        My SPA Project
-      </Title>
-      <Tabs
-        defaultActiveKey="1"
-        centered
-        items={[
-          { key: '1', label: 'Đăng Nhập', children: <div style={{ padding: '20px 0' }}><p style={{ textAlign: 'center' }}>Nội dung Form login</p></div> },
-          { key: '2', label: 'Đăng Ký', children: <div style={{ padding: '20px 0' }}><p style={{ textAlign: 'center' }}>Nội dung Form register</p></div> },
-        ]}
-      />
-    </Card>
-  </Content>
-);
+
 
 const App = () => (
   <BrowserRouter>
+    <ScrollToTop />
     <Layout style={{ minHeight: '100vh', backgroundColor: '#ffffffff' }}>
       <Nav />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/services" element={<ServicePage />} />
-        {/* Thêm các route khác nếu cần */}
+        <Route path="/combos" element={<CombosPage />} />
+        <Route path="/incentives" element={<Incentives />} />
+        <Route path="/feedback" element={<Feedback />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/policies" element={<Policies />} />
+        <Route path="/careers" element={<Careers />} />
+        <Route path="/training" element={<Training />} />
       </Routes>
       <Footer />
     </Layout>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Layout, Row, Col, Button, Typography, Space, Divider } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { 
   EnvironmentOutlined, 
   ClockCircleOutlined, 
@@ -11,6 +12,7 @@ const { Footer } = Layout;
 const { Title, Text, Link } = Typography;
 
 const AppFooter = () => {
+  const navigate = useNavigate();
   return (
     <Footer style={{ backgroundColor: '#181611', padding: '30px 40px 15px 40px', color: 'white' }}>
       {/* Container maxWidth 100% để tràn đều sang 2 bên */}
@@ -29,6 +31,7 @@ const AppFooter = () => {
           <Col>
             <Button 
               type="primary" 
+              onClick={() => navigate('/careers')}
               style={{ 
                 height: '40px', 
                 fontWeight: 'bold', 
@@ -59,17 +62,16 @@ const AppFooter = () => {
           {/* Khám phá */}
           <Col xs={12} md={4}>
             <Title level={5} style={{ color: '#D4AF37', fontSize: '12px', textTransform: 'uppercase', marginBottom: '12px' }}>Khám phá</Title>
-            <Space direction="vertical" size={2}>
-              <Link href="#" style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px' }}>Câu chuyện của chúng tôi</Link>
-              <Link href="#" style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px' }}>Điều trị</Link>
-              <Link href="#" style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px' }}>Thành viên</Link>
-            </Space>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <Link href="/about" style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px' }}>Giới thiệu</Link>
+              <Link href="/training" style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px' }}>Đào tạo học viên</Link>
+            </div>
           </Col>
 
           {/* Địa chỉ */}
           <Col xs={12} md={6}>
-            <Title level={5} style={{ color: '#D4AF37', fontSize: '12px', textTransform: 'uppercase', marginBottom: '12px' }}>Hãy ghé thăm chúng tôi</Title>
-            <Space direction="vertical" size={4} style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px' }}>
+            <Title level={5} style={{ color: '#D4AF37', fontSize: '12px', textTransform: 'uppercase', marginBottom: '12px' }}>Ghé thăm chúng tôi</Title>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', color: 'rgba(255,255,255,0.7)', fontSize: '12px' }}>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <EnvironmentOutlined style={{ color: '#D4AF37' }} />
                 <span>123 Serenity Blvd, Suite 100, Beverly Hills, CA 90210</span>
@@ -78,13 +80,13 @@ const AppFooter = () => {
                 <ClockCircleOutlined style={{ color: '#D4AF37' }} />
                 <span>Hàng ngày: 9:00 sáng - 8:00 tối</span>
               </div>
-            </Space>
+            </div>
           </Col>
 
           {/* Liên hệ */}
           <Col xs={24} md={5}>
             <Title level={5} style={{ color: '#D4AF37', fontSize: '12px', textTransform: 'uppercase', marginBottom: '12px' }}>Liên hệ</Title>
-            <Space direction="vertical" size={4} style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', color: 'rgba(255,255,255,0.7)', fontSize: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <PhoneOutlined style={{ color: '#D4AF37' }} />
                 <span>+1 (555) 123-4567</span>
@@ -93,7 +95,7 @@ const AppFooter = () => {
                 <MailOutlined style={{ color: '#D4AF37' }} />
                 <span>concierge@miuspa.com</span>
               </div>
-            </Space>
+            </div>
           </Col>
         </Row>
 
@@ -107,8 +109,8 @@ const AppFooter = () => {
           </Col>
           <Col>
             <Space size="middle">
-              <Link href="#" style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px' }}>Sự riêng tư</Link>
-              <Link href="#" style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px' }}>Điều khoản</Link>
+              <Link href="/policies " style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px' }}>Chính sách</Link>
+              <Link href="/terms-and-conditions" style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px' }}>Điều khoản</Link>
             </Space>
           </Col>
         </Row>

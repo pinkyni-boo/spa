@@ -1,12 +1,44 @@
 import React from 'react';
 import { Layout, Button, Space, Typography } from 'antd';
 import { MenuOutlined } from '@ant-design/icons';
-import { Link } from 'react-router-dom'; // Sử dụng Link của React Router
+import { Link, useLocation, useNavigate } from 'react-router-dom'; // Sử dụng Link của React Router
 
 const { Header } = Layout;
 const { Title } = Typography;
 
 const TopNavBar = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const handleNavClick = (e, path) => {
+        if (location.pathname === path) {
+            e.preventDefault(); // Stop React Router from doing anything
+            
+            // Scroll everything possible
+            const scrollOptions = { top: 0, behavior: 'smooth' };
+            window.scrollTo(scrollOptions);
+            document.documentElement.scrollTo(scrollOptions);
+            document.body.scrollTo(scrollOptions);
+            
+            // Try scrolling the root and layout specifically
+            const root = document.getElementById('root');
+            if (root) root.scrollTo(scrollOptions);
+            
+            const layout = document.querySelector('.ant-layout');
+            if (layout) layout.scrollTo(scrollOptions);
+        }
+    };
+
+    const handleLogoClick = () => {
+        if (location.pathname === '/') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+            document.body.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            navigate('/');
+        }
+    }
+
   return (
     <Header
       style={{
@@ -32,7 +64,10 @@ const TopNavBar = () => {
         alignItems: 'center'
       }}>
         {/* Logo Section */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div 
+            style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
+            onClick={handleLogoClick}
+        >
           <span
             className="material-symbols-outlined"
             style={{ color: '#D4AF37', fontSize: '24px' }}
@@ -55,10 +90,10 @@ const TopNavBar = () => {
 
         {/* Desktop Navigation */}
         <nav style={{ display: 'flex', alignItems: 'center', gap: '32px' }} className="hidden-mobile">
-          <Link to="/services" style={{ color: '#181611', fontSize: '14px', fontWeight: 500 }}>Services</Link>
-          <Link to="#" style={{ color: '#181611', fontSize: '14px', fontWeight: 500 }}>Membership</Link>
-          <Link to="#" style={{ color: '#181611', fontSize: '14px', fontWeight: 500 }}>About</Link>
-          <Link to="#" style={{ color: '#181611', fontSize: '14px', fontWeight: 500 }}>Contact</Link>
+          <Link to="/services" onClick={(e) => handleNavClick(e, '/services')} style={{ color: '#181611', fontSize: '14px', fontWeight: 500 }}>Services</Link>
+          <Link to="/combos" onClick={(e) => handleNavClick(e, '/combos')} style={{ color: '#181611', fontSize: '14px', fontWeight: 500 }}>Combos</Link>
+          <Link to="/incentives" onClick={(e) => handleNavClick(e, '/incentives')} style={{ color: '#181611', fontSize: '14px', fontWeight: 500 }}>Incentives</Link>
+          <Link to="/feedback" onClick={(e) => handleNavClick(e, '/feedback')} style={{ color: '#181611', fontSize: '14px', fontWeight: 500 }}>Feedback</Link>
 
           <Button
             type="primary"
