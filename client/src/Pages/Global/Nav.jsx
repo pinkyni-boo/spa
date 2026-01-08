@@ -2,6 +2,7 @@ import React from 'react';
 import { Layout, Button, Space, Typography } from 'antd';
 import { MenuOutlined } from '@ant-design/icons';
 import { Link, useLocation, useNavigate } from 'react-router-dom'; // Sử dụng Link của React Router
+import { useBooking } from '../../component/Booking/BookingContext';
 
 const { Header } = Layout;
 const { Title } = Typography;
@@ -9,6 +10,7 @@ const { Title } = Typography;
 const TopNavBar = () => {
     const location = useLocation();
     const navigate = useNavigate();
+    const { openBooking } = useBooking();
 
     const handleNavClick = (e, path) => {
         if (location.pathname === path) {
@@ -105,6 +107,7 @@ const TopNavBar = () => {
               borderRadius: '8px',
               marginLeft: '16px'
             }}
+            onClick={openBooking}
           >
             Book Now
           </Button>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Breadcrumb, Tabs, Button, Row, Col, Typography, Card, Divider } from 'antd';
 import theme from '../../theme';
 
@@ -76,6 +77,8 @@ const ServicePage = () => {
   const filteredServices = activeKey === 'all'
     ? services
     : services.filter(s => s.category === activeKey);
+
+  const navigate = useNavigate();
 
   return (
     <div style={{ background: theme.colors.neutral[100], color: theme.colors.text.main }}>
@@ -172,11 +175,17 @@ const ServicePage = () => {
                 <span style={{ margin: '0 8px', color: theme.colors.primary[400] }}>•</span>
                 <Text strong style={{ color: theme.colors.primary[400] }}>{service.price}</Text>
                 <div style={{ marginTop: 16 }}>
-                  <Button type="link" style={{
-                    color: theme.colors.primary[600],
-                    fontWeight: 'bold',
-                    fontFamily: theme.fonts.body
-                  }}>Xem chi tiết</Button>
+                  <Button 
+                    type="link" 
+                    onClick={() => navigate(`/service/${service.id}`)}
+                    style={{
+                      color: theme.colors.primary[600],
+                      fontWeight: 'bold',
+                      fontFamily: theme.fonts.body
+                    }}
+                  >
+                    Xem chi tiết
+                  </Button>
                 </div>
               </Card>
             </Col>

@@ -288,11 +288,9 @@ const ComboHeader = ({ activeTab, setActiveTab }) => (
     {/* Tabs Navigation */}
     <div
       style={{
-        position: 'sticky',
-        top: 72,
+        position: 'relative',
         zIndex: 40,
         background: theme.colors.neutral[100],
-        backdropFilter: 'blur(4px)',
         borderBottom: `1px solid ${theme.colors.neutral[300]}`,
       }}
     >
@@ -370,16 +368,16 @@ const Combo = () => {
         style={{
           width: '100%',
           maxWidth: 1200,
-          margin: '40px auto 0 auto',
+          margin: '40px auto 60px auto',
           padding: '0 24px',
-          scrollMarginTop: 160
+          scrollMarginTop: 180
         }}
       >
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-          gap: 40,
-          maxWidth: 1200,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: 30,
+          maxWidth: 1100,
           margin: '0 auto'
         }}>
           {filteredCombos.map((combo, idx) => (
@@ -388,17 +386,17 @@ const Combo = () => {
               style={{
                 position: 'relative',
                 width: '100%',
-                aspectRatio: '9/16',
-                minHeight: 420,
-                maxWidth: 400,
+                aspectRatio: '3/4',
+                minHeight: 350,
+                maxWidth: 320,
                 margin: '0 auto',
-                borderRadius: 32,
+                borderRadius: 20,
                 overflow: 'hidden',
                 boxShadow: combo.isPremium ? theme.shadows.elegant : theme.shadows.soft,
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'flex-end',
-                background: '#222', // fallback
+                background: '#222',
               }}
             >
               {/* Phối nhiều ảnh làm nền */}
@@ -432,7 +430,7 @@ const Combo = () => {
                 style={{
                   position: 'relative',
                   zIndex: 20,
-                  padding: '32px 28px 24px 28px',
+                  padding: '24px 22px 20px 22px',
                   color: combo.isPremium ? theme.colors.primary[400] : theme.colors.neutral[50],
                   display: 'flex',
                   flexDirection: 'column',
@@ -445,31 +443,31 @@ const Combo = () => {
                 <div style={{
                   background: combo.isPremium ? theme.colors.primary[800] : theme.colors.primary[100],
                   color: theme.colors.primary[400],
-                  padding: '4px 18px',
-                  borderRadius: 18,
+                  padding: '3px 14px',
+                  borderRadius: 14,
                   fontWeight: 'bold',
-                  fontSize: 13,
+                  fontSize: 11,
                   letterSpacing: 1,
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 6,
-                  marginBottom: 18,
+                  gap: 4,
+                  marginBottom: 12,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
                 }}>
                   {combo.isPremium && (
                     <span className="material-symbols-outlined" style={{
-                      fontSize: 16,
+                      fontSize: 14,
                       color: theme.colors.primary[400]
                     }}>star</span>
                   )}
                   {combo.tag}
                 </div>
                 <h3 style={{
-                  fontSize: 24,
+                  fontSize: 20,
                   fontFamily: theme.fonts.heading,
                   fontWeight: 600,
                   margin: 0,
-                  marginBottom: 12,
+                  marginBottom: 10,
                   color: theme.colors.primary[400]
                 }}>
                   {combo.title}
@@ -477,10 +475,10 @@ const Combo = () => {
                 <ul style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 8,
-                  fontSize: 16,
+                  gap: 5,
+                  fontSize: 13,
                   margin: 0,
-                  marginBottom: 18,
+                  marginBottom: 12,
                   color: theme.colors.neutral[50],
                   fontFamily: theme.fonts.body,
                   listStyle: 'disc inside',
@@ -494,25 +492,25 @@ const Combo = () => {
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 16,
-                  marginBottom: 18,
-                  marginTop: 8,
+                  gap: 12,
+                  marginBottom: 12,
+                  marginTop: 4,
                   justifyContent: 'flex-start'
                 }}>
                   <span style={{
                     color: theme.colors.neutral[300],
                     textDecoration: 'line-through',
-                    fontSize: 20,
+                    fontSize: 16,
                     fontWeight: 400
                   }}>
                     {combo.originalPrice}
                   </span>
                   <span style={{
-                    fontSize: 48,
+                    fontSize: 36,
                     fontFamily: theme.fonts.heading,
                     fontWeight: 'bold',
                     color: theme.colors.primary[400],
-                    letterSpacing: 2,
+                    letterSpacing: 1,
                     lineHeight: 1
                   }}>
                     {combo.discountPrice}
@@ -521,19 +519,19 @@ const Combo = () => {
                 <button
                   style={{
                     width: '100%',
-                    padding: '14px 0',
-                    borderRadius: 18,
+                    padding: '10px 0',
+                    borderRadius: 14,
                     textTransform: 'uppercase',
-                    fontSize: 15,
+                    fontSize: 12,
                     fontWeight: 'bold',
-                    letterSpacing: 2,
+                    letterSpacing: 1.5,
                     border: `1.5px solid ${theme.colors.primary[400]}`,
                     background: theme.colors.primary[400],
                     color: theme.colors.primary[800],
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                     fontFamily: theme.fonts.body,
-                    marginTop: 8
+                    marginTop: 4
                   }}
                 >
                   Book This Package
