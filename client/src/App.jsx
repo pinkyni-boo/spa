@@ -17,6 +17,7 @@ import Booking from './component/Booking/Booking.jsx';
 import Detail from './component/Service/Detail.jsx';
 import { BookingProvider } from './component/Booking/BookingContext.jsx';
 import Contact from './component/Contact/Contact.jsx';
+import BookingManager from './Pages/Admin/BookingManager/BookingManager.jsx';
 
 const { Content } = Layout;
 const { Title } = Typography;
@@ -38,6 +39,9 @@ const App = () => (
           <Route path="/policies" element={<Policies />} />
           <Route path="/careers" element={<Careers />} />
           <Route path="/training" element={<Training />} />
+          
+          {/* ADMIN ROUTES */}
+          <Route path="/admin/bookings" element={<BookingManager />} />
         </Routes>
         <Booking />
         <Contact /> 

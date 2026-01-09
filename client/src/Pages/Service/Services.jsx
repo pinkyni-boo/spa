@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Breadcrumb, Tabs, Button, Row, Col, Typography, Card, Divider } from 'antd';
 import theme from '../../theme';
+import { useBooking } from '../../component/Booking/BookingContext'; // Import Context
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -71,9 +72,9 @@ const tabList = [
 ];
 
 const ServicePage = () => {
+  const { openBooking } = useBooking(); 
   const [activeKey, setActiveKey] = useState('all');
 
-  // Lọc dịch vụ theo tab
   const filteredServices = activeKey === 'all'
     ? services
     : services.filter(s => s.category === activeKey);
@@ -174,17 +175,35 @@ const ServicePage = () => {
                 <Text strong style={{ color: theme.colors.text.gold }}>{service.duration}</Text>
                 <span style={{ margin: '0 8px', color: theme.colors.primary[400] }}>•</span>
                 <Text strong style={{ color: theme.colors.primary[400] }}>{service.price}</Text>
-                <div style={{ marginTop: 16 }}>
+                
+                <div style={{ marginTop: 16, display: 'flex', gap: '10px' }}>
                   <Button 
                     type="link" 
                     onClick={() => navigate(`/service/${service.id}`)}
                     style={{
+                      padding: 0,
                       color: theme.colors.primary[600],
                       fontWeight: 'bold',
                       fontFamily: theme.fonts.body
                     }}
                   >
                     Xem chi tiết
+                  </Button>
+                  
+                  <Button 
+                    type="primary"
+                    size="small"
+                    onClick={() => openBooking(service.title)}
+                    style={{
+                       marginLeft: 'auto',
+                       background: theme.colors.primary[400],
+                       color: theme.colors.neutral[900],
+                       border: 'none',
+                       fontWeight: 'bold',
+                       fontFamily: theme.fonts.body
+                    }}
+                  >
+                    Đặt ngay
                   </Button>
                 </div>
               </Card>
@@ -291,6 +310,7 @@ const ServicePage = () => {
             <Button
               type="primary"
               size="large"
+              onClick={() => openBooking()} // Nút chung
               style={{
                 background: theme.colors.text.main,
                 color: theme.colors.primary[400],
@@ -308,7 +328,7 @@ const ServicePage = () => {
             >
               Đặt lịch ngay
             </Button>
-
+            
             <Button
               type="default"
               size="large"

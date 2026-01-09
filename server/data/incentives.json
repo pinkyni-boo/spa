@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "title": "MEMBER MỚI",
+    "subtitle": "Welcome Privilege",
+    "description": "Giảm 20% cho lần trải nghiệm đầu tiên tại Miu Spa dành cho tất cả khách hàng mới đăng ký.",
+    "validity": "HSD: 31/12/2026",
+    "discount": "20%",
+    "code": "NEW20"
+  },
+  {
+    "id": 2,
+    "title": "GIỜ VÀNG",
+    "subtitle": "Golden Hour",
+    "description": "Tặng gói xông hơi thảo dược khi sử dụng dịch vụ Body Therapy từ 10:00 - 14:00.",
+    "validity": "Thứ 2 - Thứ 6",
+    "discount": "FREE",
+    "code": "GOLD"
+  },
+  {
+    "id": 3,
+    "title": "SINH NHẬT",
+    "subtitle": "Birthday Special",
+    "description": "Tặng suất massage mặt miễn phí cho khách hàng có sinh nhật trong tháng.",
+    "validity": "Trong tháng sinh nhật",
+    "discount": "GIFT",
+    "code": "BDAY"
+  },
+  {
+    "id": 4,
+    "title": "BẠN THÂN",
+    "subtitle": "Bestie Combo",
+    "description": "Giảm thêm 10% khi đặt dịch vụ cho nhóm từ 2 người trở lên.",
+    "validity": "HSD: 31/12/2024",
+    "discount": "10%",
+    "code": "BESTIE"
+  }
+]

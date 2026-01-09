@@ -15,28 +15,66 @@ mongoose.connect('mongodb+srv://ngocthao:vuthingocthao%4020041611@cluster0.zunhn
   .then(() => console.log('✅ Đã kết nối thành công với MongoDB Cloud!'))
   .catch(err => console.error('❌ Lỗi kết nối:', err));
 
-// --- 2. TẠO KHUÔN MẪU (SCHEMA) ---
+// --- 2. IMPORT MODELS ---
+const Service = require('./models/Service');
+const Staff = require('./models/Staff');
+const Booking = require('./models/Booking');
+
 const UserSchema = new mongoose.Schema({
   username: { type: String, required: true },
   password: { type: String, required: true }
 });
 const User = mongoose.model('User', UserSchema);
 
-// --- 3. TỰ ĐỘNG TẠO USER ĐỂ TEST ---
-const createSampleUser = async () => {
+// --- 3. SEEDING DATA (TẠO DỮ LIỆU MẪU) ---
+// Load dữ liệu từ file JSON để dễ chỉnh sửa
+const sampleServices = require('./data/services.json');
+const sampleStaff = require('./data/staff.json');
+
+const seedData = async () => {
   try {
-    const count = await User.countDocuments();
-    if (count === 0) {
+    // 1. Tạo User Admin
+    const userCount = await User.countDocuments();
+    if (userCount === 0) {
       await User.create({ username: 'admin', password: '123' });
-      console.log('⚠️ Đã tự động tạo tài khoản mẫu: admin / 123');
+      console.log('⚠️ Đã tạo User: admin / 123');
     }
+
+    // 2. Tạo Dịch vụ mẫu (Nếu chưa có)
+    const serviceCount = await Service.countDocuments();
+    if (serviceCount === 0) {
+      await Service.insertMany(sampleServices); // Lấy từ services.json
+      console.log(`⚠️ Đã tạo ${sampleServices.length} Dịch vụ mẫu từ file JSON`);
+    }
+
+    // 3. Tạo Nhân viên mẫu
+    const staffCount = await Staff.countDocuments();
+    if (staffCount === 0) {
+      await Staff.insertMany(sampleStaff); // Lấy từ staff.json
+      console.log(`⚠️ Đã tạo ${sampleStaff.length} Nhân viên mẫu từ file JSON`);
+    }
+
   } catch (e) {
-    console.log('Chưa kết nối DB nên chưa tạo user được');
+    console.log('Lỗi Seed Data:', e.message);
   }
 };
-createSampleUser();
+seedData();
 
-// --- 4. API ĐĂNG NHẬP ---
+// --- 4. IMPORT CONTROLLERS ---
+const bookingController = require('./controllers/BookingController');
+
+// --- 5. ĐỊNH NGHĨA API ROUTE ---
+// API Check Lịch trống: GET /api/availability?date=...&serviceName=...
+app.get('/api/availability', bookingController.checkAvailability);
+
+// API Đặt lịch: POST /api/book
+// API Đặt lịch: POST /api/book
+app.post('/api/book', bookingController.createBooking);
+
+// API Lấy danh sách (Admin): GET /api/bookings
+app.get('/api/bookings', bookingController.getAllBookings);
+
+// --- 6. API ĐĂNG NHẬP ---
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   console.log("React đang gửi lên:", username, password);

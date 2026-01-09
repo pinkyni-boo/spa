@@ -1,0 +1,23 @@
+[
+  {
+    "name": "Massage Body Thụy Điển",
+    "price": 500000,
+    "duration": 60,
+    "category": "Body",
+    "description": "Liệu pháp massage nhe nhàng giúp thư giãn cơ thể."
+  },
+  {
+    "name": "Chăm sóc da mặt chuyên sâu",
+    "price": 700000,
+    "duration": 90,
+    "category": "Face",
+    "description": "Liệu trình 12 bước chuẩn spa 5 sao."
+  },
+  {
+    "name": "Gội đầu dưỡng sinh",
+    "price": 150000,
+    "duration": 45,
+    "category": "Head",
+    "description": "Thư giãn vùng đầu, giảm stress."
+  }
+]

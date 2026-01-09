@@ -1,0 +1,22 @@
+[
+  {
+    "name": "KTV Lan",
+    "isActive": true,
+    "skills": ["Body", "Face"]
+  },
+  {
+    "name": "KTV Huệ",
+    "isActive": true,
+    "skills": ["Body"]
+  },
+  {
+    "name": "KTV Mai",
+    "isActive": true,
+    "skills": ["Face", "Head"]
+  },
+  {
+    "name": "KTV Cúc",
+    "isActive": false,
+    "skills": ["Body", "Head"]
+  }
+]

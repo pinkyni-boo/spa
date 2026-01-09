@@ -1,0 +1,144 @@
+[
+  {
+    "id": 1,
+    "tab": "signature",
+    "tag": "Relaxation",
+    "title": "The Miu Escape",
+    "features": [
+      "Body Massage (60 Mins)",
+      "Basic Facial Cleanse",
+      "Herbal Foot Bath",
+      "Tea & Snacks"
+    ],
+    "originalPrice": "1.200k",
+    "discountPrice": "990k",
+    "isPremium": false,
+    "images": [
+      "https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=800&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=800&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=800&auto=format&fit=crop"
+    ]
+  },
+  {
+    "id": 2,
+    "tab": "signature",
+    "tag": "Signature",
+    "title": "Royal Signature Therapy",
+    "features": [
+      "Aromatherapy Massage (75 Mins)",
+      "Signature Herbal Compress",
+      "Head & Scalp Massage"
+    ],
+    "originalPrice": "1.500k",
+    "discountPrice": "1.200k",
+    "isPremium": false,
+    "images": [
+      "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=800&auto=format&fit=crop"
+    ]
+  },
+  {
+    "id": 3,
+    "tab": "facial",
+    "tag": "Facial",
+    "title": "Gold Facial Glow",
+    "features": [
+      "24k Gold Facial Mask",
+      "Deep Cleansing",
+      "Hydrating Serum",
+      "Face Massage"
+    ],
+    "originalPrice": "1.000k",
+    "discountPrice": "850k",
+    "isPremium": false,
+    "images": [
+      "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=800&auto=format&fit=crop"
+    ]
+  },
+  {
+    "id": 4,
+    "tab": "facial",
+    "tag": "Premium",
+    "title": "Luxury Rejuvenation",
+    "features": [
+      "Anti-aging Facial",
+      "Collagen Infusion",
+      "Eye Treatment",
+      "Neck & Shoulder Massage"
+    ],
+    "originalPrice": "1.800k",
+    "discountPrice": "1.400k",
+    "isPremium": true,
+    "images": [
+      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=800&auto=format&fit=crop"
+    ]
+  },
+  {
+    "id": 5,
+    "tab": "body",
+    "tag": "Body",
+    "title": "Deep Tissue Therapy",
+    "features": [
+      "Deep Tissue Massage (90 Mins)",
+      "Hot Stone Application",
+      "Muscle Relief Balm"
+    ],
+    "originalPrice": "1.400k",
+    "discountPrice": "1.100k",
+    "isPremium": false,
+    "images": [
+      "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=800&auto=format&fit=crop"
+    ]
+  },
+  {
+    "id": 6,
+    "tab": "body",
+    "tag": "Body",
+    "title": "Detox Body Ritual",
+    "features": [
+      "Body Scrub",
+      "Detox Wrap",
+      "Aromatherapy Massage"
+    ],
+    "originalPrice": "1.600k",
+    "discountPrice": "1.250k",
+    "isPremium": false,
+    "images": [
+      "https://images.unsplash.com/photo-1560750588-73207b1ef5b8?q=80&w=800&auto=format&fit=crop"
+    ]
+  },
+  {
+    "id": 7,
+    "tab": "combos",
+    "tag": "Premium",
+    "title": "Golden Luxury",
+    "features": [
+      "Hot Stone Massage (90 Mins)",
+      "24k Gold Anti-Aging Mask",
+      "Body Scrub & Wrap",
+      "Private VIP Room"
+    ],
+    "originalPrice": "2.500k",
+    "discountPrice": "1.890k",
+    "isPremium": true,
+    "images": [
+      "https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?q=80&w=800&auto=format&fit=crop"
+    ]
+  },
+  {
+    "id": 8,
+    "tab": "combos",
+    "tag": "Couple",
+    "title": "Couple Retreat",
+    "features": [
+      "Couple Massage (60 Mins)",
+      "Romantic Candle Setup",
+      "Fruit Platter & Tea"
+    ],
+    "originalPrice": "2.200k",
+    "discountPrice": "1.700k",
+    "isPremium": false,
+    "images": [
+      "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=800&auto=format&fit=crop"
+    ]
+  }
+]
