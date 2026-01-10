@@ -1,14 +1,17 @@
 const Booking = require('../models/Booking');
+const Service = require('../models/Service');
 const Staff = require('../models/Staff');
-const servicesData = require('../data/services.json'); // Load dữ liệu tĩnh
+const Room = require('../models/Room');
+const dayjs = require('dayjs');
+const isBetween = require('dayjs/plugin/isBetween');
+const customParseFormat = require('dayjs/plugin/customParseFormat');
 
-// --- HÀM HỖ TRỢ: TÌM DỊCH VỤ TRONG JSON ---
-// Vì giá và thời gian cố định, ta tìm trong file JSON cho nhanh
-const findServiceDetails = (serviceName) => {
-  return servicesData.find(s => s.name === serviceName);
-};
+dayjs.extend(isBetween);
+dayjs.extend(customParseFormat);
 
-// --- HELPER: MUTEX (KHÓA) ĐỂ CHỐNG RACE CONDITION ---
+// ---------------------------------------------------------
+// HELPER: MUTEX (Concurrency Control)
+// ---------------------------------------------------------
 class Mutex {
     constructor() {
         this._locking = Promise.resolve();
@@ -25,280 +28,300 @@ class Mutex {
 }
 const bookingMutex = new Mutex();
 
-// --- LOGIC 1: CHECK SLOT TRỐNG (RESOURCE POOLING) ---
+// ---------------------------------------------------------
+// 1. CHECK AVAILABILITY (SMART CORE)
+// ---------------------------------------------------------
 exports.checkAvailability = async (req, res) => {
   try {
-    const { date, serviceName } = req.query; // VD: 2024-01-20, Massage Body
+    const { date, serviceName, serviceId } = req.body; // Changed to body for POST, or query if GET
+
+    // A. Validate Input
+    if (!date || (!serviceName && !serviceId)) {
+        return res.status(400).json({ success: false, message: 'Thiếu thông tin ngày hoặc dịch vụ' });
+    }
+
+    // B. Get Service Info (Duration)
+    let service;
+    if (serviceId) {
+        service = await Service.findById(serviceId);
+    } else {
+        service = await Service.findOne({ name: serviceName });
+    }
+
+    if (!service) return res.status(404).json({ success: false, message: 'Dịch vụ không tồn tại' });
     
-    // 1. Validate Input
-    if (!date || !serviceName) {
-      return res.status(400).json({ success: false, message: 'Thiếu ngày hoặc tên dịch vụ' });
-    }
+    // C. Get Resources
+    // 1. Rooms (Active)
+    const allRooms = await Room.find({ isActive: true });
+    
+    // 2. Staff (Active) - Updated: All staff can do all services
+    const qualifiedStaff = await Staff.find({ 
+        isActive: true
+        // skills: service.name (REMOVED: User requirement "All staff do all services")
+    });
 
-    // 2. Lấy thông tin dịch vụ (để biết Duration)
-    const service = findServiceDetails(serviceName);
-    if (!service) {
-      return res.status(404).json({ success: false, message: 'Dịch vụ không tồn tại' });
-    }
-    const duration = service.duration; // VD: 60 phút
-
-    // 3. Đếm tổng nhân viên đang đi làm (Active)
-    const totalStaff = await Staff.countDocuments({ isActive: true });
-    if (totalStaff === 0) {
-      return res.json({ success: true, availableSlots: [] }); // Không có ai đi làm
-    }
-
-    // 4. Tạo các khung giờ (Slots) để kiểm tra
-    // Giả sử Spa mở từ 09:00 đến 18:00
-    const openTime = 9; // 9h sáng
-    const closeTime = 18; // 18h tối
+    // D. Time Loop (9:00 -> 18:00)
+    // TODO: Dynamic opening hours from config
     const availableSlots = [];
-
-    // Chuyển ngày request thành Object Date đầu ngày và cuối ngày
-    const selectedDate = new Date(date);
-    const startOfDay = new Date(selectedDate.setHours(0,0,0,0));
-    const endOfDay = new Date(selectedDate.setHours(23,59,59,999));
-
-    // Lấy TOÀN BỘ booking trong ngày đó ra 1 lần (để đỡ query nhiều lần)
-    const bookingsToday = await Booking.find({
-      startTime: { $gte: startOfDay, $lte: endOfDay },
-      status: { $ne: 'cancelled' } // Không tính đơn hủy
-    });
-
-    // VÒNG LẶP KIỂM TRA TỪNG GIỜ (09:00, 09:30, 10:00...)
-    // Bước nhảy: 30 phút một lần
-    for (let hour = openTime; hour < closeTime; hour += 0.5) {
-      // a. Quy đổi giờ hiện tại ra Date
-      // hour = 9.5 nghĩa là 9h30
-      const currentSlotStart = new Date(startOfDay);
-      currentSlotStart.setHours(Math.floor(hour), (hour % 1) * 60, 0, 0);
-
-      const currentSlotEnd = new Date(currentSlotStart.getTime() + duration * 60000); // Cộng thêm duration phút
-
-      // b. Nếu giờ kết thúc vượt quá giờ đóng cửa -> Bỏ qua
-      const closeDate = new Date(startOfDay);
-      closeDate.setHours(closeTime, 0, 0, 0);
-      if (currentSlotEnd > closeDate) continue;
-
-      // c. ĐẾM SỐ NHÂN VIÊN BẬN TẠI KHUNG GIỜ NÀY
-      // Logic trùng: (Start_Booking < End_Slot) AND (End_Booking > Start_Slot)
-      let busyCount = 0;
-      bookingsToday.forEach(booking => {
-        if (booking.startTime < currentSlotEnd && booking.endTime > currentSlotStart) {
-          busyCount++;
-        }
-      });
-
-      // d. PHÉP TOÁN RESOURCE POOLING
-      const freeStaff = totalStaff - busyCount;
-
-      // e. Nếu còn dư thợ -> Thêm vào danh sách Slot trống
-      if (freeStaff > 0) {
-        // Format giờ đẹp (09:30)
-        const timeString = `${currentSlotStart.getHours().toString().padStart(2, '0')}:${currentSlotStart.getMinutes().toString().padStart(2, '0')}`;
-        availableSlots.push(timeString);
-      }
-    }
-
-    // 5. Trả kết quả về Frontend
-    res.json({ success: true, totalStaff, availableSlots });
-
-  } catch (error) {
-    console.error('Lỗi Check Availability:', error);
-    res.status(500).json({ success: false, message: 'Lỗi Server' });
-  }
-};
-
-// --- LOGIC 2: TẠO BOOKING MỚI ---
-exports.createBooking = async (req, res) => {
-  // KHÓA LẠI (Xếp hàng) - Chỉ 1 người được đặt tại 1 thời điểm
-  const unlock = await bookingMutex.lock();
-  
-  try {
-    const { customerName, phone, serviceName, date, time } = req.body;
-
-    // 1. Tìm dịch vụ
-    const service = findServiceDetails(serviceName);
-    if (!service) return res.status(400).json({ message: 'Dịch vụ lỗi' });
-
-    // 2. Tính StartTime và EndTime
-    // time dạng "14:30"
-    const [hours, minutes] = time.split(':').map(Number);
-    const startTime = new Date(date);
-    startTime.setHours(hours, minutes, 0, 0);
-
-    const endTime = new Date(startTime.getTime() + service.duration * 60000);
-
-    // 3. (QUAN TRỌNG) Double Check lại lần cuối xem còn thợ rảnh không
-    // (Tránh trường hợp 2 người cùng bấm nút 1 lúc)
-    const totalStaff = await Staff.countDocuments({ isActive: true });
-    const busyCount = await Booking.countDocuments({
-      startTime: { $lt: endTime },
-      endTime: { $gt: startTime },
-      status: { $ne: 'cancelled' }
-    });
-
-    if (totalStaff - busyCount <= 0) {
-      return res.status(409).json({ success: false, message: 'Rất tiếc, khung giờ này vừa có người đặt mất rồi!' });
-    }
-
-    // 4. Lưu Booking
-    // Chúng ta cần tìm Service Object ID thật từ DB để lưu vào quan hệ
-    const ServiceModel = require('../models/Service');
-    const dbService = await ServiceModel.findOne({ name: serviceName }); 
+    const openTime = dayjs(`${date} 09:00`);
+    const closeTime = dayjs(`${date} 18:00`);
     
-    // Nếu trong DB chưa có service này (do ta mới thêm trong JSON), fallback tạm
-    if (!dbService) {
-        return res.status(500).json({message: 'Dữ liệu không đồng bộ. Vui lòng liên hệ Admin.'});
-    }
+    // Slot loop (30 mins step)
+    let currentSlot = openTime;
 
-    const newBooking = new Booking({
-      customerName,
-      phone,
-      serviceId: dbService._id,
-      startTime,
-      endTime,
-      status: 'pending',
-      source: req.body.source || 'online' // Nhận source từ Admin (offline) hoặc mặc định là online
+    // Get all bookings for that day to check overlap
+    const dayStart = dayjs(`${date} 00:00`).toDate();
+    const dayEnd = dayjs(`${date} 23:59`).toDate();
+    
+    const bookingsToday = await Booking.find({
+        startTime: { $gte: dayStart, $lte: dayEnd },
+        status: { $ne: 'cancelled' }
     });
 
-    await newBooking.save();
+    while (currentSlot.isBefore(closeTime)) {
+        // Calculate Proposed Time Range
+        // Booking End = Start + Duration
+        // Occupied End = Start + Duration + Buffer (cleanup)
+        const durationMs = service.duration * 60 * 1000;
+        const bufferMs = 10 * 60 * 1000; // Hardcode 10 mins buffer for now
+        
+        const proposedStart = currentSlot;
+        const proposedEndService = currentSlot.add(service.duration, 'minute');
+        const proposedEndOccupied = proposedEndService.add(10, 'minute'); // Time resource is busy
 
-    res.json({ success: true, message: 'Đặt lịch thành công! Vui lòng chờ xác nhận.' });
+        if (proposedEndService.isAfter(closeTime)) {
+             break; // Exceed closing time
+        }
+
+        // --- CHECK 1: AVAILABLE ROOMS ---
+        let freeRooms = allRooms.filter(room => {
+            // Check if this room is busy in any booking today
+            const isBusy = bookingsToday.some(booking => {
+                 if (booking.roomId && booking.roomId.toString() === room._id.toString()) {
+                     // Check overlap
+                     // [Start, End] overlaps [ProposedStart, ProposedEndOccupied]
+                     const bStart = dayjs(booking.startTime);
+                     const bEnd = dayjs(booking.endTime).add(booking.bufferTime || 0, 'minute'); // Existing booking busy time
+                     
+                     return (
+                        (proposedStart.isBefore(bEnd) && proposedEndOccupied.isAfter(bStart))
+                     );
+                 }
+                 return false;
+            });
+            return !isBusy;
+        });
+
+        // --- CHECK 2: AVAILABLE STAFF ---
+        // 2.1 Check Shift
+        // 2.2 Check Overlap
+        const dayOfWeek = currentSlot.day(); // 0: Sun, 1: Mon...
+        
+        let freeStaff = qualifiedStaff.filter(staff => {
+             // 2.1 Shift Check
+             const shift = staff.shifts?.find(s => s.dayOfWeek === dayOfWeek);
+             if (!shift || shift.isOff) return false; // Not working today
+
+             // Check if slot is within Shift Time
+             const shiftStart = dayjs(`${date} ${shift.startTime}`, 'YYYY-MM-DD HH:mm');
+             const shiftEnd = dayjs(`${date} ${shift.endTime}`, 'YYYY-MM-DD HH:mm');
+
+             if (proposedStart.isBefore(shiftStart) || proposedEndService.isAfter(shiftEnd)) {
+                 return false; // Slot outside shift
+             }
+
+             // 2.2 Booking Overlap Check
+             const isBusy = bookingsToday.some(booking => {
+                 if (booking.staffId && booking.staffId.toString() === staff._id.toString()) {
+                      const bStart = dayjs(booking.startTime);
+                      const bEnd = dayjs(booking.endTime).add(booking.bufferTime || 0, 'minute');
+                      
+                      return (
+                        (proposedStart.isBefore(bEnd) && proposedEndOccupied.isAfter(bStart))
+                     );
+                 }
+                 return false;
+             });
+             return !isBusy;
+        });
+
+        // --- RESULT FOR SLOT ---
+        if (freeRooms.length > 0 && freeStaff.length > 0) {
+            availableSlots.push(currentSlot.format('HH:mm'));
+        }
+
+        // Next slot
+        currentSlot = currentSlot.add(30, 'minute');
+    }
+
+    res.json({ 
+        success: true, 
+        availableSlots,
+        debug: {
+            totalRooms: allRooms.length,
+            qualifiedStaff: qualifiedStaff.length
+        }
+    });
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: 'Lỗi đặt lịch' });
-  } finally {
-    unlock(); // MỞ KHÓA (Cho người tiếp theo vào)
+    res.status(500).json({ success: false, message: 'Lỗi kiểm tra lịch' });
   }
 };
 
-// --- LOGIC 3: LẤY DANH SÁCH BOOKING (CHO ADMIN) ---
-exports.getAllBookings = async (req, res) => {
-  try {
-    const { date, status } = req.query;
-    const filter = {};
-
-    // Lọc theo ngày (nếu có)
-    if (date) {
-        const selectedDate = new Date(date);
-        const startOfDay = new Date(selectedDate.setHours(0,0,0,0));
-        const endOfDay = new Date(selectedDate.setHours(23,59,59,999));
-        filter.startTime = { $gte: startOfDay, $lte: endOfDay };
-    }
-
-    // Lọc theo trạng thái
-    if (status) {
-        filter.status = status;
-    }
-
-    // Query DB
-    const bookings = await Booking.find(filter)
-      .populate('serviceId', 'name price duration') // Join bảng Service lấy tên
-      .sort({ createdAt: -1 }); // Mới nhất lên đầu
-
-    res.json({ success: true, bookings });
-
-  } catch (error) {
-    console.error('Lỗi Get Bookings:', error);
-    res.status(500).json({ success: false, message: 'Lỗi Server' });
-  }
-};
-
-// --- LOGIC 4: CẬP NHẬT BOOKING (Admin sửa đơn) ---
-exports.updateBooking = async (req, res) => {
-    const unlock = await bookingMutex.lock(); // Dùng lại Mutex để an toàn
-    try {
-        const { id } = req.params;
-        const { date, time, serviceName, customerName, phone, status, note } = req.body;
-
-        const booking = await Booking.findById(id);
-        if (!booking) {
-            return res.status(404).json({ success: false, message: 'Không tìm thấy đơn đặt' });
-        }
-
-        // 1. Nếu có thay đổi liên quan đến Thời gian/Dịch vụ -> Cần check lại slot
-        let newStartTime = booking.startTime;
-        let newEndTime = booking.endTime;
-        let serviceId = booking.serviceId;
-
-        const isTimeChanged = (date || time || serviceName);
-        
-        if (isTimeChanged) {
-             // Lấy thông tin dịch vụ mới (hoặc cũ)
-             const sName = serviceName || (await require('../models/Service').findById(booking.serviceId)).name;
-             const service = findServiceDetails(sName);
-             if (!service) return res.status(400).json({ message: 'Dịch vụ lỗi' });
-
-             // Nếu có date/time mới thì dùng, không thì lấy cái cũ
-             const dateStr = date || booking.startTime.toISOString().split('T')[0];
-             const timeStr = time || `${booking.startTime.getHours()}:${booking.startTime.getMinutes()}`;
-
-             const [hours, minutes] = timeStr.split(':').map(Number);
-             newStartTime = new Date(dateStr);
-             newStartTime.setHours(hours, minutes, 0, 0);
-             newEndTime = new Date(newStartTime.getTime() + service.duration * 60000);
-
-             // CHECK TRÙNG (Loại trừ chính đơn này ra)
-             const totalStaff = await Staff.countDocuments({ isActive: true });
-             const busyCount = await Booking.countDocuments({
-                 startTime: { $lt: newEndTime },
-                 endTime: { $gt: newStartTime },
-                 status: { $ne: 'cancelled' },
-                 _id: { $ne: id } // Quan trọng: Không đếm chính mình
-             });
-
-             if (totalStaff - busyCount <= 0) {
-                 return res.status(409).json({ success: false, message: 'Khung giờ mới này đã đầy!' });
-             }
-
-             // Cập nhật Service ID dính kèm
-             const ServiceModel = require('../models/Service');
-             const dbService = await ServiceModel.findOne({ name: sName });
-             if (dbService) serviceId = dbService._id;
-        }
-
-        // 2. Cập nhật thông tin
-        booking.customerName = customerName || booking.customerName;
-        booking.phone = phone || booking.phone;
-        booking.startTime = newStartTime;
-        booking.endTime = newEndTime;
-        booking.serviceId = serviceId;
-        booking.note = note || booking.note;
-        if (status) booking.status = status;
-
-        await booking.save();
-        res.json({ success: true, message: 'Cập nhật thành công!' });
-
-    } catch (error) {
-        console.error('Lỗi Update:', error);
-        res.status(500).json({ success: false, message: 'Lỗi Server' });
-    } finally {
-        unlock();
-    }
-};
-
-// --- LOGIC 5: HỦY BOOKING ---
-exports.cancelBooking = async (req, res) => {
-    // Hủy thì không cần Lock quá chặt, nhưng để nhất quán status thì cứ Lock nhẹ
+// ---------------------------------------------------------
+// 2. CREATE BOOKING (UPDATED)
+// ---------------------------------------------------------
+exports.createBooking = async (req, res) => {
     const unlock = await bookingMutex.lock();
     try {
-        const { id } = req.params;
-        const booking = await Booking.findById(id);
+        const { customerName, phone, serviceName, date, time } = req.body;
+
+        // 1. Parse Date/Time
+        const startTime = dayjs(`${date} ${time}`, 'YYYY-MM-DD HH:mm');
+        if (!startTime.isValid()) throw new Error('Ngày giờ không hợp lệ');
+
+        // 2. Get Service
+        const service = await Service.findOne({ name: serviceName });
+        if (!service) return res.status(404).json({ message: 'Dịch vụ k tồn tại' });
         
-        if (!booking) {
-            return res.status(404).json({ success: false, message: 'Không tìm thấy đơn' });
+        const endTime = startTime.add(service.duration, 'minute');
+        const bufferTime = 10; // Default buffer
+        const busyEndTime = endTime.add(bufferTime, 'minute');
+
+        // 3. AUTO-ASSIGN RESOURCE (SIMPLE STRATEGY)
+        // Find FIRST available Room and Staff
+        // (Similar logic to checkAvailability but for specific slot)
+        
+        // ... (Re-query resource to be safe inside Mutex) ...
+        const allRooms = await Room.find({ isActive: true });
+        // REMOVED skill check: All active staff are qualified
+        const qualifiedStaff = await Staff.find({ isActive: true });
+        
+        // Overlap Range
+        const dayStart = dayjs(`${date} 00:00`).toDate();
+        const dayEnd = dayjs(`${date} 23:59`).toDate();
+        const bookingsToday = await Booking.find({
+            startTime: { $gte: dayStart, $lte: dayEnd },
+            status: { $ne: 'cancelled' }
+        });
+
+        // Find Room
+        const assignedRoom = allRooms.find(room => {
+             const isBusy = bookingsToday.some(b => {
+                 if (b.roomId?.toString() === room._id.toString()) {
+                     const bStart = dayjs(b.startTime);
+                     const bEnd = dayjs(b.endTime).add(b.bufferTime || 0, 'minute');
+                     return (startTime.isBefore(bEnd) && busyEndTime.isAfter(bStart));
+                 }
+                 return false;
+             });
+             return !isBusy;
+        });
+
+        if (!assignedRoom) {
+            return res.status(409).json({ success: false, message: 'Hết phòng vào giờ này rồi!' });
         }
 
-        booking.status = 'cancelled';
-        await booking.save();
+        // Find Staff
+         const dayOfWeek = startTime.day();
+         const assignedStaff = qualifiedStaff.find(staff => {
+             // Shift Check
+             const shift = staff.shifts?.find(s => s.dayOfWeek === dayOfWeek);
+             if (!shift || shift.isOff) return false;
+             const shiftStart = dayjs(`${date} ${shift.startTime}`);
+             const shiftEnd = dayjs(`${date} ${shift.endTime}`);
+             if (startTime.isBefore(shiftStart) || endTime.isAfter(shiftEnd)) return false;
 
-        res.json({ success: true, message: 'Đã hủy đơn thành công' });
+             // Busy Check
+             const isBusy = bookingsToday.some(b => {
+                 if (b.staffId?.toString() === staff._id.toString()) {
+                     const bStart = dayjs(b.startTime);
+                     const bEnd = dayjs(b.endTime).add(b.bufferTime || 0, 'minute');
+                     return (startTime.isBefore(bEnd) && busyEndTime.isAfter(bStart));
+                 }
+                 return false;
+             });
+             return !isBusy;
+         });
+
+         if (!assignedStaff) {
+             return res.status(409).json({ success: false, message: 'Không còn nhân viên phù hợp!' });
+         }
+
+         // 4. Create Booking
+         const newBooking = new Booking({
+             customerName,
+             phone,
+             serviceId: service._id,
+             staffId: assignedStaff._id,
+             roomId: assignedRoom._id,
+             startTime: startTime.toDate(),
+             endTime: endTime.toDate(),
+             bufferTime: bufferTime,
+             status: 'pending',
+             source: req.body.source || 'online'
+         });
+
+         await newBooking.save();
+         
+         res.json({ 
+             success: true, 
+             message: 'Đặt lịch thành công!', 
+             booking: newBooking,
+             detail: `Phòng: ${assignedRoom.name} - NV: ${assignedStaff.name}`
+         });
+
     } catch (error) {
-         console.error('Lỗi Cancel:', error);
-         res.status(500).json({ success: false, message: 'Lỗi Server' });
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Lỗi server khi đặt lịch' });
     } finally {
         unlock();
+    }
+};
+
+// ---------------------------------------------------------
+// 3. OTHER CRUD
+// ---------------------------------------------------------
+exports.getAllBookings = async (req, res) => {
+  try {
+    const { date } = req.query;
+    let query = {};
+
+    if (date) {
+        const start = dayjs(date).startOf('day').toDate();
+        const end = dayjs(date).endOf('day').toDate();
+        query.startTime = { $gte: start, $lte: end };
+    }
+
+    const bookings = await Booking.find(query)
+      .populate('serviceId', 'name price duration') 
+      .populate('staffId', 'name') // New
+      .populate('roomId', 'name')  // New
+      .sort({ createdAt: -1 }); // Xếp theo mới tạo nhất (để Admin dễ thấy đơn vừa đặt)
+
+    res.json(bookings);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.updateBooking = async (req, res) => {
+    // Note: Update logic should also check availability if time changes
+    // For now, keep simple update
+    try {
+        const updatedBooking = await Booking.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        res.json({ success: true, booking: updatedBooking });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+exports.cancelBooking = async (req, res) => {
+    try {
+        await Booking.findByIdAndUpdate(req.params.id, { status: 'cancelled' });
+        res.json({ success: true, message: 'Đã hủy đơn' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };

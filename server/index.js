@@ -60,25 +60,8 @@ const seedData = async () => {
 };
 seedData();
 
-// --- 4. IMPORT CONTROLLERS ---
-const bookingController = require('./controllers/BookingController');
-
-// --- 5. ĐỊNH NGHĨA API ROUTE ---
-// API Check Lịch trống: GET /api/availability?date=...&serviceName=...
-app.get('/api/availability', bookingController.checkAvailability);
-
-// API Đặt lịch: POST /api/book
-// API Đặt lịch: POST /api/book
-app.post('/api/book', bookingController.createBooking);
-
-// API Lấy danh sách (Admin): GET /api/bookings
-app.get('/api/bookings', bookingController.getAllBookings);
-
-// API Cập nhật (Sửa đơn): PUT /api/bookings/:id
-app.put('/api/bookings/:id', bookingController.updateBooking);
-
-// API Hủy đơn: PUT /api/bookings/:id/cancel
-app.put('/api/bookings/:id/cancel', bookingController.cancelBooking);
+const apiRoutes = require('./routes/api');
+app.use('/api', apiRoutes);
 
 // --- 6. API ĐĂNG NHẬP ---
 app.post('/login', async (req, res) => {

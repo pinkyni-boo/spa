@@ -15,12 +15,20 @@ const BookingSchema = new mongoose.Schema({
   staffId: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Staff',
-    default: null
+    default: null // Sẽ thành mandatory ở Phase 2
+  },
+  roomId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Room',
+    default: null // Sẽ thành mandatory khi logic hoàn thiện
   },
 
   // Thời gian bắt đầu và kết thúc (Quan trọng để check trùng)
   startTime: { type: Date, required: true }, 
-  endTime: { type: Date, required: true }, // endTime = startTime + service.duration
+  endTime: { type: Date, required: true }, 
+  // Thời gian dọn dẹp (phút) - Mặc định 10p, có thể chỉnh
+  bufferTime: { type: Number, default: 0 },
+// endTime = startTime + service.duration
   
   status: { 
     type: String, 

@@ -1,5 +1,18 @@
 const mongoose = require('mongoose');
 
+// Schema cho Ca làm việc
+const ShiftSchema = new mongoose.Schema({
+  dayOfWeek: { 
+    type: Number, 
+    required: true, 
+    min: 0, 
+    max: 6 // 0: Chủ Nhật, 1: Thứ 2...
+  },
+  startTime: { type: String, required: true }, // "09:00"
+  endTime: { type: String, required: true },   // "18:00"
+  isOff: { type: Boolean, default: false }     // Ngày nghỉ
+});
+
 const StaffSchema = new mongoose.Schema({
   name: { 
     type: String, 
@@ -14,10 +27,13 @@ const StaffSchema = new mongoose.Schema({
     type: Boolean, 
     default: true 
   },
-  // Sau này có thể mở rộng thêm skills (NV này chỉ làm được Body, không làm được Face...)
+  // Skills: Danh sách các dịch vụ nhân viên này làm được (VD: ["Massage Body", "Gội đầu"])
+  // Sẽ map với Service Name hoặc Category
   skills: [{
     type: String
-  }]
+  }],
+  // Ca làm việc cố định trong tuần
+  shifts: [ShiftSchema]
 }, { timestamps: true });
 
 module.exports = mongoose.model('Staff', StaffSchema);

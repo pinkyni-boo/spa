@@ -13,10 +13,13 @@ export const adminBookingService = {
       const response = await fetch(`${API_URL}/api/bookings?${params.toString()}`);
       const data = await response.json();
 
-      if (data.success) {
-        return data.bookings;
+      // Controller trả về Array trực tiếp
+      if (Array.isArray(data)) {
+        return data;
+      } else if (data.success && data.bookings) {
+          // Fallback nếu sau này controller đổi
+          return data.bookings;
       } else {
-        console.error('Lỗi Server:', data.message);
         return [];
       }
     } catch (error) {
@@ -25,15 +28,15 @@ export const adminBookingService = {
     }
   },
 
-  // 2. Tạo Booking thủ công (Mặc định source = offline)
+  // 2. Tạo Booking thủ công
   createBooking: async (bookingData) => {
     try {
-      const response = await fetch(`${API_URL}/api/book`, {
+      const response = await fetch(`${API_URL}/api/bookings`, { // Fixed URL
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           ...bookingData, 
-          source: 'offline' // Đánh dấu là đặt thủ công
+          source: 'offline'
         }) 
       });
       return await response.json();
@@ -53,7 +56,6 @@ export const adminBookingService = {
         });
         return await response.json();
     } catch (error) {
-        console.error('Lỗi update:', error);
         return { success: false, message: 'Lỗi kết nối' };
     }
   },
@@ -61,12 +63,12 @@ export const adminBookingService = {
   // 4. Hủy Booking
   cancelBooking: async (id) => {
     try {
-        const response = await fetch(`${API_URL}/api/bookings/${id}/cancel`, {
-            method: 'PUT'
+        // API Route: DELETE /api/bookings/:id
+        const response = await fetch(`${API_URL}/api/bookings/${id}`, {
+            method: 'DELETE'
         });
         return await response.json();
     } catch (error) {
-        console.error('Lỗi cancel:', error);
         return { success: false, message: 'Lỗi kết nối' };
     }
   }

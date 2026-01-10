@@ -2,11 +2,15 @@
 const API_URL = 'http://localhost:3000';
 
 export const bookingService = {
-  // 1. Hàm hỏi giờ trống
+  // 1. Hàm hỏi giờ trống (UPDATED PHASE 2 SMART LOGIC)
   checkAvailability: async (date, serviceName) => {
     try {
-      // Gọi API: /api/availability?date=...&serviceName=...
-      const response = await fetch(`${API_URL}/api/availability?date=${date}&serviceName=${encodeURIComponent(serviceName)}`);
+      // Gọi API POST: /api/bookings/check-slot
+      const response = await fetch(`${API_URL}/api/bookings/check-slot`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date, serviceName })
+      });
       
       // Chờ Server trả lời và đọc kết quả
       const data = await response.json();
@@ -26,16 +30,16 @@ export const bookingService = {
   // 2. Hàm gửi đơn đặt
   createBooking: async (bookingData) => {
     try {
-      const response = await fetch(`${API_URL}/api/book`, {
+      const response = await fetch(`${API_URL}/api/bookings`, { // Fixed URL
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json', // Báo cho Server biết mình gửi JSON
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(bookingData), // Gói dữ liệu thành chuỗi JSON
+        body: JSON.stringify(bookingData),
       });
 
       const data = await response.json();
-      return data; // Trả về { success: true/false, message: ... }
+      return data;
     } catch (error) {
       return { success: false, message: 'Lỗi kết nối Server' };
     }

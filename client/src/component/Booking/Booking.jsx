@@ -153,9 +153,11 @@ const Booking = () => {
             {React.cloneElement(modal, { style: { ...modal.props.style, boxShadow: 'none', background: 'transparent' } })}
           </div>
         )}
-        maskStyle={{
-          backdropFilter: 'blur(8px)',
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        styles={{
+          mask: {
+            backdropFilter: 'blur(8px)',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          }
         }}
       >
         {/* KHỐI CUSTOM CỦA BẠN */}
@@ -270,6 +272,8 @@ const Booking = () => {
 
               {/* Cột Phải: Chọn Dịch Vụ & Giờ (CORE LOGIC) */}
               <Col xs={24} md={14} style={{ padding: '25px 30px' }}>
+
+
                 <Form.Item 
                   name="serviceName"
                   label={<span style={{ color: theme.colors.primary[400], fontSize: '9px', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Select Service</span>}
@@ -282,7 +286,10 @@ const Booking = () => {
                     suffixIcon={<DownOutlined style={{ color: theme.colors.primary[400] }} />}
                     style={{ borderBottom: '1px solid #3a3528', padding: '2px 0', fontSize: '13px' }}
                     dropdownStyle={{ backgroundColor: theme.colors.neutral[800], border: '1px solid #3a3528' }}
-                    onChange={handleCheckAvailability} // Gọi hàm check khi đổi dịch vụ
+                    onChange={(value) => {
+                        form.setFieldsValue({ serviceName: value });
+                        handleCheckAvailability();
+                    }}
                   >
                     {SERVICE_OPTIONS.map(opt => (
                       <Option key={opt.value} value={opt.value}>{opt.label}</Option>
@@ -299,7 +306,10 @@ const Booking = () => {
                   <DatePicker 
                     variant="borderless"
                     style={{ width: '100%', borderBottom: '1px solid #3a3528', padding: '6px 0' }}
-                    onChange={handleCheckAvailability} // Gọi hàm check khi đổi ngày
+                    onChange={(date) => {
+                        form.setFieldsValue({ date });
+                        handleCheckAvailability();
+                    }}
                     disabledDate={(current) => current && current < dayjs().startOf('day')} // Không cho chọn ngày quá khứ
                     popupClassName="booking-datepicker-popup" // Class riêng để style popup
                   />

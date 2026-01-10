@@ -18,6 +18,8 @@ import Detail from './component/Service/Detail.jsx';
 import { BookingProvider } from './component/Booking/BookingContext.jsx';
 import Contact from './component/Contact/Contact.jsx';
 import BookingManager from './Pages/Admin/BookingManager/BookingManager.jsx';
+import RoomManager from './Pages/Admin/RoomManager/RoomManager.jsx';
+import StaffManager from './Pages/Admin/StaffManager/StaffManager.jsx';
 
 const { Content } = Layout;
 const { Title } = Typography;
@@ -42,6 +44,8 @@ const App = () => (
           
           {/* ADMIN ROUTES */}
           <Route path="/admin/bookings" element={<BookingManager />} />
+          <Route path="/admin/rooms" element={<RoomManager />} />
+          <Route path="/admin/staff" element={<StaffManager />} />
         </Routes>
         <Booking />
         <Contact /> 
