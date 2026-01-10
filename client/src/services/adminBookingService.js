@@ -41,5 +41,33 @@ export const adminBookingService = {
         console.error('Lỗi tạo booking:', error);
         return { success: false, message: 'Lỗi kết nối' };
     }
+  },
+
+  // 3. Cập nhật Booking
+  updateBooking: async (id, data) => {
+    try {
+        const response = await fetch(`${API_URL}/api/bookings/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('Lỗi update:', error);
+        return { success: false, message: 'Lỗi kết nối' };
+    }
+  },
+
+  // 4. Hủy Booking
+  cancelBooking: async (id) => {
+    try {
+        const response = await fetch(`${API_URL}/api/bookings/${id}/cancel`, {
+            method: 'PUT'
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('Lỗi cancel:', error);
+        return { success: false, message: 'Lỗi kết nối' };
+    }
   }
 };

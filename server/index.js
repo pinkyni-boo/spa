@@ -74,6 +74,12 @@ app.post('/api/book', bookingController.createBooking);
 // API Lấy danh sách (Admin): GET /api/bookings
 app.get('/api/bookings', bookingController.getAllBookings);
 
+// API Cập nhật (Sửa đơn): PUT /api/bookings/:id
+app.put('/api/bookings/:id', bookingController.updateBooking);
+
+// API Hủy đơn: PUT /api/bookings/:id/cancel
+app.put('/api/bookings/:id/cancel', bookingController.cancelBooking);
+
 // --- 6. API ĐĂNG NHẬP ---
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;

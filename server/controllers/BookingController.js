@@ -8,6 +8,23 @@ const findServiceDetails = (serviceName) => {
   return servicesData.find(s => s.name === serviceName);
 };
 
+// --- HELPER: MUTEX (KHÓA) ĐỂ CHỐNG RACE CONDITION ---
+class Mutex {
+    constructor() {
+        this._locking = Promise.resolve();
+        this._locked = false;
+    }
+
+    lock() {
+        let unlockNext;
+        const willLock = new Promise(resolve => unlockNext = resolve);
+        const willUnlock = this._locking.then(() => unlockNext);
+        this._locking = this._locking.then(() => willLock);
+        return willUnlock;
+    }
+}
+const bookingMutex = new Mutex();
+
 // --- LOGIC 1: CHECK SLOT TRỐNG (RESOURCE POOLING) ---
 exports.checkAvailability = async (req, res) => {
   try {
@@ -94,6 +111,9 @@ exports.checkAvailability = async (req, res) => {
 
 // --- LOGIC 2: TẠO BOOKING MỚI ---
 exports.createBooking = async (req, res) => {
+  // KHÓA LẠI (Xếp hàng) - Chỉ 1 người được đặt tại 1 thời điểm
+  const unlock = await bookingMutex.lock();
+  
   try {
     const { customerName, phone, serviceName, date, time } = req.body;
 
@@ -149,6 +169,8 @@ exports.createBooking = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Lỗi đặt lịch' });
+  } finally {
+    unlock(); // MỞ KHÓA (Cho người tiếp theo vào)
   }
 };
 
@@ -182,4 +204,101 @@ exports.getAllBookings = async (req, res) => {
     console.error('Lỗi Get Bookings:', error);
     res.status(500).json({ success: false, message: 'Lỗi Server' });
   }
+};
+
+// --- LOGIC 4: CẬP NHẬT BOOKING (Admin sửa đơn) ---
+exports.updateBooking = async (req, res) => {
+    const unlock = await bookingMutex.lock(); // Dùng lại Mutex để an toàn
+    try {
+        const { id } = req.params;
+        const { date, time, serviceName, customerName, phone, status, note } = req.body;
+
+        const booking = await Booking.findById(id);
+        if (!booking) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy đơn đặt' });
+        }
+
+        // 1. Nếu có thay đổi liên quan đến Thời gian/Dịch vụ -> Cần check lại slot
+        let newStartTime = booking.startTime;
+        let newEndTime = booking.endTime;
+        let serviceId = booking.serviceId;
+
+        const isTimeChanged = (date || time || serviceName);
+        
+        if (isTimeChanged) {
+             // Lấy thông tin dịch vụ mới (hoặc cũ)
+             const sName = serviceName || (await require('../models/Service').findById(booking.serviceId)).name;
+             const service = findServiceDetails(sName);
+             if (!service) return res.status(400).json({ message: 'Dịch vụ lỗi' });
+
+             // Nếu có date/time mới thì dùng, không thì lấy cái cũ
+             const dateStr = date || booking.startTime.toISOString().split('T')[0];
+             const timeStr = time || `${booking.startTime.getHours()}:${booking.startTime.getMinutes()}`;
+
+             const [hours, minutes] = timeStr.split(':').map(Number);
+             newStartTime = new Date(dateStr);
+             newStartTime.setHours(hours, minutes, 0, 0);
+             newEndTime = new Date(newStartTime.getTime() + service.duration * 60000);
+
+             // CHECK TRÙNG (Loại trừ chính đơn này ra)
+             const totalStaff = await Staff.countDocuments({ isActive: true });
+             const busyCount = await Booking.countDocuments({
+                 startTime: { $lt: newEndTime },
+                 endTime: { $gt: newStartTime },
+                 status: { $ne: 'cancelled' },
+                 _id: { $ne: id } // Quan trọng: Không đếm chính mình
+             });
+
+             if (totalStaff - busyCount <= 0) {
+                 return res.status(409).json({ success: false, message: 'Khung giờ mới này đã đầy!' });
+             }
+
+             // Cập nhật Service ID dính kèm
+             const ServiceModel = require('../models/Service');
+             const dbService = await ServiceModel.findOne({ name: sName });
+             if (dbService) serviceId = dbService._id;
+        }
+
+        // 2. Cập nhật thông tin
+        booking.customerName = customerName || booking.customerName;
+        booking.phone = phone || booking.phone;
+        booking.startTime = newStartTime;
+        booking.endTime = newEndTime;
+        booking.serviceId = serviceId;
+        booking.note = note || booking.note;
+        if (status) booking.status = status;
+
+        await booking.save();
+        res.json({ success: true, message: 'Cập nhật thành công!' });
+
+    } catch (error) {
+        console.error('Lỗi Update:', error);
+        res.status(500).json({ success: false, message: 'Lỗi Server' });
+    } finally {
+        unlock();
+    }
+};
+
+// --- LOGIC 5: HỦY BOOKING ---
+exports.cancelBooking = async (req, res) => {
+    // Hủy thì không cần Lock quá chặt, nhưng để nhất quán status thì cứ Lock nhẹ
+    const unlock = await bookingMutex.lock();
+    try {
+        const { id } = req.params;
+        const booking = await Booking.findById(id);
+        
+        if (!booking) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy đơn' });
+        }
+
+        booking.status = 'cancelled';
+        await booking.save();
+
+        res.json({ success: true, message: 'Đã hủy đơn thành công' });
+    } catch (error) {
+         console.error('Lỗi Cancel:', error);
+         res.status(500).json({ success: false, message: 'Lỗi Server' });
+    } finally {
+        unlock();
+    }
 };

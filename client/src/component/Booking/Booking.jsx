@@ -16,6 +16,13 @@ const SERVICE_OPTIONS = [
   { label: "Gội đầu dưỡng sinh (45p)", value: "Gội đầu dưỡng sinh" }
 ];
 
+// Tạo danh sách Full Slot từ 09:00 đến 17:30 (Khớp logic Server)
+const FULL_TIME_SLOTS = [];
+for (let i = 9; i < 18; i++) {
+    FULL_TIME_SLOTS.push(`${i.toString().padStart(2, '0')}:00`);
+    FULL_TIME_SLOTS.push(`${i.toString().padStart(2, '0')}:30`);
+}
+
 const Booking = () => {
   const { isBookingOpen, closeBooking, bookingData } = useBooking(); // Lấy bookingData từ kho
   const [form] = Form.useForm();
@@ -312,30 +319,37 @@ const Booking = () => {
                     <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px', fontStyle: 'italic' }}>
                       Vui lòng chọn Dịch vụ và Ngày để xem lịch trống.
                     </Text>
-                  ) : availableSlots.length === 0 ? (
-                    <Text style={{ color: '#ff4d4f', fontSize: '12px' }}>
-                      Rất tiếc, ngày này đã kín lịch. Vui lòng chọn ngày khác.
-                    </Text>
                   ) : (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '150px', overflowY: 'auto' }}>
-                      {availableSlots.map(slot => (
-                        <Button
-                          key={slot}
-                          type={selectedSlot === slot ? 'primary' : 'default'}
-                          onClick={() => setSelectedSlot(slot)}
-                          style={{
-                            fontSize: '12px',
-                            height: '32px',
-                            minWidth: '70px',
-                            backgroundColor: selectedSlot === slot ? theme.colors.primary[400] : 'transparent',
-                            borderColor: selectedSlot === slot ? theme.colors.primary[400] : '#3a3528',
-                            color: selectedSlot === slot ? theme.colors.neutral[900] : 'rgba(255,255,255,0.7)',
-                            fontWeight: selectedSlot === slot ? 'bold' : 'normal'
-                          }}
-                        >
-                          {slot}
-                        </Button>
-                      ))}
+                      {FULL_TIME_SLOTS.map(slot => {
+                        const isAvailable = availableSlots.includes(slot);
+                        return (
+                          <Button
+                            key={slot}
+                            disabled={!isAvailable}
+                            type={selectedSlot === slot ? 'primary' : 'default'}
+                            onClick={() => setSelectedSlot(slot)}
+                            style={{
+                              fontSize: '12px',
+                              height: '32px',
+                              minWidth: '70px',
+                              backgroundColor: isAvailable 
+                                ? (selectedSlot === slot ? theme.colors.primary[400] : 'transparent')
+                                : '#2a251b', // Màu xám tối cho nút disabled
+                              borderColor: isAvailable 
+                                ? (selectedSlot === slot ? theme.colors.primary[400] : '#3a3528')
+                                : '#2a251b',
+                              color: isAvailable
+                                ? (selectedSlot === slot ? theme.colors.neutral[900] : 'rgba(255,255,255,0.7)')
+                                : 'rgba(255,255,255,0.15)', // Chữ mờ
+                              fontWeight: selectedSlot === slot ? 'bold' : 'normal',
+                              cursor: isAvailable ? 'pointer' : 'not-allowed'
+                            }}
+                          >
+                            {slot}
+                          </Button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

@@ -27,27 +27,51 @@ const { Option } = Select;
 const BookingManager = () => {
   const [loading, setLoading] = useState(false);
   const [bookings, setBookings] = useState([]);
+  const [filterDate, setFilterDate] = useState(null); // State cho bộ lọc ngày
   
   // State cho Modal
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null); // Lưu booking đang sửa
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
 
   const fetchBookings = async () => {
     setLoading(true);
-    const data = await adminBookingService.getAllBookings(); 
+    // Truyền filterDate vào service. Format YYYY-MM-DD
+    const dateStr = filterDate ? filterDate.format('YYYY-MM-DD') : null;
+    const data = await adminBookingService.getAllBookings(dateStr); 
     setBookings(data);
     setLoading(false);
   };
 
   useEffect(() => {
     fetchBookings();
-  }, []);
+  }, [filterDate]); // Reload khi filterDate đổi
 
-  // Xử lý tạo đơn
-  const handleCreateBooking = async (values) => {
+  // Xử lý khi bấm nút "Chi tiết" -> Mở Modal sửa
+  const handleEdit = (record) => {
+      setSelectedBooking(record);
+      // Fill dữ liệu vào form
+      form.setFieldsValue({
+          phone: record.phone,
+          customerName: record.customerName,
+          serviceName: record.serviceId?.name, // serviceId là object population
+          date: dayjs(record.startTime),
+          time: dayjs(record.startTime).format('HH:mm')
+      });
+      setIsModalVisible(true);
+  };
+
+  // Xử lý đóng Modal
+  const handleCloseModal = () => {
+      setIsModalVisible(false);
+      setSelectedBooking(null);
+      form.resetFields();
+  };
+
+  // Xử lý Submit (Tạo mới HOẶC Cập nhật)
+  const handleSubmit = async (values) => {
       setSubmitting(true);
-      // Format lại date và time
       const formattedData = {
           customerName: values.customerName,
           phone: values.phone,
@@ -56,16 +80,41 @@ const BookingManager = () => {
           time: values.time
       };
 
-      const result = await adminBookingService.createBooking(formattedData);
+      let result;
+      if (selectedBooking) {
+          // UPDATE MODE
+          result = await adminBookingService.updateBooking(selectedBooking._id, formattedData);
+      } else {
+          // CREATE MODE
+          result = await adminBookingService.createBooking(formattedData);
+      }
+
       setSubmitting(false);
 
       if (result.success) {
-          message.success('Tạo đơn thành công!');
-          setIsModalVisible(false);
-          form.resetFields();
-          fetchBookings(); // Reload lại bảng
+          message.success(selectedBooking ? 'Cập nhật thành công!' : 'Tạo đơn thành công!');
+          handleCloseModal();
+          fetchBookings(); 
       } else {
           message.error(result.message || 'Có lỗi xảy ra');
+      }
+  };
+
+  // Xử lý Hủy Đơn
+  const handleCancel = async () => {
+      if (!selectedBooking) return;
+      if (!window.confirm('Bạn có chắc chắn muốn HỦY đơn này không?')) return;
+      
+      setSubmitting(true);
+      const result = await adminBookingService.cancelBooking(selectedBooking._id);
+      setSubmitting(false);
+
+      if (result.success) {
+          message.success('Đã hủy đơn!');
+          handleCloseModal();
+          fetchBookings();
+      } else {
+          message.error(result.message || 'Lỗi khi hủy');
       }
   };
 
@@ -187,6 +236,7 @@ const BookingManager = () => {
         <Button 
           type="text" 
           style={{ color: theme.colors.primary[600], fontWeight: 600 }}
+          onClick={() => handleEdit(record)}
         >
           Chi tiết
         </Button>
@@ -259,8 +309,14 @@ const BookingManager = () => {
           <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Title level={4} style={{ margin: 0, fontFamily: theme.fonts.heading }}>Danh Sách Đặt Lịch</Title>
             <Space>
-               <Button>Lọc theo ngày</Button>
-               <Button type="primary" size="large" onClick={() => setIsModalVisible(true)} style={{ background: theme.colors.primary[600] }}>
+               {/* Thay nút cũ bằng DatePicker */}
+               <DatePicker 
+                  placeholder="Lọc theo ngày" 
+                  onChange={(date) => setFilterDate(date)} 
+                  style={{ width: 140 }}
+               />
+               
+               <Button type="primary" size="large" onClick={() => { setSelectedBooking(null); setIsModalVisible(true); }} style={{ background: theme.colors.primary[600] }}>
                  + Tạo Đơn
                </Button>
             </Space>
@@ -276,49 +332,41 @@ const BookingManager = () => {
 
         {/* MODAL TẠO ĐƠN THỦ CÔNG */}
         <Modal
-            title={<span style={{fontFamily: theme.fonts.heading, fontSize: '20px', color: theme.colors.primary[600]}}>TẠO ĐƠN MỚI (TẠI QUẦY)</span>}
+            title={<span style={{fontFamily: theme.fonts.heading, fontSize: '20px', color: theme.colors.primary[600]}}>
+                {selectedBooking ? 'CHI TIẾT / SỬA ĐỔI ĐƠN' : 'TẠO ĐƠN MỚI (TẠI QUẦY)'}
+            </span>}
             open={isModalVisible}
-            onCancel={() => setIsModalVisible(false)}
+            onCancel={handleCloseModal}
             footer={null}
             styles={{ body: { backgroundColor: '#fff', padding: '20px' } }}
-            className="manual-booking-modal" // Thêm class để override CSS
+            className="manual-booking-modal"
         >
-             {/* NUCLEAR OPTION: Bơm CSS trực tiếp để đè mọi Global Style */}
+             {/* CSS Override giữ nguyên */}
             <style>{`
-                .manual-booking-modal .ant-input {
-                    color: #000000 !important;
-                    background-color: #ffffff !important;
-                    border-color: #d9d9d9 !important;
-                }
-                .manual-booking-modal .ant-input::placeholder {
-                    color: #8c8c8c !important;
-                }
-                .manual-booking-modal .ant-select-selection-item {
-                    color: #000000 !important;
-                }
-                .manual-booking-modal .ant-select-selector {
-                    color: #000000 !important;
-                    background-color: #ffffff !important;
-                    border-color: #d9d9d9 !important;
-                }
-                .manual-booking-modal .ant-picker-input > input {
-                    color: #000000 !important;
-                }
+                .manual-booking-modal .ant-input { color: #000 !important; background: #fff !important; border-color: #d9d9d9 !important; }
+                .manual-booking-modal .ant-select-selector { color: #000 !important; background: #fff !important; }
+                .manual-booking-modal .ant-picker-input > input { color: #000 !important; }
             `}</style>
+            
+            {/* Nếu đang sửa đơn, hiện thêm info trạng thái */}
+            {selectedBooking && (
+                <div style={{ marginBottom: 20, padding: 10, background: '#f5f5f5', borderRadius: 4 }}>
+                    <Text strong>Trạng thái hiện tại: </Text>
+                    <Tag color={selectedBooking.status === 'confirmed' ? 'green' : selectedBooking.status === 'cancelled' ? 'red' : 'gold'}>
+                        {selectedBooking.status.toUpperCase()}
+                    </Tag>
+                </div>
+            )}
 
             <ConfigProvider
                 theme={{
-                    token: {
-                        colorText: '#000000',
-                        colorTextPlaceholder: '#8c8c8c',
-                        colorBgContainer: '#ffffff',
-                    }
+                    token: { colorText: '#000000', colorTextPlaceholder: '#8c8c8c', colorBgContainer: '#ffffff' }
                 }}
             >
                 <Form
                     form={form}
                     layout="vertical"
-                    onFinish={handleCreateBooking}
+                    onFinish={handleSubmit}
                 >
                     <Form.Item label="SĐT Khách hàng" name="phone" rules={[{ required: true, message: 'Nhập SĐT' }]}>
                         <Input placeholder="Nhập số điện thoại..." size="large" />
@@ -350,9 +398,35 @@ const BookingManager = () => {
                     </Row>
 
                     <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
-                        <Button type="primary" htmlType="submit" loading={submitting} block size="large" style={{ background: theme.colors.primary[600], color: '#fff', fontWeight: 'bold' }}>
-                            XÁC NHẬN TẠO ĐƠN
-                        </Button>
+                        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                            {/* Nút Hủy Đơn (Chỉ hiện khi Edit) */}
+                            {selectedBooking && selectedBooking.status !== 'cancelled' && (
+                                <Button 
+                                    danger 
+                                    size="large" 
+                                    onClick={handleCancel}
+                                    style={{ fontWeight: 'bold' }}
+                                >
+                                    HỦY ĐƠN
+                                </Button>
+                            )}
+                            
+                            {/* Nút Submit Change */}
+                            <Button 
+                                type="primary" 
+                                htmlType="submit" 
+                                loading={submitting} 
+                                size="large" 
+                                style={{ 
+                                    background: theme.colors.primary[600], 
+                                    color: '#fff', 
+                                    fontWeight: 'bold',
+                                    flex: 1
+                                }}
+                            >
+                                {selectedBooking ? 'CẬP NHẬT' : 'TẠO MỚI'}
+                            </Button>
+                        </Space>
                     </Form.Item>
                 </Form>
             </ConfigProvider>
