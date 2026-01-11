@@ -20,6 +20,7 @@ import Contact from './component/Contact/Contact.jsx';
 import BookingManager from './Pages/Admin/BookingManager/BookingManager.jsx';
 import RoomManager from './Pages/Admin/RoomManager/RoomManager.jsx';
 import StaffManager from './Pages/Admin/StaffManager/StaffManager.jsx';
+import ServiceManager from './Pages/Admin/ServiceManager/ServiceManager.jsx';
 
 const { Content } = Layout;
 const { Title } = Typography;
@@ -46,9 +47,11 @@ const App = () => (
           <Route path="/admin/bookings" element={<BookingManager />} />
           <Route path="/admin/rooms" element={<RoomManager />} />
           <Route path="/admin/staff" element={<StaffManager />} />
+          <Route path="/admin/services" element={<ServiceManager />} />
         </Routes>
         <Booking />
-        <Contact /> 
+        {/* Only show Contact button on non-admin pages */}
+        {!window.location.pathname.startsWith('/admin') && <Contact />} 
         <Footer />
       </Layout>
     </BrowserRouter>

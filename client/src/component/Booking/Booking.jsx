@@ -93,7 +93,7 @@ const Booking = () => {
     
     setSubmitting(false);
     if (result.success) {
-      message.success(result.message);
+      message.success("Gửi yêu cầu thành công! Spa sẽ gọi xác nhận sớm.");
       closeBooking();
     } else {
       message.error(result.message || "Có lỗi xảy ra, vui lòng thử lại!");
@@ -251,23 +251,7 @@ const Booking = () => {
                   />
                 </Form.Item>
 
-                <div style={{ marginTop: '30px', textAlign: 'center' }}>
-                   <div style={{ 
-                    width: '40px', 
-                    height: '40px', 
-                    borderRadius: '50%', 
-                    backgroundColor: '#221d10',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    margin: '0 auto 10px'
-                  }}>
-                    <PhoneOutlined style={{ fontSize: '18px', color: theme.colors.primary[400] }} />
-                  </div>
-                   <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>Cần hỗ trợ gấp?</Text>
-                   <br/>
-                   <Text style={{ color: theme.colors.primary[400], fontWeight: 'bold' }}>0987.654.321</Text>
-                </div>
+
               </Col>
 
               {/* Cột Phải: Chọn Dịch Vụ & Giờ (CORE LOGIC) */}
@@ -382,7 +366,7 @@ const Booking = () => {
                     boxShadow: '0 4px 15px rgba(212, 175, 55, 0.3)'
                   }}
                 >
-                  CONFIRM BOOKING
+                  REQUEST RESERVATION
                 </Button>
               </Col>
             </Row>

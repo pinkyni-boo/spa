@@ -4,6 +4,13 @@ const router = express.Router();
 const BookingController = require('../controllers/BookingController');
 const RoomController = require('../controllers/RoomController');
 const StaffController = require('../controllers/StaffController');
+const ServiceController = require('../controllers/ServiceController');
+
+// --- SERVICE ROUTES (NEW PHASE 6) ---
+router.get('/services', ServiceController.getAllServices);
+router.post('/services', ServiceController.createService);
+router.put('/services/:id', ServiceController.updateService);
+router.delete('/services/:id', ServiceController.deleteService);
 
 // --- BOOKING ROUTES ---
 router.post('/bookings/check-slot', BookingController.checkAvailability);

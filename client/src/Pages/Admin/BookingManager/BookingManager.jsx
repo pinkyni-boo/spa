@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Typography, Segmented, Button, message, Modal, Form, Input, DatePicker, Select, ConfigProvider } from 'antd';
+import { Layout, Typography, Segmented, Button, message, Modal, Form, Input, DatePicker, Select, ConfigProvider, Badge, Radio } from 'antd';
 import { AppstoreOutlined, BarsOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import theme from '../../../theme';
@@ -28,6 +28,9 @@ const BookingManager = () => {
     const [bookings, setBookings] = useState([]);
     const [rooms, setRooms] = useState([]);
     const [loading, setLoading] = useState(false);
+    
+    // Derived State
+    const pendingCount = bookings.filter(b => b.status === 'pending').length;
     
     // FILTER STATE (For List/Calendar)
     const [currentDate, setCurrentDate] = useState(dayjs());
@@ -153,15 +156,40 @@ const BookingManager = () => {
                     
                     <div style={{ display: 'flex', gap: 12 }}>
                         {/* VIEW TOGGLE */}
-                        <Segmented
-                            options={[
-                                { label: 'Lịch Biểu', value: 'calendar', icon: <AppstoreOutlined /> },
-                                { label: 'Danh Sách', value: 'list', icon: <BarsOutlined /> },
-                            ]}
-                            value={viewMode}
-                            onChange={handleViewChange}
+
+                        <Radio.Group 
+                            value={viewMode} 
+                            onChange={(e) => handleViewChange(e.target.value)} 
+                            buttonStyle="solid"
                             size="large"
-                        />
+                        >
+                            <Radio.Button value="calendar" style={{ padding: '0 24px' }}>
+                                <AppstoreOutlined style={{ marginRight: 8 }} />
+                                Lịch Biểu
+                            </Radio.Button>
+                            <Radio.Button value="list" style={{ padding: '0 24px', position: 'relative' }}>
+                                <BarsOutlined style={{ marginRight: 8 }} />
+                                Danh Sách
+                                {pendingCount > 0 && (
+                                     <span style={{ 
+                                        position: 'absolute',
+                                        top: -5,
+                                        right: -5,
+                                        backgroundColor: '#ff4d4f', 
+                                        color: '#fff', 
+                                        padding: '0 6px', 
+                                        borderRadius: '4px', 
+                                        fontSize: '10px', 
+                                        fontWeight: 'bold',
+                                        lineHeight: '16px',
+                                        boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                                        zIndex: 1
+                                     }}>
+                                        {pendingCount}
+                                     </span>
+                                )}
+                            </Radio.Button>
+                        </Radio.Group>
                         <Button type="primary" size="large" icon={<PlusOutlined />} onClick={openCreateModal}>
                             Tạo Đơn
                         </Button>

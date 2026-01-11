@@ -67,12 +67,31 @@ const BookingListView = ({ bookings, loading, onEdit, filterDate, setFilterDate,
       key: 'status',
       width: 140,
       render: (status) => {
-        let color = '#d9d9d9'; let text = 'Khác';
-        if (status === 'confirmed') { color = '#52c41a'; text = 'Đã nhận'; }
-        if (status === 'pending') { color = '#faad14'; text = 'Mới đặt'; }
-        if (status === 'completed') { color = '#1890ff'; text = 'Xong'; }
-        if (status === 'cancelled') { color = '#ff4d4f'; text = 'Hủy'; }
-        return <Tag color={color} style={{ fontWeight: 600 }}>{text.toUpperCase()}</Tag>;
+        let color = 'default'; 
+        let text = 'Khác';
+        let icon = null;
+
+        switch(status) {
+            case 'confirmed':
+                color = 'success';
+                text = 'ĐÃ XÁC NHẬN';
+                break;
+            case 'pending':
+                color = 'warning';
+                text = 'CHỜ DUYỆT';
+                break;
+            case 'completed':
+                color = 'processing';
+                text = 'HOÀN THÀNH';
+                break;
+            case 'cancelled':
+                color = 'error';
+                text = 'ĐÃ HỦY';
+                break;
+            default:
+                color = 'default';
+        }
+        return <Tag color={color} style={{ fontWeight: 600 }}>{text}</Tag>;
       },
     },
     {

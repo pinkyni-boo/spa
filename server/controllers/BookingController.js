@@ -83,11 +83,11 @@ exports.checkAvailability = async (req, res) => {
         // Booking End = Start + Duration
         // Occupied End = Start + Duration + Buffer (cleanup)
         const durationMs = service.duration * 60 * 1000;
-        const bufferMs = 10 * 60 * 1000; // Hardcode 10 mins buffer for now
+        const bufferMinutes = service.breakTime || 30; // Use Service Buffer or Default 30
         
         const proposedStart = currentSlot;
         const proposedEndService = currentSlot.add(service.duration, 'minute');
-        const proposedEndOccupied = proposedEndService.add(10, 'minute'); // Time resource is busy
+        const proposedEndOccupied = proposedEndService.add(bufferMinutes, 'minute'); // Time resource is busy (Duration + Buffer)
 
         if (proposedEndService.isAfter(closeTime)) {
              break; // Exceed closing time
@@ -186,7 +186,7 @@ exports.createBooking = async (req, res) => {
         if (!service) return res.status(404).json({ message: 'Dịch vụ k tồn tại' });
         
         const endTime = startTime.add(service.duration, 'minute');
-        const bufferTime = 10; // Default buffer
+        const bufferTime = service.breakTime || 30; // UPDATED: Use dynamic breakTime
         const busyEndTime = endTime.add(bufferTime, 'minute');
 
         // 3. AUTO-ASSIGN RESOURCE (SIMPLE STRATEGY)
@@ -229,8 +229,10 @@ exports.createBooking = async (req, res) => {
              // Shift Check
              const shift = staff.shifts?.find(s => s.dayOfWeek === dayOfWeek);
              if (!shift || shift.isOff) return false;
-             const shiftStart = dayjs(`${date} ${shift.startTime}`);
-             const shiftEnd = dayjs(`${date} ${shift.endTime}`);
+             const shiftStart = dayjs(`${date} ${shift.startTime}`, 'YYYY-MM-DD HH:mm');
+             const shiftEnd = dayjs(`${date} ${shift.endTime}`, 'YYYY-MM-DD HH:mm');
+             
+             // Check if Booking fits in Shift
              if (startTime.isBefore(shiftStart) || endTime.isAfter(shiftEnd)) return false;
 
              // Busy Check
@@ -248,6 +250,41 @@ exports.createBooking = async (req, res) => {
          if (!assignedStaff) {
              return res.status(409).json({ success: false, message: 'Không còn nhân viên phù hợp!' });
          }
+
+         // --- [NEW] CONCURRENCY DOUBLE CHECK ---
+         // Check one last time if this specific Room/Staff is taken
+         const doubleCheck = await Booking.findOne({
+             $or: [
+                 { roomId: assignedRoom._id },
+                 { staffId: assignedStaff._id }
+             ],
+             startTime: { $lt: busyEndTime.toDate() }, // Overlap logic
+             bookings_endTime_plus_buffer: { $gt: startTime.toDate() }, // *Pseudo-code logic, need simple overlap*
+             status: { $ne: 'cancelled' }
+         });
+         
+         // Real overlap logic for Double Check
+         // New Booking: [Start, BusyEnd]
+         // Existing: [b.Start, b.End + Buffer]
+         const conflict = await Booking.find({
+             $or: [
+                 { roomId: assignedRoom._id },
+                 { staffId: assignedStaff._id }
+             ],
+             startTime: { $gte: dayStart, $lte: dayEnd },
+             status: { $ne: 'cancelled' }
+         });
+         
+         const isConflict = conflict.some(b => {
+              const bStart = dayjs(b.startTime);
+              const bEnd = dayjs(b.endTime).add(b.bufferTime || 0, 'minute');
+              return (startTime.isBefore(bEnd) && busyEndTime.isAfter(bStart));
+         });
+
+         if (isConflict) {
+             return res.status(409).json({ success: false, message: 'Tiếc quá, có người nhanh tay hơn rồi! Vui lòng chọn giờ khác.' });
+         }
+         // -------------------------------------
 
          // 4. Create Booking
          const newBooking = new Booking({
