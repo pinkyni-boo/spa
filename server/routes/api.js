@@ -19,6 +19,16 @@ router.get('/bookings', BookingController.getAllBookings); // Admin
 router.put('/bookings/:id', BookingController.updateBooking);
 router.delete('/bookings/:id', BookingController.cancelBooking);
 
+// [PHASE 4] Smart Operations Routes
+router.post('/bookings/:id/check-in', BookingController.checkIn);
+router.put('/bookings/:id/services', BookingController.updateBookingServices);
+
+// --- INVOICE ROUTES (NEW PHASE 4) ---
+const InvoiceController = require('../controllers/InvoiceController'); 
+router.post('/invoices', InvoiceController.createInvoice);
+router.get('/invoices', InvoiceController.getAllInvoices);
+router.post('/invoices/:id/void', InvoiceController.voidInvoice);
+
 // --- ROOM ROUTES (NEW PHASE 1) ---
 router.get('/rooms', RoomController.getAllRooms);
 router.post('/rooms', RoomController.createRoom);
@@ -28,5 +38,12 @@ router.delete('/rooms/:id', RoomController.deleteRoom);
 // --- STAFF ROUTES ---
 router.get('/staff', StaffController.getAllStaff);
 router.put('/staff/:id', StaffController.updateStaffDetails);
+
+const CustomerController = require('../controllers/CustomerController'); // [NEW]
+
+// --- CUSTOMER ROUTES (CRM) ---
+router.get('/customers/search', CustomerController.search);
+router.get('/customers/:id', CustomerController.getById);
+
 
 module.exports = router;

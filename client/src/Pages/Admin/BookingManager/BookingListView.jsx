@@ -1,12 +1,33 @@
-import React from 'react';
-import { Table, Tag, Button, Avatar, Typography, Space, DatePicker } from 'antd';
+import React, { useState } from 'react';
+import { Table, Tag, Button, Avatar, Typography, Space, DatePicker, Tabs } from 'antd';
 import dayjs from 'dayjs';
 import theme from '../../../theme';
 
 const { Text } = Typography;
 
 const BookingListView = ({ bookings, loading, onEdit, filterDate, setFilterDate, onCreate }) => {
-    
+    const [activeTab, setActiveTab] = useState('all');
+
+    // Filter Logic
+    const getFilteredBookings = () => {
+        if (activeTab === 'all') return bookings;
+        if (activeTab === 'completed_group') {
+            return bookings.filter(b => b.status === 'completed' || b.status === 'cancelled');
+        }
+        return bookings.filter(b => b.status === activeTab);
+    };
+
+    const filteredData = getFilteredBookings();
+
+    // Tab Items
+    const items = [
+        { key: 'all', label: 'Tất cả' },
+        { key: 'pending', label: 'Chờ duyệt' },
+        { key: 'confirmed', label: 'Sắp tới' },
+        { key: 'processing', label: 'Đang làm' },
+        { key: 'completed_group', label: 'Lịch sử' },
+    ];
+
   const columns = [
     {
       title: 'NGUỒN',
@@ -88,6 +109,10 @@ const BookingListView = ({ bookings, loading, onEdit, filterDate, setFilterDate,
                 color = 'error';
                 text = 'ĐÃ HỦY';
                 break;
+            case 'processing':
+                color = 'blue';
+                text = 'ĐANG LÀM';
+                break;
             default:
                 color = 'default';
         }
@@ -113,9 +138,18 @@ const BookingListView = ({ bookings, loading, onEdit, filterDate, setFilterDate,
                <Button type="primary" onClick={onCreate}>+ Tạo Đơn</Button>
             </Space>
         </div>
+
+        <Tabs 
+            defaultActiveKey="all" 
+            items={items} 
+            onChange={setActiveTab} 
+            type="card"
+            style={{ marginBottom: 16 }}
+        />
+
         <Table
             columns={columns}
-            dataSource={bookings}
+            dataSource={filteredData}
             rowKey="_id"
             loading={loading}
             pagination={{ pageSize: 8 }}

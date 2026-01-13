@@ -37,46 +37,58 @@ const DnDCalendarView = ({ bookings, rooms, onEventDrop, onEventResize, onNaviga
 
     // --- LOGIC GỢI Ý GIỜ TRỐNG (QUICK SUGGESTION) ---
     // Tìm các khung giờ mà CÓ ÍT NHẤT 1 PHÒNG TRỐNG
+    // --- LOGIC GỢI Ý GIỜ TRỐNG (SMART OPTION B) ---
+    // Hien thi so luong phong con trong cu the theo khung gio
     const availableRanges = React.useMemo(() => {
         if (!rooms || rooms.length === 0) return "Đang tải...";
         
         const startOfDay = dayjs(date).hour(9).minute(0);
         const endOfDay = dayjs(date).hour(18).minute(0);
-        const timeWindows = [];
+        const suggestions = []; // Array of { start, end, count }
         
-        let currentWindowStart = null;
-        
+        const totalRooms = rooms.length;
+        let currentGroup = null; // { start, count }
+
         // Quét từng slot 30 phút
         for (let time = startOfDay; time.isBefore(endOfDay); time = time.add(30, 'minute')) {
             const nextTime = time.add(30, 'minute');
             
-            // Đếm số phòng bận trong slot này
+            // Đếm số phòng bận
             const busyRoomCount = bookings.filter(b => {
                 const bStart = dayjs(b.start);
                 const bEnd = dayjs(b.end);
-                // Check overlap: (StartA < EndB) && (EndA > StartB)
                 return time.isBefore(bEnd) && nextTime.isAfter(bStart);
             }).length;
 
-            // KHÁCH YÊU CẦU: Chỉ gợi ý giờ HOÀN TOÀN TRỐNG (Không có đơn nào)
-            const isFree = busyRoomCount === 0;
+            const freeCount = totalRooms - busyRoomCount;
 
-            if (isFree) {
-                if (!currentWindowStart) currentWindowStart = time; // Bắt đầu chuỗi rảnh
+            // Logic Gom Nhóm (Grouping)
+            if (freeCount > 0) {
+                if (!currentGroup) {
+                    // Start new group
+                    currentGroup = { start: time, count: freeCount };
+                } else if (currentGroup.count !== freeCount) {
+                    // Count changed -> Close old group, Start new one
+                    suggestions.push(`${currentGroup.start.format('HH:mm')} - ${time.format('HH:mm')} (Còn ${currentGroup.count} phòng)`);
+                    currentGroup = { start: time, count: freeCount };
+                } else {
+                    // Count same -> Extend group (do nothing, just continue loop)
+                }
             } else {
-                if (currentWindowStart) {
-                    // Kết thúc chuỗi rảnh -> Lưu lại
-                    timeWindows.push(`${currentWindowStart.format('HH:mm')} - ${time.format('HH:mm')}`);
-                    currentWindowStart = null;
+                // No room free
+                if (currentGroup) {
+                    suggestions.push(`${currentGroup.start.format('HH:mm')} - ${time.format('HH:mm')} (Còn ${currentGroup.count} phòng)`);
+                    currentGroup = null;
                 }
             }
         }
-        // Chốt sổ slot cuối ngày nếu còn đang rảnh
-        if (currentWindowStart) {
-             timeWindows.push(`${currentWindowStart.format('HH:mm')} - ${endOfDay.format('HH:mm')}`);
+        
+        // Finalize last group
+        if (currentGroup) {
+            suggestions.push(`${currentGroup.start.format('HH:mm')} - ${endOfDay.format('HH:mm')} (Còn ${currentGroup.count} phòng)`);
         }
 
-        return timeWindows.length > 0 ? timeWindows.join(',  ') : "Hôm nay đã kín lịch!";
+        return suggestions.length > 0 ? suggestions.join(',  ') : "Hôm nay đã kín lịch!";
     }, [bookings, rooms, date]);
 
     return (

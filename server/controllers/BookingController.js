@@ -322,13 +322,18 @@ exports.createBooking = async (req, res) => {
 // ---------------------------------------------------------
 exports.getAllBookings = async (req, res) => {
   try {
-    const { date } = req.query;
+    const { date, phone } = req.query; // [UPDATED] Phone filter
     let query = {};
 
     if (date) {
         const start = dayjs(date).startOf('day').toDate();
         const end = dayjs(date).endOf('day').toDate();
         query.startTime = { $gte: start, $lte: end };
+    }
+
+    if (phone) {
+        query.phone = phone; // Filter by phone
+        delete query.startTime; // If searching history, ignore date
     }
 
     const bookings = await Booking.find(query)
@@ -360,5 +365,84 @@ exports.cancelBooking = async (req, res) => {
         res.json({ success: true, message: 'Đã hủy đơn' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// ---------------------------------------------------------
+// 4. SMART OPERATIONS (PHASE 4)
+// ---------------------------------------------------------
+
+// A. CHECK-IN (Khách đến)
+exports.checkIn = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const booking = await Booking.findById(id);
+        
+        if (!booking) return res.status(404).json({ message: 'Không tìm thấy đơn' });
+        if (booking.status !== 'confirmed') return res.status(400).json({ message: 'Chỉ đơn đã xác nhận mới được Check-in' });
+
+        // [LOGIC MOI] Shift Booking to NOW
+        const now = new Date();
+        const duration = booking.endTime - booking.startTime; // Ms
+        
+        booking.startTime = now;
+        booking.endTime = new Date(now.getTime() + duration);
+        
+        booking.status = 'processing';
+        booking.actualStartTime = now;
+        
+        await booking.save();
+
+        res.json({ success: true, message: 'Check-in thành công! Đã chuyển lịch về giờ hiện tại.', booking });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi Check-in' });
+    }
+};
+
+// B. SMART UPSELL (Thêm dịch vụ & Check xung đột)
+exports.updateBookingServices = async (req, res) => {
+    const unlock = await bookingMutex.lock(); // Dùng Mutex để tránh tranh chấp
+    try {
+        const { id } = req.params;
+        const { servicesDone, newEndTime } = req.body; 
+        
+        const booking = await Booking.findById(id);
+        if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+        // Logic: If extending time, CHECK CONFLICT
+        if (newEndTime && new Date(newEndTime) > booking.endTime) {
+            const proposedEnd = new Date(newEndTime);
+            const buffer = booking.bufferTime || 0;
+            const busyEnd = dayjs(proposedEnd).add(buffer, 'minute');
+
+            const conflict = await Booking.findOne({
+                _id: { $ne: booking._id },
+                roomId: booking.roomId,
+                startTime: { $lt: busyEnd.toDate() },
+                endTime: { $gt: booking.endTime }
+            });
+
+            if (conflict) {
+                 return res.status(409).json({ 
+                     success: false, 
+                     message: 'XUNG ĐỘT: Không thể thêm dịch vụ vì vướng khách sau!',
+                     conflictDetails: conflict
+                 });
+            }
+            booking.endTime = proposedEnd;
+        }
+
+        if (servicesDone) {
+            booking.servicesDone = servicesDone;
+        }
+
+        await booking.save();
+        res.json({ success: true, message: 'Cập nhật dịch vụ thành công!', booking });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Lỗi cập nhật dịch vụ' });
+    } finally {
+        unlock();
     }
 };

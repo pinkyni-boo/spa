@@ -71,5 +71,89 @@ export const adminBookingService = {
     } catch (error) {
         return { success: false, message: 'Lỗi kết nối' };
     }
+  },
+
+  // 5. [PHASE 4] Check-in
+  checkIn: async (id) => {
+      try {
+          const response = await fetch(`${API_URL}/api/bookings/${id}/check-in`, {
+              method: 'POST'
+          });
+          return await response.json();
+      } catch (error) {
+          return { success: false, message: 'Lỗi kết nối Check-in' };
+      }
+  },
+
+  // 6. [PHASE 4] Checkout (Create Invoice)
+  createInvoice: async (invoiceData) => {
+      try {
+          const response = await fetch(`${API_URL}/api/invoices`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(invoiceData)
+          });
+          return await response.json();
+      } catch (error) {
+          return { success: false, message: 'Lỗi kết nối Checkout' };
+      }
+  },
+
+  // 7. [PHASE 4] Smart Upsell (Update Services)
+  updateServices: async (id, data) => {
+      try {
+          const response = await fetch(`${API_URL}/api/bookings/${id}/services`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data)
+          });
+          return await response.json();
+      } catch (error) {
+          return { success: false, message: 'Lỗi kết nối Upsell' };
+      }
+  },
+
+  // 8. [PHASE 4] Get Invoices (History/Detail)
+  getInvoices: async (filters = {}) => {
+      try {
+          const params = new URLSearchParams();
+          if (filters.date) params.append('date', filters.date);
+          if (filters.bookingId) params.append('bookingId', filters.bookingId);
+
+          const response = await fetch(`${API_URL}/api/invoices?${params.toString()}`);
+          return await response.json();
+      } catch (error) {
+          return { success: false, message: 'Lỗi lấy hóa đơn' };
+      }
+  },
+
+  // 9. [PHASE 5] CRM Search (Smart Suggestion)
+  searchCustomers: async (query) => {
+      try {
+          const response = await fetch(`${API_URL}/api/customers/search?query=${query}`);
+          return await response.json();
+      } catch (error) {
+          return { success: false, customers: [] };
+      }
+  },
+
+  // 10. [PHASE 5] CRM History (Lookup)
+  getCustomerHistory: async (phone) => {
+      try {
+          const response = await fetch(`${API_URL}/api/bookings?phone=${phone}`);
+          return await response.json(); // Returns array of bookings
+      } catch (error) {
+          return [];
+      }
+  },
+
+  // 11. [PHASE 5.3] Retail Products
+  getServices: async () => {
+    try {
+        const response = await fetch(`${API_URL}/api/services`);
+        return await response.json();
+    } catch (error) {
+        return [];
+    }
   }
 };

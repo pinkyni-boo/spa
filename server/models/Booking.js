@@ -32,7 +32,7 @@ const BookingSchema = new mongoose.Schema({
   
   status: { 
     type: String, 
-    enum: ['pending', 'confirmed', 'completed', 'cancelled'], 
+    enum: ['pending', 'confirmed', 'processing', 'completed', 'cancelled'], 
     default: 'pending' 
   },
 
@@ -42,6 +42,29 @@ const BookingSchema = new mongoose.Schema({
     enum: ['online', 'offline'],
     default: 'online'
   },
+  
+  // [NEW] Thực tế làm: Check-in / Checkout
+  actualStartTime: { type: Date },
+  actualEndTime: { type: Date },
+
+  // [NEW] Dịch vụ thực tế (Upsell sẽ update vào đây)
+  servicesDone: [{
+      serviceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Service' },
+      name: String, // Snapshot name
+      price: Number, // Snapshot price
+      qty: { type: Number, default: 1 }
+  }],
+  
+  // [NEW] Sản phẩm mua thêm (Retail)
+  productsBought: [{
+      productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Service' }, // Dùng bảng Service type='product'
+      name: String,
+      price: Number,
+      qty: { type: Number, default: 1 }
+  }],
+
+  // [NEW] Tổng tiền chốt (Sau khi xong xuôi)
+  finalPrice: { type: Number, default: 0 },
 
   note: { type: String }
 }, { timestamps: true });

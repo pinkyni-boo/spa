@@ -31,6 +31,17 @@ const ServiceSchema = new mongoose.Schema({
     type: String,
     enum: ['Body', 'Face', 'Combo', 'Other', 'Head'],
     default: 'Body'
+  },
+  // [NEW] Service Type (service vs product)
+  type: {
+      type: String,
+      enum: ['service', 'product'],
+      default: 'service'
+  },
+  // [NEW] Required Capabilities for Room/Staff Matching
+  requiredCapabilities: {
+      type: [String],
+      default: []
   }
 }, { timestamps: true });
 
