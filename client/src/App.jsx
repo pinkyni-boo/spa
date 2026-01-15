@@ -1,6 +1,8 @@
-import React from 'react';
-import { Layout, Card, Tabs, Typography } from 'antd';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Layout, Card, Tabs, Typography, Button } from 'antd';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { MenuUnfoldOutlined, MenuFoldOutlined } from '@ant-design/icons';
+
 import Footer from './Pages/Global/Footer.jsx';
 import Nav from './Pages/Global/Nav.jsx';
 import ScrollToTop from './Pages/Global/ScrollToTop.jsx';
@@ -21,14 +23,38 @@ import BookingManager from './Pages/Admin/BookingManager/BookingManager.jsx';
 import RoomManager from './Pages/Admin/RoomManager/RoomManager.jsx';
 import StaffManager from './Pages/Admin/StaffManager/StaffManager.jsx';
 import ServiceManager from './Pages/Admin/ServiceManager/ServiceManager.jsx';
+import ProductManager from './Pages/Admin/Services/ProductManager.jsx';
+import AdminSidebar from './Pages/Admin/Global/AdminSidebar.jsx';
 
-const { Content } = Layout;
+const { Content, Header } = Layout;
 const { Title } = Typography;
 
-const App = () => (
-  <BookingProvider>
-    <BrowserRouter>
-      <ScrollToTop />
+const MainContent = () => {
+    const location = useLocation();
+    const isAdmin = location.pathname.startsWith('/admin');
+    const [collapsed, setCollapsed] = useState(false);
+
+    if (isAdmin) {
+        return (
+            <Layout style={{ minHeight: '100vh' }}>
+                <AdminSidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+                <Layout>
+                    <Content style={{ margin: 0, minHeight: 280, background: '#f0f2f5', overflow: 'hidden' }}>
+                        <Routes>
+                            <Route path="/admin/bookings" element={<BookingManager />} />
+                            <Route path="/admin/rooms" element={<RoomManager />} />
+                            <Route path="/admin/staff" element={<StaffManager />} />
+                            <Route path="/admin/services" element={<ServiceManager />} />
+                            <Route path="/admin/products" element={<ProductManager />} />
+                        </Routes>
+                    </Content>
+                </Layout>
+            </Layout>
+        );
+    }
+
+    // Public Layout
+    return (
       <Layout style={{ minHeight: '100vh', backgroundColor: '#ffffffff' }}>
         <Nav />
         <Routes>
@@ -43,19 +69,27 @@ const App = () => (
           <Route path="/careers" element={<Careers />} />
           <Route path="/training" element={<Training />} />
           
-          {/* ADMIN ROUTES */}
-          <Route path="/admin/bookings" element={<BookingManager />} />
-          <Route path="/admin/rooms" element={<RoomManager />} />
-          <Route path="/admin/staff" element={<StaffManager />} />
-          <Route path="/admin/services" element={<ServiceManager />} />
+          {/* Admin routes need to be here too essentially for router matching, 
+              BUT since we check 'isAdmin' above and return early, 
+              we technically don't reach here if path is /admin. 
+              Efficiency: Good. 
+          */}
         </Routes>
         <Booking />
-        {/* Only show Contact button on non-admin pages */}
-        {!window.location.pathname.startsWith('/admin') && <Contact />} 
+        <Contact />
         <Footer />
       </Layout>
+    );
+};
+
+const App = () => (
+  <BookingProvider>
+    <BrowserRouter>
+      <ScrollToTop />
+      <MainContent />
     </BrowserRouter>
   </BookingProvider>
 );
 
 export default App;
+

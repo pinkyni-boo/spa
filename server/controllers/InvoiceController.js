@@ -41,6 +41,7 @@ exports.createInvoice = async (req, res) => {
         if (bookingId) {
             await Booking.findByIdAndUpdate(bookingId, {
                 status: 'completed',
+                paymentStatus: 'paid', // [FIX] Sync payment status for Filter
                 finalPrice: finalTotal,
                 actualEndTime: new Date() // Set actual finish time now
             });

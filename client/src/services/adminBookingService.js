@@ -3,12 +3,17 @@ const API_URL = 'http://localhost:3000';
 
 export const adminBookingService = {
   // 1. Lấy danh sách Booking (Có lọc)
-  getAllBookings: async (date = null, status = null) => {
+  getAllBookings: async (filters = {}) => {
     try {
-      // Xây dựng URL: /api/bookings?date=...&status=...
+      // Xây dựng URL: /api/bookings?date=...&staffId=...&paymentStatus=...
       const params = new URLSearchParams();
+      // Handle both old signature (date, status) and new object style
+      const date = filters.date || (typeof filters === 'string' ? filters : null); // Backwards compat
+      
       if (date) params.append('date', date);
-      if (status) params.append('status', status);
+      if (filters.status) params.append('status', filters.status);
+      if (filters.staffId) params.append('staffId', filters.staffId);
+      if (filters.paymentStatus) params.append('paymentStatus', filters.paymentStatus);
 
       const response = await fetch(`${API_URL}/api/bookings?${params.toString()}`);
       const data = await response.json();
@@ -44,6 +49,16 @@ export const adminBookingService = {
         console.error('Lỗi tạo booking:', error);
         return { success: false, message: 'Lỗi kết nối' };
     }
+  },
+
+  // [NEW] SEARCH BOOKINGS (Global)
+  searchBookings: async (query) => {
+      try {
+          const response = await fetch(`${API_URL}/api/bookings/search?query=${encodeURIComponent(query)}`);
+          return await response.json();
+      } catch (error) {
+          return { success: false, message: error.message };
+      }
   },
 
   // 3. Cập nhật Booking
@@ -155,5 +170,38 @@ export const adminBookingService = {
     } catch (error) {
         return [];
     }
+  }
+  ,
+
+  // --- WAITLIST (NEW) ---
+  addToWaitlist: async (data) => {
+      try {
+          const response = await fetch(`${API_URL}/api/waitlist`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data)
+          });
+          return await response.json();
+      } catch (error) {
+          return { success: false, message: error.message };
+      }
+  },
+
+  getWaitlist: async () => {
+      try {
+          const response = await fetch(`${API_URL}/api/waitlist`);
+          return await response.json();
+      } catch (error) {
+          return { success: false, message: error.message };
+      }
+  },
+
+  deleteWaitlist: async (id) => {
+      try {
+          const response = await fetch(`${API_URL}/api/waitlist/${id}`, { method: 'DELETE' });
+          return await response.json();
+      } catch (error) {
+          return { success: false, message: error.message };
+      }
   }
 };

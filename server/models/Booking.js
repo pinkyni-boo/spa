@@ -42,6 +42,13 @@ const BookingSchema = new mongoose.Schema({
     enum: ['online', 'offline'],
     default: 'online'
   },
+
+  // [NEW] PAYMENT STATUS (Advanced Filter)
+  paymentStatus: {
+      type: String,
+      enum: ['unpaid', 'paid'],
+      default: 'unpaid'
+  },
   
   // [NEW] Thực tế làm: Check-in / Checkout
   actualStartTime: { type: Date },

@@ -47,9 +47,11 @@ export const resourceService = {
   },
 
   // --- SERVICES (NEW PHASE 6) ---
-  getAllServices: async () => {
+  getAllServices: async (type) => {
       try {
-          const response = await fetch(`${API_URL}/services`);
+          let url = `${API_URL}/services`;
+          if (type) url += `?type=${type}`;
+          const response = await fetch(url);
           return await response.json();
       } catch (error) {
           return { success: false, message: 'Network error' };
@@ -85,6 +87,15 @@ export const resourceService = {
   deleteService: async (id) => {
       try {
           const response = await fetch(`${API_URL}/services/${id}`, { method: 'DELETE' });
+          return await response.json();
+      } catch (error) {
+          return { success: false, message: 'Network error' };
+      }
+  },
+
+  seedServices: async () => {
+      try {
+          const response = await fetch(`${API_URL}/services/seed`, { method: 'POST' });
           return await response.json();
       } catch (error) {
           return { success: false, message: 'Network error' };

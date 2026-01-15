@@ -12,6 +12,7 @@ dayjs.extend(customParseFormat);
 // ---------------------------------------------------------
 // HELPER: MUTEX (Concurrency Control)
 // ---------------------------------------------------------
+// [RESTART TRIGGER: 19:55]
 class Mutex {
     constructor() {
         this._locking = Promise.resolve();
@@ -175,7 +176,7 @@ exports.checkAvailability = async (req, res) => {
 exports.createBooking = async (req, res) => {
     const unlock = await bookingMutex.lock();
     try {
-        const { customerName, phone, serviceName, date, time } = req.body;
+        const { customerName, phone, serviceName, date, time, roomId, staffId } = req.body; // [UPDATED] Accept roomId, staffId
 
         // 1. Parse Date/Time
         const startTime = dayjs(`${date} ${time}`, 'YYYY-MM-DD HH:mm');
@@ -186,7 +187,8 @@ exports.createBooking = async (req, res) => {
         if (!service) return res.status(404).json({ message: 'Dịch vụ k tồn tại' });
         
         const endTime = startTime.add(service.duration, 'minute');
-        const bufferTime = service.breakTime || 30; // UPDATED: Use dynamic breakTime
+        // [FIX] Buffer Time: If 0, keep 0. Only use 30 if undefined/null.
+        const bufferTime = (service.breakTime !== undefined && service.breakTime !== null) ? service.breakTime : 30;
         const busyEndTime = endTime.add(bufferTime, 'minute');
 
         // 3. AUTO-ASSIGN RESOURCE (SIMPLE STRATEGY)
@@ -196,8 +198,8 @@ exports.createBooking = async (req, res) => {
         // ... (Re-query resource to be safe inside Mutex) ...
         const allRooms = await Room.find({ isActive: true });
         // REMOVED skill check: All active staff are qualified
-        const qualifiedStaff = await Staff.find({ isActive: true });
-        
+        let qualifiedStaff = await Staff.find({ isActive: true }); // Let to modify
+
         // Overlap Range
         const dayStart = dayjs(`${date} 00:00`).toDate();
         const dayEnd = dayjs(`${date} 23:59`).toDate();
@@ -206,18 +208,37 @@ exports.createBooking = async (req, res) => {
             status: { $ne: 'cancelled' }
         });
 
-        // Find Room
-        const assignedRoom = allRooms.find(room => {
-             const isBusy = bookingsToday.some(b => {
-                 if (b.roomId?.toString() === room._id.toString()) {
-                     const bStart = dayjs(b.startTime);
-                     const bEnd = dayjs(b.endTime).add(b.bufferTime || 0, 'minute');
-                     return (startTime.isBefore(bEnd) && busyEndTime.isAfter(bStart));
-                 }
-                 return false;
-             });
-             return !isBusy;
-        });
+        // [new] A. Find Room
+        let assignedRoom = null;
+
+        if (roomId) {
+            // TARGETED BOOKING (Drag & Drop)
+            const targetRoom = allRooms.find(r => r._id.toString() === roomId);
+            if (targetRoom) {
+                 const isBusy = bookingsToday.some(b => {
+                     if (b.roomId?.toString() === targetRoom._id.toString()) {
+                         const bStart = dayjs(b.startTime);
+                         const bEnd = dayjs(b.endTime).add(b.bufferTime || 0, 'minute');
+                         return (startTime.isBefore(bEnd) && busyEndTime.isAfter(bStart));
+                     }
+                     return false;
+                 });
+                 if (!isBusy) assignedRoom = targetRoom;
+            }
+        } else {
+            // AUTO ASSIGN
+            assignedRoom = allRooms.find(room => {
+                const isBusy = bookingsToday.some(b => {
+                    if (b.roomId?.toString() === room._id.toString()) {
+                        const bStart = dayjs(b.startTime);
+                        const bEnd = dayjs(b.endTime).add(b.bufferTime || 0, 'minute');
+                        return (startTime.isBefore(bEnd) && busyEndTime.isAfter(bStart));
+                    }
+                    return false;
+                });
+                return !isBusy;
+            });
+        }
 
         if (!assignedRoom) {
             return res.status(409).json({ success: false, message: 'Hết phòng vào giờ này rồi!' });
@@ -296,7 +317,7 @@ exports.createBooking = async (req, res) => {
              startTime: startTime.toDate(),
              endTime: endTime.toDate(),
              bufferTime: bufferTime,
-             status: 'pending',
+             status: req.body.status || 'pending', // [FIX] Accept status from request
              source: req.body.source || 'online'
          });
 
@@ -322,7 +343,7 @@ exports.createBooking = async (req, res) => {
 // ---------------------------------------------------------
 exports.getAllBookings = async (req, res) => {
   try {
-    const { date, phone } = req.query; // [UPDATED] Phone filter
+    const { date, phone, staffId, paymentStatus } = req.query; // [UPDATED] Filters
     let query = {};
 
     if (date) {
@@ -334,6 +355,26 @@ exports.getAllBookings = async (req, res) => {
     if (phone) {
         query.phone = phone; // Filter by phone
         delete query.startTime; // If searching history, ignore date
+    }
+
+    // [NEW] ADVANCED FILTERS
+    if (staffId) {
+        query.staffId = staffId;
+    }
+    
+    // Logic: Nếu chọn unpaid, bao gồm cả (unpaid) VÀ (không có trường paymentStatus - dữ liệu cũ)
+    if (paymentStatus === 'unpaid') {
+        const { paymentStatus: _, ...rest } = query; // Remove simple assignment
+        query = { 
+            ...rest, 
+            $or: [
+                { paymentStatus: 'unpaid' }, 
+                { paymentStatus: { $exists: false } },
+                { paymentStatus: null }
+            ]
+        };
+    } else if (paymentStatus) {
+         query.paymentStatus = paymentStatus;
     }
 
     const bookings = await Booking.find(query)
@@ -400,6 +441,33 @@ exports.checkIn = async (req, res) => {
 };
 
 // B. SMART UPSELL (Thêm dịch vụ & Check xung đột)
+// C. GLOBAL SEARCH (For "Sync Search" feature)
+exports.searchBookings = async (req, res) => {
+    try {
+        const { query } = req.query; // Search text (name or phone)
+        if (!query) return res.json({ success: true, bookings: [] });
+
+        // Search logic: Find bookings with matching customerName Or Phone
+        // Case insensitive regex
+        const regex = new RegExp(query, 'i');
+        
+        const bookings = await Booking.find({
+            $or: [
+                { customerName: regex },
+                { phone: regex }
+            ],
+            status: { $ne: 'cancelled' } // Optional: Exclude cancelled? User might want to find them too. Let's keep them but maybe sort by active first.
+        })
+        .populate('serviceId', 'name') // Just need basic info
+        .sort({ startTime: 1 }) // Future first
+        .limit(20); // Limit results for speed
+
+        res.json({ success: true, bookings });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 exports.updateBookingServices = async (req, res) => {
     const unlock = await bookingMutex.lock(); // Dùng Mutex để tránh tranh chấp
     try {

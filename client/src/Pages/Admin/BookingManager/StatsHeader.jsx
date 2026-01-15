@@ -35,34 +35,7 @@ const StatsHeader = ({ bookings }) => {
 
     const formattedRevenue = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(revenue);
 
-    return (
-        <Row gutter={16} style={{ marginBottom: '24px' }}>
-            <Col span={8}>
-                <StatCard 
-                    title="Đơn Chờ Xử Lý" 
-                    value={pendingCount} 
-                    icon="notifications_active" 
-                    gradient={theme.gradients.royalGold} 
-                    textColor="#fff"
-                />
-            </Col>
-            <Col span={8}>
-                <StatCard 
-                    title="Khách Hôm Nay" 
-                    value={todayCount} 
-                    icon="calendar_today" 
-                />
-            </Col>
-            <Col span={8}>
-                <StatCard 
-                    title="Doanh Thu (Tạm tính)" 
-                    value={formattedRevenue}
-                    icon="payments" 
-                    textColor="#52c41a"
-                />
-            </Col>
-        </Row>
-    );
+   
 };
 
 export default StatsHeader;
