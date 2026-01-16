@@ -2,6 +2,7 @@ const Booking = require('../models/Booking');
 const Service = require('../models/Service');
 const Staff = require('../models/Staff');
 const Room = require('../models/Room');
+const Waitlist = require('../models/Waitlist');
 const dayjs = require('dayjs');
 const isBetween = require('dayjs/plugin/isBetween');
 const customParseFormat = require('dayjs/plugin/customParseFormat');
@@ -12,7 +13,7 @@ dayjs.extend(customParseFormat);
 // ---------------------------------------------------------
 // HELPER: MUTEX (Concurrency Control)
 // ---------------------------------------------------------
-// [RESTART TRIGGER: 19:55]
+// [RESTART TRIGGER: 16:17 - Bulk Complete API]
 class Mutex {
     constructor() {
         this._locking = Promise.resolve();
@@ -512,5 +513,157 @@ exports.updateBookingServices = async (req, res) => {
         res.status(500).json({ success: false, message: 'Lỗi cập nhật dịch vụ' });
     } finally {
         unlock();
+    }
+};
+
+// ---------------------------------------------------------
+// [NEW] CRM - GET CUSTOMER HISTORY
+// ---------------------------------------------------------
+exports.getCustomerHistory = async (req, res) => {
+    try {
+        const { phone } = req.params;
+        
+        if (!phone) {
+            return res.status(400).json({ success: false, message: 'Thiếu số điện thoại' });
+        }
+
+        // Find all bookings for this phone number
+        const bookings = await Booking.find({ phone })
+            .populate('serviceId', 'name price duration')
+            .populate('staffId', 'name')
+            .populate('roomId', 'name')
+            .sort({ startTime: -1 }) // Newest first
+            .lean();
+
+        // Map to include serviceName for frontend compatibility
+        const mappedBookings = bookings.map(b => ({
+            ...b,
+            serviceName: b.serviceId?.name || 'N/A',
+            staffName: b.staffId?.name || 'N/A',
+            roomName: b.roomId?.name || 'N/A'
+        }));
+
+        res.json({ success: true, bookings: mappedBookings });
+    } catch (error) {
+        console.error('Error fetching customer history:', error);
+        res.status(500).json({ success: false, message: 'Lỗi tải lịch sử khách hàng' });
+    }
+};
+
+// ---------------------------------------------------------
+// [UTILITY] BULK COMPLETE PAST BOOKINGS
+// ---------------------------------------------------------
+exports.completePastBookings = async (req, res) => {
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const result = await Booking.updateMany(
+            { 
+                startTime: { $lt: today },
+                status: { $in: ['pending', 'confirmed'] }
+            },
+            { 
+                $set: { status: 'completed' } 
+            }
+        );
+
+        res.json({ 
+            success: true, 
+            message: `Đã hoàn thành ${result.modifiedCount} đơn hàng cũ`,
+            modifiedCount: result.modifiedCount
+        });
+    } catch (error) {
+        console.error('Error completing past bookings:', error);
+        res.status(500).json({ success: false, message: 'Lỗi cập nhật đơn hàng' });
+    }
+};
+
+// ---------------------------------------------------------
+// [UTILITY] FIX FUTURE COMPLETED BOOKINGS
+// ---------------------------------------------------------
+exports.fixFutureBookings = async (req, res) => {
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const result = await Booking.updateMany(
+            { 
+                startTime: { $gte: today },
+                status: 'completed'
+            },
+            { 
+                $set: { status: 'confirmed' } 
+            }
+        );
+
+        res.json({ 
+            success: true, 
+            message: `Đã sửa ${result.modifiedCount} đơn tương lai về 'confirmed'`,
+            modifiedCount: result.modifiedCount
+        });
+    } catch (error) {
+        console.error('Error fixing future bookings:', error);
+        res.status(500).json({ success: false, message: 'Lỗi cập nhật đơn hàng' });
+    }
+};
+
+// ---------------------------------------------------------
+// [SMART ALERT] FIND MATCHING WAITLIST
+// ---------------------------------------------------------
+exports.findMatchingWaitlist = async (req, res) => {
+    try {
+        const { startTime, endTime, serviceName } = req.body;
+
+        if (!startTime || !endTime || !serviceName) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Missing required fields: startTime, endTime, serviceName' 
+            });
+        }
+
+        const start = new Date(startTime);
+        const end = new Date(endTime);
+
+        // 1. Find waitlist items with matching service
+        const waitlistItems = await Waitlist.find({ serviceName });
+
+        if (waitlistItems.length === 0) {
+            return res.json({ success: true, matches: [] });
+        }
+
+        // 2. Check room availability for each waitlist item
+        const matches = [];
+
+        for (const item of waitlistItems) {
+            // Find available rooms for this time slot
+            const allRooms = await Room.find();
+            const conflictingBookings = await Booking.find({
+                startTime: { $lt: end },
+                endTime: { $gt: start },
+                status: { $in: ['confirmed', 'processing'] }
+            }).select('roomId');
+
+            const occupiedRoomIds = conflictingBookings.map(b => b.roomId.toString());
+            const availableRooms = allRooms.filter(r => !occupiedRoomIds.includes(r._id.toString()));
+
+            if (availableRooms.length > 0) {
+                matches.push({
+                    waitlistItem: item,
+                    availableRooms: availableRooms.map(r => ({ id: r._id, name: r.name }))
+                });
+            }
+        }
+
+        res.json({ 
+            success: true, 
+            matches,
+            message: matches.length > 0 
+                ? `Tìm thấy ${matches.length} khách hàng phù hợp trong hàng chờ!`
+                : 'Không có khách hàng phù hợp trong hàng chờ'
+        });
+    } catch (error) {
+        console.error('Error finding matching waitlist:', error);
+        res.status(500).json({ success: false, message: 'Lỗi tìm kiếm hàng chờ' });
     }
 };

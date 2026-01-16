@@ -17,6 +17,7 @@ router.delete('/services/:id', ServiceController.deleteService);
 router.post('/bookings/check-slot', BookingController.checkAvailability);
 router.post('/bookings', BookingController.createBooking);
 router.get('/bookings/search', BookingController.searchBookings); // [NEW] Global Search - Trigger Restart
+router.get('/bookings/history/:phone', BookingController.getCustomerHistory); // [NEW] CRM - Customer History
 router.get('/bookings', BookingController.getAllBookings); // Admin
 router.put('/bookings/:id', BookingController.updateBooking);
 router.delete('/bookings/:id', BookingController.cancelBooking);
@@ -24,6 +25,10 @@ router.delete('/bookings/:id', BookingController.cancelBooking);
 // [PHASE 4] Smart Operations Routes
 router.post('/bookings/:id/check-in', BookingController.checkIn);
 router.put('/bookings/:id/services', BookingController.updateBookingServices);
+router.post('/bookings/complete-past', BookingController.completePastBookings); // [NEW] Bulk complete
+router.get('/bookings/complete-past', BookingController.completePastBookings); // [NEW] Also support GET for browser
+router.get('/bookings/fix-future', BookingController.fixFutureBookings); // [NEW] Fix future completed bookings
+router.post('/bookings/find-waitlist-match', BookingController.findMatchingWaitlist); // [NEW] Smart Alert
 
 // --- INVOICE ROUTES (NEW PHASE 4) ---
 const InvoiceController = require('../controllers/InvoiceController'); 

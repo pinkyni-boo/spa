@@ -2,12 +2,13 @@ const Waitlist = require('../models/Waitlist');
 
 exports.addToWaitlist = async (req, res) => {
     try {
-        const { customerName, phone, serviceName, duration, note } = req.body;
+        const { customerName, phone, serviceName, duration, note, preferredTime } = req.body;
         const newItem = new Waitlist({
             customerName,
             phone,
             serviceName,
             duration,
+            preferredTime,
             note
         });
         await newItem.save();

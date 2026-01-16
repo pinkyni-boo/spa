@@ -196,6 +196,34 @@ export const adminBookingService = {
       }
   },
 
+  // [NEW] CRM - Get Customer History
+  getCustomerHistory: async (phone) => {
+      try {
+          const response = await fetch(`${API_URL}/api/bookings/history/${phone}`);
+          const data = await response.json();
+          return data.bookings || data || [];
+      } catch (error) {
+          console.error('Error fetching customer history:', error);
+          return [];
+      }
+  },
+
+  // [SMART ALERT] Find matching waitlist items for available slot
+  findMatchingWaitlist: async (startTime, endTime, serviceName) => {
+      try {
+          const response = await fetch(`${API_URL}/bookings/find-waitlist-match`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ startTime, endTime, serviceName })
+          });
+          const data = await response.json();
+          return data;
+      } catch (error) {
+          console.error('Error finding matching waitlist:', error);
+          throw error;
+      }
+  },
+
   deleteWaitlist: async (id) => {
       try {
           const response = await fetch(`${API_URL}/api/waitlist/${id}`, { method: 'DELETE' });

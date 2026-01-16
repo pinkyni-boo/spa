@@ -74,7 +74,22 @@ const DnDCalendarView = ({ date, views, events, resources, onNavigate, onEventDr
             setTimeout(() => {
                 const eventElement = document.querySelector(`.booking-highlight-${highlightBookingId}`);
                 if (eventElement) {
-                    eventElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Get the calendar container (scrollable parent)
+                    const calendarContainer = eventElement.closest('.rbc-time-content');
+                    
+                    if (calendarContainer) {
+                        // Calculate position with offset for header (100px buffer)
+                        const elementTop = eventElement.offsetTop;
+                        const offset = 100; // Space for date header
+                        
+                        calendarContainer.scrollTo({
+                            top: elementTop - offset,
+                            behavior: 'smooth'
+                        });
+                    } else {
+                        // Fallback to scrollIntoView
+                        eventElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
                 }
             }, 100);
         }
@@ -82,11 +97,19 @@ const DnDCalendarView = ({ date, views, events, resources, onNavigate, onEventDr
 
     // Style cho event
     const eventPropGetter = useCallback((event) => {
+        // HIDE CANCELLED BOOKINGS
+        if (event.status === 'cancelled') {
+            return { 
+                style: { display: 'none' }, 
+                className: `booking-highlight-${event.id}` 
+            };
+        }
+
         let newStyle = {
-            backgroundColor: theme.colors.primary[500],
-            color: 'white',
+            backgroundColor: 'white', // Default white
+            color: '#333',
             borderRadius: '4px',
-            border: 'none',
+            border: '1px solid #d9d9d9',
             fontSize: '12px',
             fontWeight: '600',
             overflow: 'hidden'
@@ -95,47 +118,43 @@ const DnDCalendarView = ({ date, views, events, resources, onNavigate, onEventDr
         const now = dayjs();
         const start = dayjs(event.start);
         
-        let className = `booking-highlight-${event.id}`; // [NEW] Class helper for selector
+        let className = `booking-highlight-${event.id}`;
 
-        // 1. Pending: Vàng Cam (Soft Lock)
+        // 1. Pending: Vàng FULL
         if (event.status === 'pending') {
-            newStyle.backgroundColor = '#fffbe6'; // Light Yellow Background
-            newStyle.border = '1px solid #ffe58f'; // Yellow Border
-            newStyle.color = '#faad14'; // Dark Yellow Text
-            newStyle.backgroundImage = 'none';
+            newStyle.backgroundColor = '#fadb14'; // Yellow FULL
+            newStyle.border = '1px solid #d4b106';
+            newStyle.color = 'white';
         } 
-        // 2. Confirmed: Xanh Dương (Sắp tới)
+        // 2. Confirmed: Trắng (hoặc Trễ nếu hôm nay + qua giờ)
         else if (event.status === 'confirmed') {
-             newStyle.backgroundColor = '#1890ff'; // Blue
+             const isToday = start.isSame(now, 'day');
+             const isPast = now.isAfter(start);
              
-             // [NEW] Warning Logic: Trễ giờ chưa Check-in
-             if (now.isAfter(start.add(15, 'minute'))) {
-                 // Trễ quá 15p -> Báo Động Đỏ
-                 newStyle.backgroundColor = '#ff4d4f'; 
+             if (isToday && isPast) {
+                 // Trễ → Trắng + viền cam nhấp nháy
+                 newStyle.backgroundColor = 'white';
+                 newStyle.border = '3px solid #fa8c16'; // Orange border
+                 newStyle.color = '#d46b08';
                  newStyle.animation = 'pulse 2s infinite';
-             } else if (now.isAfter(start)) {
-                 // Vừa trễ -> Báo Động Cam
-                 newStyle.backgroundColor = '#faad14';
+             } else {
+                 // Sắp tới → Trắng
+                 newStyle.backgroundColor = 'white';
+                 newStyle.border = '1px solid #d9d9d9';
+                 newStyle.color = '#333';
              }
         }
-        // 3. Processing: Xanh Lá (Đang làm)
+        // 3. Processing: Xanh lá FULL
         else if (event.status === 'processing') {
-            newStyle.backgroundColor = '#52c41a'; // Green
-            newStyle.boxShadow = '0 0 8px rgba(82, 196, 26, 0.6)'; // Glow Effect
+            newStyle.backgroundColor = '#52c41a'; // Green FULL
+            newStyle.border = '1px solid #389e0d';
+            newStyle.color = 'white';
         }
-        // 4. Completed: Xám (Ghost)
+        // 4. Completed: Xám FULL
         else if (event.status === 'completed') {
-            newStyle.backgroundColor = '#f5f5f5'; // Grey Background
-            newStyle.color = '#bfbfbf'; // Grey Text
-            newStyle.border = '1px solid #d9d9d9';
-            newStyle.opacity = 0.7;
-        }
-        // 5. Cancelled: Ẩn hoặc Đỏ nhạt
-        else if (event.status === 'cancelled') {
-             newStyle.backgroundColor = '#fff2f0';
-             newStyle.color = '#ffccc7';
-             newStyle.textDecoration = 'line-through';
-             newStyle.opacity = 0.5;
+            newStyle.backgroundColor = '#8c8c8c'; // Gray FULL
+            newStyle.color = 'white';
+            newStyle.border = '1px solid #595959';
         }
 
         // Highlight Effect from Search
@@ -143,20 +162,6 @@ const DnDCalendarView = ({ date, views, events, resources, onNavigate, onEventDr
             newStyle.animation = 'flash 1s infinite';
             newStyle.border = '2px solid #f5222d';
             newStyle.zIndex = 100;
-        }
-
-        // [NEW] UNPAID INDICATOR (Override colors if Unpaid and Completed)
-        // Only override if not already cancelled or pending
-        if (event.paymentStatus === 'unpaid' && event.status !== 'cancelled' && event.status !== 'pending') {
-             // Logic: If service is Done (Completed) OR Processing but not paid
-             // User said: "Khách làm xong ... đỏ lòm" -> Status Completed + Unpaid
-             if (event.status === 'completed') {
-                  newStyle.backgroundColor = '#ff4d4f'; // Red
-                  newStyle.color = 'white';
-                  newStyle.border = '2px solid #cf1322';
-                  newStyle.fontWeight = 'bold';
-                  newStyle.opacity = 1; // Remove ghost effect
-             }
         }
 
         return { style: newStyle, className: className };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Typography, Segmented, Button, message, Modal, Form, Input, DatePicker, Select, ConfigProvider, Badge, Radio, AutoComplete, Tag } from 'antd'; // Added AutoComplete, Tag
-import { AppstoreOutlined, BarsOutlined, PlusOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, BarsOutlined, PlusOutlined, LeftOutlined, RightOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import theme from '../../../theme';
 
@@ -14,7 +14,8 @@ import BookingListView from './BookingListView';
 import BookingDrawer from './BookingDrawer';
 import DnDCalendarView from './DnDCalendarView';
 import InvoiceModal from '../Payment/InvoiceModal'; // [MOVED]
-import WaitlistSidebar from './WaitlistSidebar'; // [NEW]
+import WaitlistSidebar from './WaitlistSidebar';
+import CustomerInfoSidebar from './CustomerInfoSidebar'; // [NEW]
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -27,6 +28,13 @@ for (let i = 9; i <= 18; i++) { TIME_SLOTS.push(`${i}:00`); if(i!==18) TIME_SLOT
 const BookingManager = () => {
     // STATE
     const [viewMode, setViewMode] = useState('calendar'); // 'calendar' | 'list'
+    
+    // [NEW] DYNAMIC SIDEBAR STATE
+    const [rightSidebarMode, setRightSidebarMode] = useState('waitlist'); // 'waitlist' | 'customer'
+    const [viewingCustomer, setViewingCustomer] = useState(null);
+    const [customerHistory, setCustomerHistory] = useState([]);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // [NEW] Collapsible sidebar
+    // STATE -- (Original state declarations follow below)
     const [bookings, setBookings] = useState([]);
     const [rooms, setRooms] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -96,7 +104,12 @@ const BookingManager = () => {
             // B. Get Rooms (For Calendar Resources)
             const roomRes = await resourceService.getAllRooms();
             if (roomRes?.success) {
-                 setRooms(roomRes.rooms.map(r => ({ id: r._id, title: r.name })));
+                 const dbRooms = roomRes.rooms.map(r => ({ id: r._id, title: r.name }));
+                 // [FIX] Add 'Unassigned' resource for web bookings or manual bookings without room
+                 setRooms([
+                    { id: 'unknown', title: '❓ Chưa xếp phòng' },
+                    ...dbRooms
+                 ]);
             }
             
             // C. Get Staffs (For Filter)
@@ -126,6 +139,38 @@ const BookingManager = () => {
             if (action === 'cancel') {
                 if (!window.confirm('Hủy đơn này?')) return;
                 await adminBookingService.cancelBooking(booking._id);
+                
+                // [SMART ALERT] Check for matching waitlist items
+                try {
+                    const matchResult = await adminBookingService.findMatchingWaitlist(
+                        booking.startTime,
+                        booking.endTime,
+                        booking.serviceName
+                    );
+                    
+                    if (matchResult.success && matchResult.matches && matchResult.matches.length > 0) {
+                        // Show toast notification
+                        message.success({
+                            content: (
+                                <div>
+                                    🎉 <strong>{matchResult.message}</strong>
+                                    <div style={{ marginTop: 4, fontSize: 12 }}>
+                                        {matchResult.matches.map((m, idx) => (
+                                            <div key={idx}>• {m.waitlistItem.customerName} - {m.waitlistItem.phone}</div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ),
+                            duration: 8
+                        });
+                        
+                        // Auto-expand sidebar
+                        setSidebarCollapsed(false);
+                        setRightSidebarMode('waitlist');
+                    }
+                } catch (error) {
+                    console.error('Error checking waitlist matches:', error);
+                }
             } 
             else if (action === 'approve') {
                 await adminBookingService.updateBooking(booking._id, { status: 'confirmed' });
@@ -224,6 +269,73 @@ const BookingManager = () => {
             message.success("Đã gia hạn!");
             fetchData();
          } catch(e) { message.error("Lỗi đổi giờ"); }
+    };
+
+
+    // [NEW] SEARCH HANDLER
+    const handleSearchSelect = async (value, option) => {
+        const b = option.booking;
+        console.log('[SEARCH] Selected booking:', b);
+        
+        if (!b) return;
+
+        // 1. Highlight on Calendar (Existing)
+        if (b.startTime) {
+             setFilterStaff(null);
+             setFilterPayment(null);
+             setCurrentDate(dayjs(b.startTime));
+             setHighlightBookingId(b._id);
+             setTimeout(() => setHighlightBookingId(null), 3000);
+        }
+
+        // 2. Fetch Customer Details (NEW - CRM)
+        const phoneToSearch = b.phone; 
+        console.log('[SEARCH] Phone to search:', phoneToSearch);
+        
+        if (phoneToSearch) {
+             setViewingCustomer({
+                 name: b.customerName,
+                 phone: b.phone
+             });
+             
+             // Fetch History
+             try {
+                 console.log('[SEARCH] Calling getCustomerHistory with:', phoneToSearch);
+                 const history = await adminBookingService.getCustomerHistory(phoneToSearch);
+                 console.log('[SEARCH] History received:', history);
+                 setCustomerHistory(history);
+                 setRightSidebarMode('customer'); // SWITCH SIDEBAR
+             } catch (e) {
+                 console.error('[SEARCH] Error:', e);
+                 message.error("Lỗi tải lịch sử khách hàng");
+             }
+        } else {
+            console.warn('[SEARCH] No phone number found in booking:', b);
+        }
+    };
+
+    // [NEW] QUICK APPROVE HANDLER
+    const handleApprove = async (booking) => {
+        try {
+            // Approve booking directly
+            const result = await adminBookingService.updateBooking(booking._id, {
+                status: 'confirmed'
+            });
+
+            if (result.success) {
+                message.success(`✅ Đã duyệt đơn cho ${booking.customerName}`);
+                fetchData(); // Refresh list
+            } else {
+                // Backend will return error if conflict exists
+                message.error({
+                    content: `⚠️ ${result.message || 'Không thể duyệt đơn này'}`,
+                    duration: 5
+                });
+            }
+        } catch (error) {
+            console.error('[APPROVE] Error:', error);
+            message.error('Lỗi hệ thống khi duyệt đơn');
+        }
     };
 
     // E. Waitlist Drop Handler
@@ -396,18 +508,7 @@ const BookingManager = () => {
                                 ),
                                 booking: b 
                             }))}
-                            onSelect={(value, option) => {
-                                const b = option.booking;
-                                if (!b?.startTime) return;
-                                
-                                // [FIX] Auto-clear filters so the user can actually SEE the result
-                                setFilterStaff(null); 
-                                setFilterPayment(null);
-
-                                setCurrentDate(dayjs(b.startTime));
-                                setHighlightBookingId(b._id);
-                                setTimeout(() => setHighlightBookingId(null), 3000);
-                            }}
+                            onSelect={handleSearchSelect}
                             onSearch={(val) => {
                                 // Add search logic that was missing
                                 if (val.length >= 1) { // [FIX] Search immediately from 1 char
@@ -548,6 +649,7 @@ const BookingManager = () => {
                                     filterDate={currentDate}
                                     setFilterDate={setCurrentDate}
                                     onCreate={openCreateModal}
+                                    onApprove={handleApprove}
                                     onEdit={(record) => {
                                         setSelectedBooking(record);
                                         setDrawerVisible(true); 
@@ -557,27 +659,92 @@ const BookingManager = () => {
                         )}
                     </div>
 
-                    {/* RIGHT: WAITLIST SIDEBAR (Fixed Width 240px - Narrower) */}
-                    {viewMode === 'calendar' && (
-                        <div style={{ 
-                            width: 240, 
-                            background: 'white', 
-                            borderRadius: 12, 
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
-                            display: 'flex', 
-                            flexDirection: 'column',
-                            height: '100%',
-                            flexShrink: 0,
-                            border: '1px solid #f0f0f0'
-                        }}>
-                             <WaitlistSidebar 
-                                waitlist={waitlist}
-                                setWaitlist={setWaitlist}
-                                refreshTrigger={refreshWaitlist}
-                                onDragStart={(item) => setDraggedWaitlistItem(item)}
-                             />
-                        </div>
-                    )}
+                    {/* RIGHT: DYNAMIC SIDEBAR (Collapsible) - Always visible */}
+                    <div style={{ position: 'relative' }}>
+                        {/* Floating Badge (outside sidebar) */}
+                        {sidebarCollapsed && waitlist.length > 0 && (
+                            <div style={{
+                                position: 'absolute',
+                                top: -8,
+                                right: -8,
+                                background: '#ff4d4f',
+                                color: 'white',
+                                borderRadius: '50%',
+                                width: 24,
+                                height: 24,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 12,
+                                fontWeight: 'bold',
+                                zIndex: 20,
+                                boxShadow: '0 2px 8px rgba(255, 77, 79, 0.4)',
+                                border: '2px solid white'
+                            }}>
+                                {waitlist.length}
+                            </div>
+                        )}
+
+                        {sidebarCollapsed ? (
+                            // Collapsed: Show as compact button
+                            <Button
+                                type="primary"
+                                icon={<UnorderedListOutlined />}
+                                onClick={() => setSidebarCollapsed(false)}
+                                style={{
+                                    height: 40,
+                                    borderRadius: 8,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    padding: '0 12px',
+                                    fontSize: 14,
+                                    fontWeight: 500
+                                }}
+                            >
+                                
+                            </Button>
+                        ) : (
+                            // Expanded: Show full sidebar
+                            <div 
+                                style={{ 
+                                    width: 260,
+                                    background: 'white', 
+                                    borderRadius: 12, 
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                                    display: 'flex', 
+                                    flexDirection: 'column',
+                                    height: '100%',
+                                    flexShrink: 0,
+                                    border: '1px solid #f0f0f0',
+                                    position: 'relative',
+                                    transition: 'all 0.3s ease-in-out',
+                                    overflow: 'hidden'
+                                }}
+                            >
+                                {rightSidebarMode === 'waitlist' ? (
+                                    <WaitlistSidebar 
+                                       waitlist={waitlist}
+                                       setWaitlist={setWaitlist}
+                                       refreshTrigger={refreshWaitlist}
+                                       onDragStart={(item) => setDraggedWaitlistItem(item)}
+                                       onCollapse={() => setSidebarCollapsed(true)}
+                                    />
+                                ) : (
+                                    <CustomerInfoSidebar 
+                                       customer={viewingCustomer}
+                                       history={customerHistory}
+                                       onClose={() => setRightSidebarMode('waitlist')}
+                                       onSelectHistory={(booking) => {
+                                           setCurrentDate(dayjs(booking.startTime));
+                                           setHighlightBookingId(booking._id);
+                                           setTimeout(() => setHighlightBookingId(null), 3000);
+                                       }}
+                                    />
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
                 {/* DRAWER (DETAILS) */}
                 <BookingDrawer 

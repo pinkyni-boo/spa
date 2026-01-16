@@ -5,7 +5,7 @@ import theme from '../../../theme';
 
 const { Text } = Typography;
 
-const BookingListView = ({ bookings, loading, onEdit, filterDate, setFilterDate, onCreate }) => {
+const BookingListView = ({ bookings, loading, onEdit, onApprove, filterDate, setFilterDate, onCreate }) => {
     const [activeTab, setActiveTab] = useState('all');
 
     // Filter Logic
@@ -86,11 +86,10 @@ const BookingListView = ({ bookings, loading, onEdit, filterDate, setFilterDate,
       title: 'TRẠNG THÁI',
       dataIndex: 'status',
       key: 'status',
-      width: 140,
-      render: (status) => {
+      width: 180,
+      render: (status, record) => {
         let color = 'default'; 
         let text = 'Khác';
-        let icon = null;
 
         switch(status) {
             case 'confirmed':
@@ -116,7 +115,25 @@ const BookingListView = ({ bookings, loading, onEdit, filterDate, setFilterDate,
             default:
                 color = 'default';
         }
-        return <Tag color={color} style={{ fontWeight: 600 }}>{text}</Tag>;
+        
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Tag color={color} style={{ fontWeight: 600 }}>{text}</Tag>
+                {status === 'pending' && (
+                    <Button 
+                        type="primary" 
+                        size="small"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onApprove && onApprove(record);
+                        }}
+                        style={{ fontSize: 12 }}
+                    >
+                        Duyệt
+                    </Button>
+                )}
+            </div>
+        );
       },
     },
     {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Button, Typography, Tag, List, message, Input, Form, Modal, Select, Tooltip } from 'antd';
-import { UserAddOutlined, DragOutlined, DeleteOutlined, PlusOutlined, ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
+import { Card, Button, Typography, Tag, List, message, Input, Form, Modal, Select, Tooltip, TimePicker } from 'antd';
+import { UserAddOutlined, DragOutlined, DeleteOutlined, PlusOutlined, ClockCircleOutlined, UserOutlined, LeftOutlined } from '@ant-design/icons';
 import { adminBookingService } from '../../../services/adminBookingService';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -11,7 +11,7 @@ dayjs.locale('vi');
 
 const { Title, Text } = Typography;
 
-const WaitlistSidebar = ({ waitlist, setWaitlist, refreshTrigger, onDragStart }) => {
+const WaitlistSidebar = ({ waitlist, setWaitlist, refreshTrigger, onDragStart, onCollapse }) => {
     
     // UI Local State for Modal
     const [isModalVisible, setIsModalVisible] = useState(false);
@@ -29,7 +29,13 @@ const WaitlistSidebar = ({ waitlist, setWaitlist, refreshTrigger, onDragStart })
 
     // 2. ADD TO WAITLIST
     const handleAdd = async (values) => {
-        const res = await adminBookingService.addToWaitlist(values);
+        // Format Dayjs to HH:mm string if present
+        const payload = {
+            ...values,
+            preferredTime: values.preferredTime ? values.preferredTime.format('HH:mm') : null
+        };
+
+        const res = await adminBookingService.addToWaitlist(payload);
         if (res.success) {
             message.success('Đã thêm vào hàng chờ!');
             setIsModalVisible(false);
@@ -63,7 +69,18 @@ const WaitlistSidebar = ({ waitlist, setWaitlist, refreshTrigger, onDragStart })
     return (
         <div style={{ padding: '16px', height: '100%', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <Typography.Text strong style={{ fontSize: 16 }}>Hàng Chờ ({waitlist?.length || 0})</Typography.Text>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {onCollapse && (
+                        <Button 
+                            type="text" 
+                            size="small" 
+                            icon={<LeftOutlined />} 
+                            onClick={onCollapse}
+                            title="Thu gọn"
+                        />
+                    )}
+                    <Typography.Text strong style={{ fontSize: 16 }}>Hàng Chờ ({waitlist?.length || 0})</Typography.Text>
+                </div>
                 <Button size="small" type="primary" onClick={() => setIsModalVisible(true)} icon={<PlusOutlined />}>Thêm</Button>
             </div>
 
@@ -135,6 +152,9 @@ const WaitlistSidebar = ({ waitlist, setWaitlist, refreshTrigger, onDragStart })
                             <Select.Option value="Chăm sóc da mặt chuyên sâu">Chăm sóc da mặt chuyên sâu</Select.Option>
                             <Select.Option value="Gội đầu dưỡng sinh">Gội đầu dưỡng sinh</Select.Option>
                         </Select>
+                    </Form.Item>
+                    <Form.Item label="Giờ mong muốn" name="preferredTime" rules={[{ required: true, message: 'Vui lòng chọn giờ!' }]}>
+                         <TimePicker format="HH:mm" minuteStep={15} style={{ width: '100%' }} />
                     </Form.Item>
                     <Form.Item label="Ghi chú" name="note">
                         <Input.TextArea rows={3} />
