@@ -1,44 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { promotionService } from '../../services/promotionService';
 import theme from '../../theme';
-
-const offers = [
-  {
-    id: 1,
-    title: "MEMBER MỚI",
-    subtitle: "Welcome Privilege",
-    description: "Giảm 20% cho lần trải nghiệm đầu tiên tại Miu Spa dành cho tất cả khách hàng mới đăng ký.",
-    validity: "HSD: 31/12/2026",
-    discount: "20%",
-    code: "NEW20"
-  },
-  {
-    id: 2,
-    title: "GIỜ VÀNG",
-    subtitle: "Golden Hour",
-    description: "Tặng gói xông hơi thảo dược khi sử dụng dịch vụ Body Therapy từ 10:00 - 14:00.",
-    validity: "Thứ 2 - Thứ 6",
-    discount: "FREE",
-    code: "GOLD"
-  },
-  {
-    id: 3,
-    title: "SINH NHẬT",
-    subtitle: "Birthday Special",
-    description: "Tặng suất massage mặt miễn phí cho khách hàng có sinh nhật trong tháng.",
-    validity: "Trong tháng sinh nhật",
-    discount: "GIFT",
-    code: "BDAY"
-  },
-  {
-    id: 4,
-    title: "BẠN THÂN",
-    subtitle: "Bestie Combo",
-    description: "Giảm thêm 10% khi đặt dịch vụ cho nhóm từ 2 người trở lên.",
-    validity: "HSD: 31/12/2024",
-    discount: "10%",
-    code: "BESTIE"
-  }
-];
+import dayjs from 'dayjs';
 
 // Voucher Card Component - Thiết kế sang trọng
 const VoucherCard = ({ offer, index }) => {
@@ -243,6 +206,74 @@ const VoucherCard = ({ offer, index }) => {
 };
 
 const Incentives = () => {
+  const [promotions, setPromotions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPromotions = async () => {
+      try {
+        const response = await promotionService.getActivePromotions();
+        if (response.success) {
+          // Transform promotions to match VoucherCard format
+          const transformedPromotions = response.promotions.map(promo => ({
+            id: promo._id,
+            title: promo.name.toUpperCase(),
+            subtitle: promo.isFlashSale ? "⚡ Flash Sale" : "Special Offer",
+            description: `Giảm ${promo.type === 'percentage' ? `${promo.value}%` : `${promo.value.toLocaleString()} VNĐ`}${promo.minOrderValue > 0 ? ` cho đơn từ ${promo.minOrderValue.toLocaleString()} VNĐ` : ''}`,
+            validity: `HSD: ${dayjs(promo.endDate).format('DD/MM/YYYY')}`,
+            discount: promo.type === 'percentage' ? `${promo.value}%` : `${(promo.value / 1000).toFixed(0)}K`,
+            code: promo.code,
+            isFlashSale: promo.isFlashSale,
+            flashSaleStock: promo.flashSaleStock
+          }));
+          setPromotions(transformedPromotions);
+        }
+      } catch (error) {
+        console.error('Error fetching promotions:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPromotions();
+  }, []);
+
+  if (loading) {
+    return (
+      <section style={{
+        padding: '80px 0 100px',
+        background: `linear-gradient(180deg, ${theme.colors.neutral[100]} 0%, ${theme.colors.neutral[50]} 100%)`,
+        minHeight: '60vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: 50,
+            height: 50,
+            border: `4px solid ${theme.colors.primary[200]}`,
+            borderTop: `4px solid ${theme.colors.primary[500]}`,
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto'
+          }} />
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+          <p style={{ 
+            marginTop: 20, 
+            color: theme.colors.text.secondary,
+            fontFamily: theme.fonts.body 
+          }}>Đang tải ưu đãi...</p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section style={{
       padding: '80px 0 100px',
@@ -294,16 +325,31 @@ const Incentives = () => {
         </div>
 
         {/* Vouchers Grid */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
-          gap: 32,
-          justifyItems: 'center'
-        }}>
-          {offers.map((offer, index) => (
-            <VoucherCard key={offer.id} offer={offer} index={index} />
-          ))}
-        </div>
+        {promotions.length > 0 ? (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
+            gap: 32,
+            justifyItems: 'center'
+          }}>
+            {promotions.map((offer, index) => (
+              <VoucherCard key={offer.id} offer={offer} index={index} />
+            ))}
+          </div>
+        ) : (
+          <div style={{
+            textAlign: 'center',
+            padding: 60,
+            color: theme.colors.text.secondary
+          }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 60, opacity: 0.3 }}>
+              inbox
+            </span>
+            <p style={{ marginTop: 16, fontFamily: theme.fonts.body }}>
+              Hiện chưa có ưu đãi nào
+            </p>
+          </div>
+        )}
 
         {/* Note */}
         <div style={{
@@ -328,7 +374,7 @@ const Incentives = () => {
               verticalAlign: 'middle',
               marginRight: 8
             }}>
-              
+              info
             </span>
             Vui lòng xuất trình mã ưu đãi khi đến spa để được áp dụng
           </p>

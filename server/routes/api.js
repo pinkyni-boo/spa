@@ -5,6 +5,41 @@ const BookingController = require('../controllers/BookingController');
 const RoomController = require('../controllers/RoomController');
 const StaffController = require('../controllers/StaffController');
 const ServiceController = require('../controllers/ServiceController');
+const DashboardController = require('../controllers/DashboardController');
+const BranchController = require('../controllers/BranchController');
+const PromotionController = require('../controllers/PromotionController');
+const FeedbackController = require('../controllers/FeedbackController');
+
+// --- DASHBOARD ROUTES ---
+router.get('/dashboard/stats', DashboardController.getStats);
+router.get('/dashboard/revenue-chart', DashboardController.getRevenueChart);
+router.get('/dashboard/top-services', DashboardController.getTopServices);
+router.get('/dashboard/staff-status', DashboardController.getStaffStatus);
+
+// --- BRANCH ROUTES ---
+router.get('/branches', BranchController.getAllBranches);
+router.post('/branches', BranchController.createBranch);
+router.get('/branches/:id', BranchController.getBranch);
+router.put('/branches/:id', BranchController.updateBranch);
+router.delete('/branches/:id', BranchController.deleteBranch);
+router.get('/branches/:id/stats', BranchController.getBranchStats);
+
+// --- PROMOTION ROUTES ---
+router.get('/promotions', PromotionController.getAllPromotions);
+router.get('/promotions/active', PromotionController.getActivePromotions);
+router.post('/promotions', PromotionController.createPromotion);
+router.put('/promotions/:id', PromotionController.updatePromotion);
+router.delete('/promotions/:id', PromotionController.deletePromotion);
+router.post('/promotions/validate', PromotionController.validateCode);
+router.post('/promotions/apply', PromotionController.applyPromotion);
+
+// --- FEEDBACK ROUTES ---
+router.get('/feedbacks', FeedbackController.getAllFeedbacks);
+router.get('/feedbacks/approved', FeedbackController.getApprovedFeedbacks);
+router.post('/feedbacks', FeedbackController.createFeedback);
+router.put('/feedbacks/:id/approve', FeedbackController.approveFeedback);
+router.put('/feedbacks/:id/reject', FeedbackController.rejectFeedback);
+router.delete('/feedbacks/:id', FeedbackController.deleteFeedback);
 
 // --- SERVICE ROUTES (NEW PHASE 6) ---
 router.get('/services', ServiceController.getAllServices);

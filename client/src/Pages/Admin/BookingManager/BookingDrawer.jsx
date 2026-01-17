@@ -7,7 +7,7 @@ import CustomerHistoryModal from './CustomerHistoryModal'; // [NEW] Modal
 
 const { Title, Text } = Typography;
 
-const BookingDrawer = ({ visible, onClose, booking, onAction }) => {
+const BookingDrawer = ({ open, onClose, booking, onAction }) => {
     if (!booking) return null;
 
     // --- [NEW] STATE FOR UPSELL ---
@@ -44,7 +44,7 @@ const BookingDrawer = ({ visible, onClose, booking, onAction }) => {
     }, [booking]);
 
     const handleAddService = () => {
-        // Mock Add Logic for UI Demo - Real logic needs Service List from props
+        // Mock Add Logic for UI Demo
         if (!selectedServiceToAdd) return;
         
         onAction('upsell_save', { 
@@ -57,8 +57,8 @@ const BookingDrawer = ({ visible, onClose, booking, onAction }) => {
     const statusColor = {
         pending: 'gold',
         confirmed: 'green',
-        processing: 'blue', // [NEW]
-        completed: 'green', // Changed from blue to green for done
+        processing: 'blue', 
+        completed: 'green', 
         cancelled: 'red'
     }[booking.status] || 'default';
 
@@ -75,9 +75,9 @@ const BookingDrawer = ({ visible, onClose, booking, onAction }) => {
                 </div>
             }
             placement="right"
-            width={450}
+            width={450} // Valid valid override
             onClose={onClose}
-            open={visible}
+            open={open} // Correct prop usage
             styles={{ body: { paddingBottom: 80 } }}
             extra={
                 <Tag color={statusColor} style={{ fontSize: '14px', padding: '4px 10px' }}>

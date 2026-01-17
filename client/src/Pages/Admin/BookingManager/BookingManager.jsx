@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Typography, Segmented, Button, message, Modal, Form, Input, DatePicker, Select, ConfigProvider, Badge, Radio, AutoComplete, Tag } from 'antd'; // Added AutoComplete, Tag
+import { Layout, Typography, Segmented, Button, message, notification, Modal, Form, Input, DatePicker, Select, ConfigProvider, Badge, Radio, AutoComplete, Tag } from 'antd';
 import { AppstoreOutlined, BarsOutlined, PlusOutlined, LeftOutlined, RightOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import theme from '../../../theme';
@@ -142,34 +142,52 @@ const BookingManager = () => {
                 
                 // [SMART ALERT] Check for matching waitlist items
                 try {
+                    console.log('🔍 [SMART ALERT] Checking waitlist for:', {
+                        startTime: booking.startTime,
+                        endTime: booking.endTime,
+                        serviceName: booking.serviceId?.name || booking.serviceName || 'dv'
+                    });
+
                     const matchResult = await adminBookingService.findMatchingWaitlist(
                         booking.startTime,
                         booking.endTime,
-                        booking.serviceName
+                        booking.serviceId?.name || booking.serviceName || 'dv'
                     );
                     
+                    console.log('📊 [SMART ALERT] API Response:', matchResult);
+                    
                     if (matchResult.success && matchResult.matches && matchResult.matches.length > 0) {
-                        // Show toast notification
-                        message.success({
-                            content: (
-                                <div>
-                                    🎉 <strong>{matchResult.message}</strong>
-                                    <div style={{ marginTop: 4, fontSize: 12 }}>
-                                        {matchResult.matches.map((m, idx) => (
-                                            <div key={idx}>• {m.waitlistItem.customerName} - {m.waitlistItem.phone}</div>
-                                        ))}
-                                    </div>
+                        console.log('🎉 [SMART ALERT] Found matches! Showing notification...');
+                        
+                        // Show notification
+                        notification.success({
+                            message: `🎉 ${matchResult.message}`,
+                            description: (
+                                <div style={{ marginTop: 8 }}>
+                                    {matchResult.matches.map((m, idx) => (
+                                        <div key={idx} style={{ marginBottom: 4 }}>
+                                            • <b>{m.waitlistItem.customerName}</b> - {m.waitlistItem.phone}
+                                            {m.waitlistItem.preferredTime && 
+                                                <span style={{color: '#faad14', marginLeft: 4}}>
+                                                    (Mong: {m.waitlistItem.preferredTime})
+                                                </span>
+                                            }
+                                        </div>
+                                    ))}
                                 </div>
                             ),
-                            duration: 8
+                            duration: 10,
+                            placement: 'topRight' // Easier to see
                         });
                         
                         // Auto-expand sidebar
                         setSidebarCollapsed(false);
                         setRightSidebarMode('waitlist');
+                    } else {
+                        console.log('ℹ️ [SMART ALERT] No matches found');
                     }
                 } catch (error) {
-                    console.error('Error checking waitlist matches:', error);
+                    console.error('❌ [SMART ALERT] Error:', error);
                 }
             } 
             else if (action === 'approve') {
@@ -660,26 +678,31 @@ const BookingManager = () => {
                     </div>
 
                     {/* RIGHT: DYNAMIC SIDEBAR (Collapsible) - Always visible */}
-                    <div style={{ position: 'relative' }}>
+                    <div style={{ 
+                        position: 'relative',
+                        width: sidebarCollapsed ? 60 : 270, // [FIX] Force layout shift
+                        transition: 'width 0.3s ease-in-out',
+                        flexShrink: 0 // Prevent sidebar form shrinking
+                    }}>
                         {/* Floating Badge (outside sidebar) */}
                         {sidebarCollapsed && waitlist.length > 0 && (
                             <div style={{
                                 position: 'absolute',
-                                top: -8,
-                                right: -8,
+                                top: 4,
+                                right: 4,
                                 background: '#ff4d4f',
                                 color: 'white',
-                                borderRadius: '50%',
-                                width: 24,
-                                height: 24,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: 12,
+                                fontSize: 10,
                                 fontWeight: 'bold',
-                                zIndex: 20,
-                                boxShadow: '0 2px 8px rgba(255, 77, 79, 0.4)',
-                                border: '2px solid white'
+                                height: 18,
+                                minWidth: 18,
+                                borderRadius: 9,
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                padding: '0 4px',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                                zIndex: 100
                             }}>
                                 {waitlist.length}
                             </div>
@@ -693,13 +716,14 @@ const BookingManager = () => {
                                 onClick={() => setSidebarCollapsed(false)}
                                 style={{
                                     height: 40,
+                                    width: 50,
                                     borderRadius: 8,
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: 4,
-                                    padding: '0 12px',
-                                    fontSize: 14,
-                                    fontWeight: 500
+                                    justifyContent: 'center',
+                                    fontSize: 18,
+                                    fontWeight: 500,
+                                    padding: 0
                                 }}
                             >
                                 
@@ -748,7 +772,8 @@ const BookingManager = () => {
                 </div>
                 {/* DRAWER (DETAILS) */}
                 <BookingDrawer 
-                    visible={drawerVisible}
+                    open={drawerVisible} // visible is deprecated too, use open
+                    width={720} // width is fine in newer antd if not using 'size', but 'visible' -> 'open' is crucial
                     onClose={() => setDrawerVisible(false)}
                     booking={selectedBooking}
                     onAction={handleAction}

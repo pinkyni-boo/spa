@@ -1,46 +1,41 @@
-import React, { useRef } from 'react';
-import { Typography, Row, Col, Rate, Image, Carousel, Button } from 'antd';
+import React, { useRef, useState, useEffect } from 'react';
+import { Typography, Row, Col, Rate, Image, Carousel, Button, Spin } from 'antd';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
+import { feedbackService } from '../../services/feedbackService';
 import royalLuxuryTheme from '../../theme';
 
 const { Title, Text, Paragraph } = Typography;
 
 const Feedback = () => {
-  // 1. Dữ liệu Feedback
-  const feedbacks = [
-    {
-      id: 1,
-      name: "Nguyễn Thu Hà",
-      service: "Liệu trình Trẻ hóa Da Gold 24K",
-      rating: 5,
-      comment: "Không gian sang trọng tuyệt đối. Cảm giác da căng bóng ngay sau buổi đầu tiên. Rất hài lòng với sự chuyên nghiệp này.",
-      image: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    },
-    {
-      id: 2,
-      name: "Trần Bảo Ngọc",
-      service: "Massage Thư giãn Hoàng Gia",
-      rating: 5,
-      comment: "Dịch vụ đẳng cấp, nhân viên chu đáo nhẹ nhàng. Một trải nghiệm trọn vẹn sự thư thái tại MIU SPA.",
-      image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    },
-    {
-      id: 3,
-      name: "Lê Minh Anh",
-      service: "Tắm trắng Huyết Yến",
-      rating: 5,
-      comment: "Da bật tông rõ rệt. Không gian MIU SPA thực sự khiến mình choáng ngợp vì sự tinh tế và ấm cúng.",
-      image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    },
-    {
-      id: 4,
-      name: "Phạm Thanh Hằng",
-      service: "Chăm sóc da chuyên sâu",
-      rating: 5,
-      comment: "Sản phẩm xịn, kỹ thuật viên tay nghề cao. Luôn an tâm khi gửi gắm làn da của mình tại đây.",
-      image: "https://images.unsplash.com/photo-1600334089648-b0d9c3024ea2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    }
-  ];
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFeedbacks = async () => {
+      try {
+        const response = await feedbackService.getApprovedFeedbacks();
+        if (response.success) {
+          const transformedFeedbacks = response.feedbacks.map(fb => ({
+            id: fb._id,
+            name: fb.customerName,
+            service: fb.serviceId?.name || 'Dịch vụ tại MIU SPA',
+            rating: fb.rating,
+            comment: fb.comment,
+            image: fb.images && fb.images.length > 0 
+              ? fb.images[0] 
+              : "https://images.unsplash.com/photo-1540555700478-4be289fbecef?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+          }));
+          setFeedbacks(transformedFeedbacks);
+        }
+      } catch (error) {
+        console.error('Error fetching feedbacks:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFeedbacks();
+  }, []);
 
   // 2. Dữ liệu Ảnh Hoạt động (Gallery)
   const activityImages = [

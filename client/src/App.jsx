@@ -19,10 +19,14 @@ import Booking from './component/Booking/Booking.jsx';
 import Detail from './component/Service/Detail.jsx';
 import { BookingProvider } from './component/Booking/BookingContext.jsx';
 import Contact from './component/Contact/Contact.jsx';
+import Dashboard from './Pages/Admin/Dashboard/Dashboard.jsx';
 import BookingManager from './Pages/Admin/BookingManager/BookingManager.jsx';
 import RoomManager from './Pages/Admin/RoomManager/RoomManager.jsx';
 import StaffManager from './Pages/Admin/StaffManager/StaffManager.jsx';
 import ServiceManager from './Pages/Admin/ServiceManager/ServiceManager.jsx';
+import BranchManager from './Pages/Admin/BranchManager/BranchManager.jsx';
+import PromotionManager from './Pages/Admin/PromotionManager/PromotionManager.jsx';
+import FeedbackManager from './Pages/Admin/FeedbackManager/FeedbackManager.jsx';
 import ProductManager from './Pages/Admin/Services/ProductManager.jsx';
 import AdminSidebar from './Pages/Admin/Global/AdminSidebar.jsx';
 
@@ -41,10 +45,15 @@ const MainContent = () => {
                 <Layout>
                     <Content style={{ margin: 0, minHeight: 280, background: '#f0f2f5', overflow: 'hidden' }}>
                         <Routes>
+                            <Route path="/admin" element={<Dashboard />} />
+                            <Route path="/admin/dashboard" element={<Dashboard />} />
                             <Route path="/admin/bookings" element={<BookingManager />} />
                             <Route path="/admin/rooms" element={<RoomManager />} />
                             <Route path="/admin/staff" element={<StaffManager />} />
                             <Route path="/admin/services" element={<ServiceManager />} />
+                            <Route path="/admin/branches" element={<BranchManager />} />
+                            <Route path="/admin/promotions" element={<PromotionManager />} />
+                            <Route path="/admin/feedbacks" element={<FeedbackManager />} />
                             <Route path="/admin/products" element={<ProductManager />} />
                         </Routes>
                     </Content>

@@ -8,6 +8,9 @@ import {
     UserOutlined,
     SkinOutlined,
     ShopOutlined,
+    EnvironmentOutlined,
+    GiftOutlined,
+    MessageOutlined,
     MenuUnfoldOutlined,
     MenuFoldOutlined,
     LogoutOutlined
@@ -22,7 +25,7 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
 
     const menuItems = [
         {
-            key: '/admin/overview',
+            key: '/admin/dashboard',
             icon: <DashboardOutlined />,
             label: 'Tổng Quan',
         },
@@ -45,6 +48,21 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
             key: '/admin/services',
             icon: <SkinOutlined />,
             label: 'Dịch Vụ',
+        },
+        {
+            key: '/admin/branches',
+            icon: <EnvironmentOutlined />,
+            label: 'Chi Nhánh',
+        },
+        {
+            key: '/admin/promotions',
+            icon: <GiftOutlined />,
+            label: 'Ưu Đãi',
+        },
+        {
+            key: '/admin/feedbacks',
+            icon: <MessageOutlined />,
+            label: 'Feedback',
         },
         {
             key: '/admin/products',

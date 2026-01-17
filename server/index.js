@@ -82,6 +82,7 @@ app.post('/login', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log('--- RESTARTING SERVER FOR SEARCH FEATURE ---');
+  console.log('--- SMART ALERT ROUTES READY ---'); // [TRIGGER RESTART]
   console.log(`Server chạy tại: http://localhost:${PORT}`);
 });
 // --- API ĐĂNG KÝ TÀI KHOẢN MỚI ---

@@ -242,6 +242,22 @@ const DnDCalendarView = ({ date, views, events, resources, onNavigate, onEventDr
                 
                 /* Hide Default Toolbar via CSS just in case, though we replace it */
                 .rbc-toolbar { display: none !important; } 
+
+                /* CUSTOM SCROLLBAR that only appears when absolutely necessary */
+                .rbc-time-content::-webkit-scrollbar { height: 6px; }
+                .rbc-time-content::-webkit-scrollbar-thumb { background: #d9d9d9; border-radius: 3px; }
+                
+                /* [USER REQUEST]: FORCE FIT ALL COLUMNS (Responsive resizing) */
+                .rbc-time-view { flex: 1; width: 100%; }
+                
+                /* Override default min-width to allow shrinking */
+                .rbc-time-header-content { flex: 1; min-width: 0 !important; }
+                .rbc-day-slot { min-width: 0 !important; } 
+                .rbc-header { min-width: 0 !important; padding: 4px 2px !important; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+                
+                /* Ensure columns share space equally */
+                .rbc-time-header-content > .rbc-row.rbc-time-header-cell { display: flex; }
+                .rbc-time-header-cell .rbc-header { flex: 1; }
             `}</style>
             
             {/* CUSTOM TOOLBAR INSIDE */}

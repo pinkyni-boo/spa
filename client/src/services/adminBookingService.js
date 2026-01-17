@@ -211,7 +211,7 @@ export const adminBookingService = {
   // [SMART ALERT] Find matching waitlist items for available slot
   findMatchingWaitlist: async (startTime, endTime, serviceName) => {
       try {
-          const response = await fetch(`${API_URL}/bookings/find-waitlist-match`, {
+          const response = await fetch(`${API_URL}/api/bookings/find-waitlist-match`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ startTime, endTime, serviceName })
