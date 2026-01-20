@@ -177,7 +177,10 @@ exports.checkAvailability = async (req, res) => {
 exports.createBooking = async (req, res) => {
     const unlock = await bookingMutex.lock();
     try {
-        const { customerName, phone, serviceName, date, time, roomId, staffId } = req.body; // [UPDATED] Accept roomId, staffId
+        const { customerName, phone, serviceName, date, time, roomId, staffId, branchId } = req.body; // [UPDATED] Accept branchId
+
+        // 0. Validate Branch
+        if (!branchId) return res.status(400).json({ success: false, message: 'Thiếu thông tin chi nhánh!' });
 
         // 1. Parse Date/Time
         const startTime = dayjs(`${date} ${time}`, 'YYYY-MM-DD HH:mm');
@@ -188,18 +191,14 @@ exports.createBooking = async (req, res) => {
         if (!service) return res.status(404).json({ message: 'Dịch vụ k tồn tại' });
         
         const endTime = startTime.add(service.duration, 'minute');
-        // [FIX] Buffer Time: If 0, keep 0. Only use 30 if undefined/null.
         const bufferTime = (service.breakTime !== undefined && service.breakTime !== null) ? service.breakTime : 30;
         const busyEndTime = endTime.add(bufferTime, 'minute');
 
-        // 3. AUTO-ASSIGN RESOURCE (SIMPLE STRATEGY)
-        // Find FIRST available Room and Staff
-        // (Similar logic to checkAvailability but for specific slot)
+        // 3. AUTO-ASSIGN RESOURCE (SCOPED BY BRANCH)
+        // Find FIRST available Room and Staff in THIS BRANCH
         
-        // ... (Re-query resource to be safe inside Mutex) ...
-        const allRooms = await Room.find({ isActive: true });
-        // REMOVED skill check: All active staff are qualified
-        let qualifiedStaff = await Staff.find({ isActive: true }); // Let to modify
+        const allRooms = await Room.find({ isActive: true, branchId: branchId }); // [FIX] Filter by Branch
+        let qualifiedStaff = await Staff.find({ isActive: true, branchId: branchId }); // [FIX] Filter by Branch
 
         // Overlap Range
         const dayStart = dayjs(`${date} 00:00`).toDate();
@@ -319,7 +318,8 @@ exports.createBooking = async (req, res) => {
              endTime: endTime.toDate(),
              bufferTime: bufferTime,
              status: req.body.status || 'pending', // [FIX] Accept status from request
-             source: req.body.source || 'online'
+             source: req.body.source || 'online',
+             branchId: branchId // [NEW] Save Branch
          });
 
          await newBooking.save();
@@ -344,8 +344,12 @@ exports.createBooking = async (req, res) => {
 // ---------------------------------------------------------
 exports.getAllBookings = async (req, res) => {
   try {
-    const { date, phone, staffId, paymentStatus } = req.query; // [UPDATED] Filters
+    const { date, phone, staffId, paymentStatus, branchId } = req.query; // [UPDATED] Added branchId
     let query = {};
+
+    if (branchId) {
+        query.branchId = branchId;
+    }
 
     if (date) {
         const start = dayjs(date).startOf('day').toDate();

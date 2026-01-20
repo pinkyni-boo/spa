@@ -9,12 +9,21 @@ const DashboardController = require('../controllers/DashboardController');
 const BranchController = require('../controllers/BranchController');
 const PromotionController = require('../controllers/PromotionController');
 const FeedbackController = require('../controllers/FeedbackController');
+const UserController = require('../controllers/UserController');
 
 // --- DASHBOARD ROUTES ---
 router.get('/dashboard/stats', DashboardController.getStats);
 router.get('/dashboard/revenue-chart', DashboardController.getRevenueChart);
 router.get('/dashboard/top-services', DashboardController.getTopServices);
 router.get('/dashboard/staff-status', DashboardController.getStaffStatus);
+router.get('/dashboard/staff-performance', DashboardController.getStaffPerformance);
+
+// --- USER MANAGEMENT ROUTES ---
+router.get('/users', UserController.getAllUsers);
+router.post('/users', UserController.createUser);
+router.put('/users/:id', UserController.updateUser);
+router.delete('/users/:id', UserController.deleteUser);
+ // [NEW]
 
 // --- BRANCH ROUTES ---
 router.get('/branches', BranchController.getAllBranches);
@@ -40,6 +49,11 @@ router.post('/feedbacks', FeedbackController.createFeedback);
 router.put('/feedbacks/:id/approve', FeedbackController.approveFeedback);
 router.put('/feedbacks/:id/reject', FeedbackController.rejectFeedback);
 router.delete('/feedbacks/:id', FeedbackController.deleteFeedback);
+
+// --- CUSTOMER HISTORY ROUTES (PHASE 4) ---
+const CustomerController = require('../controllers/CustomerController');
+router.get('/customers/search', CustomerController.searchCustomers);
+router.get('/customers/:phone/history', CustomerController.getCustomerHistory);
 
 // --- SERVICE ROUTES (NEW PHASE 6) ---
 router.get('/services', ServiceController.getAllServices);
@@ -80,12 +94,6 @@ router.delete('/rooms/:id', RoomController.deleteRoom);
 // --- STAFF ROUTES ---
 router.get('/staff', StaffController.getAllStaff);
 router.put('/staff/:id', StaffController.updateStaffDetails);
-
-const CustomerController = require('../controllers/CustomerController'); // [NEW]
-
-// --- CUSTOMER ROUTES (CRM) ---
-router.get('/customers/search', CustomerController.search);
-router.get('/customers/:id', CustomerController.getById);
 
 // --- WAITLIST ROUTES (NEW) ---
 const WaitlistController = require('../controllers/WaitlistController');

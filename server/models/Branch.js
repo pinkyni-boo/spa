@@ -41,4 +41,4 @@ const branchSchema = new mongoose.Schema({
     timestamps: true
 });
 
-module.exports = mongoose.model('Branch', branchSchema);
+module.exports = mongoose.models.Branch || mongoose.model('Branch', branchSchema);

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Layout, Menu, Button, Typography } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Layout, Menu, Button, Typography, Avatar, Space, Divider } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     DashboardOutlined,
@@ -11,6 +11,8 @@ import {
     EnvironmentOutlined,
     GiftOutlined,
     MessageOutlined,
+    PieChartOutlined,
+    SafetyCertificateOutlined,
     MenuUnfoldOutlined,
     MenuFoldOutlined,
     LogoutOutlined
@@ -22,8 +24,27 @@ const { Title } = Typography;
 const AdminSidebar = ({ collapsed, setCollapsed }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const [currentUser, setCurrentUser] = useState(null);
+
+    useEffect(() => {
+        // Load user from localStorage
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+            try {
+                setCurrentUser(JSON.parse(userStr));
+            } catch (e) {
+                console.error('Failed to parse user data', e);
+            }
+        }
+    }, []);
 
     const menuItems = [
+        {
+            key: '/admin/accounts',
+            icon: <SafetyCertificateOutlined />,
+            label: 'Tài Khoản (Admin)',
+            // Role check logic would hide this for non-owners later
+        },
         {
             key: '/admin/dashboard',
             icon: <DashboardOutlined />,
@@ -63,6 +84,16 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
             key: '/admin/feedbacks',
             icon: <MessageOutlined />,
             label: 'Feedback',
+        },
+        {
+            key: '/admin/reports',
+            icon: <PieChartOutlined />,
+            label: 'Báo Cáo',
+        },
+        {
+            key: '/admin/customers',
+            icon: <UserOutlined />,
+            label: 'Lịch Sử Khách',
         },
         {
             key: '/admin/products',
@@ -141,15 +172,53 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
                 theme="light"
             />
             
-            {/* Footer / Logout */}
+            {/* Footer / User Info & Logout */}
             <div style={{
                 position: 'absolute',
-                bottom: 20,
+                bottom: 0,
                 width: '100%',
-                display: 'flex',
-                justifyContent: 'center'
+                borderTop: '1px solid #f0f0f0',
+                background: '#fafafa',
+                padding: collapsed ? '12px 0' : '12px 16px'
             }}>
-                 {/* Optional: Add logout or toggle button here if needed */}
+                {!collapsed && currentUser && (
+                    <div style={{ marginBottom: 8 }}>
+                        <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Avatar 
+                                    style={{ backgroundColor: currentUser.role === 'owner' ? '#D4Af37' : '#52c41a' }}
+                                    icon={<UserOutlined />}
+                                    size="small"
+                                />
+                                <div style={{ flex: 1, overflow: 'hidden' }}>
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: '#262626', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {currentUser.name}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: '#8c8c8c' }}>
+                                        {currentUser.role === 'owner' ? '👑 OWNER' : '🔑 ADMIN'}
+                                    </div>
+                                </div>
+                            </div>
+                        </Space>
+                    </div>
+                )}
+                <Button 
+                    type="text" 
+                    icon={<LogoutOutlined />}
+                    danger
+                    block={!collapsed}
+                    onClick={() => {
+                        localStorage.removeItem('user');
+                        navigate('/login');
+                        window.location.reload(); // Force reload to clear state
+                    }}
+                    style={{ 
+                        width: collapsed ? '100%' : 'auto',
+                        justifyContent: collapsed ? 'center' : 'flex-start'
+                    }}
+                >
+                    {!collapsed && 'Đăng xuất'}
+                </Button>
             </div>
         </Sider>
     );

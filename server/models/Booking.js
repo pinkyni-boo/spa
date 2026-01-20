@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const BookingSchema = new mongoose.Schema({
   customerName: { type: String, required: true },
   phone: { type: String, required: true },
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }, // [NEW] Link to Branch
   
   // Liên kết với bảng Service để lấy giá và thời lượng
   serviceId: { 

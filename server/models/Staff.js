@@ -18,6 +18,7 @@ const StaffSchema = new mongoose.Schema({
     type: String, 
     required: true 
   },
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }, // [NEW]
   avatar: {
     type: String,
     default: ""

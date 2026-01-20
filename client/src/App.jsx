@@ -28,23 +28,60 @@ import BranchManager from './Pages/Admin/BranchManager/BranchManager.jsx';
 import PromotionManager from './Pages/Admin/PromotionManager/PromotionManager.jsx';
 import FeedbackManager from './Pages/Admin/FeedbackManager/FeedbackManager.jsx';
 import ProductManager from './Pages/Admin/Services/ProductManager.jsx';
+import CustomerManager from './Pages/Admin/CustomerManager/CustomerManager.jsx';
+import ReportManager from './Pages/Admin/ReportManager/ReportManager.jsx';
+import AccountManager from './Pages/Admin/AccountManager/AccountManager.jsx';
 import AdminSidebar from './Pages/Admin/Global/AdminSidebar.jsx';
 
 const { Content, Header } = Layout;
 const { Title } = Typography;
 
+import LoginPage from './Pages/Admin/Login/LoginPage.jsx';
+
+// ... (other imports)
+
 const MainContent = () => {
     const location = useLocation();
     const isAdmin = location.pathname.startsWith('/admin');
+    const isLogin = location.pathname === '/login'; // Matches backend definition or just client route
     const [collapsed, setCollapsed] = useState(false);
 
+    // Robust Auth Check
+    const checkAuth = () => {
+        const userStr = localStorage.getItem('user');
+        if (!userStr) return false;
+        
+        try {
+            const user = JSON.parse(userStr);
+            // Validate user object has required fields
+            return user && user.id && user.role;
+        } catch (e) {
+            // Invalid JSON, clear it
+            localStorage.removeItem('user');
+            return false;
+        }
+    };
+
+    const isAuthenticated = checkAuth();
+
+    if (isLogin) {
+         return <Routes><Route path="/login" element={<LoginPage />} /></Routes>;
+    }
+
     if (isAdmin) {
+        if (!isAuthenticated) {
+            // Redirect to Login if accessing Admin without Auth
+            window.location.href = '/login';
+            return null;
+        }
+
         return (
             <Layout style={{ minHeight: '100vh' }}>
                 <AdminSidebar collapsed={collapsed} setCollapsed={setCollapsed} />
                 <Layout>
                     <Content style={{ margin: 0, minHeight: 280, background: '#f0f2f5', overflow: 'hidden' }}>
                         <Routes>
+                            <Route path="/admin/accounts" element={<AccountManager />} />
                             <Route path="/admin" element={<Dashboard />} />
                             <Route path="/admin/dashboard" element={<Dashboard />} />
                             <Route path="/admin/bookings" element={<BookingManager />} />
@@ -54,6 +91,8 @@ const MainContent = () => {
                             <Route path="/admin/branches" element={<BranchManager />} />
                             <Route path="/admin/promotions" element={<PromotionManager />} />
                             <Route path="/admin/feedbacks" element={<FeedbackManager />} />
+                            <Route path="/admin/customers" element={<CustomerManager />} />
+                            <Route path="/admin/reports" element={<ReportManager />} />
                             <Route path="/admin/products" element={<ProductManager />} />
                         </Routes>
                     </Content>

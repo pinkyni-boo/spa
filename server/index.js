@@ -20,11 +20,7 @@ const Service = require('./models/Service');
 const Staff = require('./models/Staff');
 const Booking = require('./models/Booking');
 
-const UserSchema = new mongoose.Schema({
-  username: { type: String, required: true },
-  password: { type: String, required: true }
-});
-const User = mongoose.model('User', UserSchema);
+const User = require('./models/User');
 
 // --- 3. SEEDING DATA (TẠO DỮ LIỆU MẪU) ---
 // Load dữ liệu từ file JSON để dễ chỉnh sửa
@@ -69,13 +65,27 @@ app.post('/login', async (req, res) => {
   console.log("React đang gửi lên:", username, password);
 
   try {
-    const user = await User.findOne({ username, password });
+    // [UPDATED] Populate basic info
+    const user = await User.findOne({ username, password }).populate('managedBranches', 'name');
     if (user) {
-      res.json({ success: true, message: 'Đăng nhập thành công!' });
+      if (!user.isActive) return res.status(403).json({ success: false, message: 'Tài khoản đã bị khóa!' });
+      
+      res.json({ 
+          success: true, 
+          message: 'Đăng nhập thành công!',
+          user: {
+              id: user._id,
+              name: user.name,
+              username: user.username,
+              role: user.role,
+              managedBranches: user.managedBranches || []
+          }
+      });
     } else {
       res.status(401).json({ success: false, message: 'Sai tài khoản hoặc mật khẩu!' });
     }
   } catch (error) {
+    console.error('Login Error:', error);
     res.status(500).json({ success: false, message: 'Lỗi server!' });
   }
 });

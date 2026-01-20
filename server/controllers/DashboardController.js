@@ -202,3 +202,66 @@ exports.getStaffStatus = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
+
+// Get Staff Performance
+exports.getStaffPerformance = async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+
+        // Default to this month if not provided
+        const start = startDate ? dayjs(startDate).startOf('day') : dayjs().startOf('month');
+        const end = endDate ? dayjs(endDate).endOf('day') : dayjs().endOf('day');
+
+        console.log(`[REPORT] Staff Performance: ${start.format('DD/MM')} - ${end.format('DD/MM')}`);
+
+        // 1. Get all completed bookings in range
+        const bookings = await Booking.find({
+            startTime: { $gte: start.toDate(), $lte: end.toDate() },
+            status: 'completed'
+        }).populate('staffId', 'name');
+
+        // 2. Aggregate per staff
+        const staffMap = {};
+
+        bookings.forEach(booking => {
+            if (!booking.staffId) return;
+            
+            const staffId = booking.staffId._id.toString();
+            const staffName = booking.staffId.name;
+            const revenue = booking.finalPrice || booking.serviceId?.price || 0;
+
+            if (!staffMap[staffId]) {
+                staffMap[staffId] = {
+                    key: staffId,
+                    name: staffName,
+                    totalBookings: 0,
+                    totalRevenue: 0,
+                    uniqueCustomers: new Set()
+                };
+            }
+
+            staffMap[staffId].totalBookings += 1;
+            staffMap[staffId].totalRevenue += revenue;
+            staffMap[staffId].uniqueCustomers.add(booking.phone);
+        });
+
+        // 3. Convert to array & Sort by Revenue
+        const reportData = Object.values(staffMap).map(staff => ({
+            ...staff,
+            uniqueCustomers: staff.uniqueCustomers.size
+        })).sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+        res.json({
+            success: true,
+            data: reportData,
+            period: {
+                start: start.format('YYYY-MM-DD'),
+                end: end.format('YYYY-MM-DD')
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting staff performance:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};

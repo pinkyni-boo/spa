@@ -43,5 +43,20 @@ export const dashboardService = {
             console.error('Error fetching staff status:', error);
             throw error;
         }
+    },
+
+    // Get Staff Performance
+    getStaffPerformance: async (startDate, endDate) => {
+        try {
+            const params = new URLSearchParams();
+            if (startDate) params.append('startDate', startDate);
+            if (endDate) params.append('endDate', endDate);
+
+            const response = await fetch(`${API_URL}/api/dashboard/staff-performance?${params.toString()}`);
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching staff performance:', error);
+            throw error;
+        }
     }
 };
