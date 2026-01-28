@@ -3,13 +3,13 @@ const API_URL = 'http://localhost:3000';
 
 export const bookingService = {
   // 1. Hàm hỏi giờ trống (UPDATED PHASE 2 SMART LOGIC)
-  checkAvailability: async (date, serviceName) => {
+  checkAvailability: async (date, serviceName, branchId) => {
     try {
       // Gọi API POST: /api/bookings/check-slot
       const response = await fetch(`${API_URL}/api/bookings/check-slot`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ date, serviceName })
+          body: JSON.stringify({ date, serviceName, branchId })
       });
       
       // Chờ Server trả lời và đọc kết quả

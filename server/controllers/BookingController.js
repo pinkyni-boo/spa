@@ -35,11 +35,20 @@ const bookingMutex = new Mutex();
 // ---------------------------------------------------------
 exports.checkAvailability = async (req, res) => {
   try {
-    const { date, serviceName, serviceId } = req.body; // Changed to body for POST, or query if GET
+    const { date, serviceName, serviceId, branchId } = req.body; // [UPDATED] Accept branchId
 
     // A. Validate Input
-    if (!date || (!serviceName && !serviceId)) {
-        return res.status(400).json({ success: false, message: 'Thiếu thông tin ngày hoặc dịch vụ' });
+    if (!date || (!serviceName && !serviceId) || !branchId) {
+        return res.status(400).json({ success: false, message: 'Thiếu thông tin ngày, dịch vụ hoặc chi nhánh' });
+    }
+
+    // [New] Validate Date Range (Max 7 days)
+    const bookingDate = dayjs(date);
+    const today = dayjs().startOf('day');
+    const maxDate = today.add(7, 'day').endOf('day');
+
+    if (bookingDate.isAfter(maxDate)) {
+         return res.status(400).json({ success: false, message: 'Chỉ được đặt lịch trước tối đa 7 ngày!' });
     }
 
     // B. Get Service Info (Duration)
@@ -52,21 +61,22 @@ exports.checkAvailability = async (req, res) => {
 
     if (!service) return res.status(404).json({ success: false, message: 'Dịch vụ không tồn tại' });
     
-    // C. Get Resources
-    // 1. Rooms (Active)
-    const allRooms = await Room.find({ isActive: true });
+    // C. Get Resources (Scoped by Branch)
+    // 1. Rooms (Active & In Branch)
+    const allRooms = await Room.find({ isActive: true, branchId: branchId });
     
-    // 2. Staff (Active) - Updated: All staff can do all services
+    // 2. Staff (Active & In Branch)
     const qualifiedStaff = await Staff.find({ 
-        isActive: true
-        // skills: service.name (REMOVED: User requirement "All staff do all services")
+        isActive: true,
+        branchId: branchId
     });
 
-    // D. Time Loop (9:00 -> 18:00)
-    // TODO: Dynamic opening hours from config
+    // D. Time Loop (9:00 -> 20:00) with Overtime Buffer
     const availableSlots = [];
     const openTime = dayjs(`${date} 09:00`);
-    const closeTime = dayjs(`${date} 18:00`);
+    const closeTime = dayjs(`${date} 20:00`); // Business closing time
+    const ALLOWED_OVERTIME = 30; // Allow services to end 30 mins after close
+    const hardStop = closeTime.add(ALLOWED_OVERTIME, 'minute'); // 20:30
     
     // Slot loop (30 mins step)
     let currentSlot = openTime;
@@ -91,30 +101,32 @@ exports.checkAvailability = async (req, res) => {
         const proposedEndService = currentSlot.add(service.duration, 'minute');
         const proposedEndOccupied = proposedEndService.add(bufferMinutes, 'minute'); // Time resource is busy (Duration + Buffer)
 
-        if (proposedEndService.isAfter(closeTime)) {
-             break; // Exceed closing time
+        if (proposedEndService.isAfter(hardStop)) {
+             break; // Exceed hard stop time (20:00 + 30m buffer)
         }
 
-        // --- CHECK 1: AVAILABLE ROOMS ---
-        let freeRooms = allRooms.filter(room => {
-            // Check if this room is busy in any booking today
-            const isBusy = bookingsToday.some(booking => {
+        // --- CHECK 1: AVAILABLE ROOMS (CAPACITY & TYPE CHECK) ---
+        // Filter rooms by Required Type
+        const suitableRooms = allRooms.filter(r => r.type === service.requiredRoomType);
+        
+        // Check capacity for each suitable room
+        // A room is available if concurrent bookings < capacity
+        let hasAvailableRoom = suitableRooms.some(room => {
+             // Count overlapping bookings for this specific room
+             const concurrentBookings = bookingsToday.filter(booking => {
                  if (booking.roomId && booking.roomId.toString() === room._id.toString()) {
-                     // Check overlap
-                     // [Start, End] overlaps [ProposedStart, ProposedEndOccupied]
                      const bStart = dayjs(booking.startTime);
-                     const bEnd = dayjs(booking.endTime).add(booking.bufferTime || 0, 'minute'); // Existing booking busy time
-                     
-                     return (
-                        (proposedStart.isBefore(bEnd) && proposedEndOccupied.isAfter(bStart))
-                     );
+                     const bEnd = dayjs(booking.endTime).add(booking.bufferTime || 0, 'minute');
+                     // Check overlap with PROPOSED slot
+                     return (proposedStart.isBefore(bEnd) && proposedEndOccupied.isAfter(bStart));
                  }
                  return false;
-            });
-            return !isBusy;
+             });
+
+             return concurrentBookings.length < room.capacity;
         });
 
-        // --- CHECK 2: AVAILABLE STAFF ---
+        // --- CHECK 2: AVAILABLE STAFF (UNIVERSAL - NO SKILL CHECK) ---
         // 2.1 Check Shift
         // 2.2 Check Overlap
         const dayOfWeek = currentSlot.day(); // 0: Sun, 1: Mon...
@@ -148,7 +160,7 @@ exports.checkAvailability = async (req, res) => {
         });
 
         // --- RESULT FOR SLOT ---
-        if (freeRooms.length > 0 && freeStaff.length > 0) {
+        if (hasAvailableRoom && freeStaff.length > 0) {
             availableSlots.push(currentSlot.format('HH:mm'));
         }
 
@@ -175,7 +187,10 @@ exports.checkAvailability = async (req, res) => {
 // 2. CREATE BOOKING (UPDATED)
 // ---------------------------------------------------------
 exports.createBooking = async (req, res) => {
+    const requestId = Math.random().toString(36).substring(7);
+    console.log(`[${requestId}] ========= BOOKING REQUEST STARTED =========`);
     const unlock = await bookingMutex.lock();
+    console.log(`[${requestId}] Mutex acquired`);
     try {
         const { customerName, phone, serviceName, date, time, roomId, staffId, branchId } = req.body; // [UPDATED] Accept branchId
 
@@ -207,6 +222,7 @@ exports.createBooking = async (req, res) => {
             startTime: { $gte: dayStart, $lte: dayEnd },
             status: { $ne: 'cancelled' }
         });
+        console.log(`[${requestId}] Found ${bookingsToday.length} existing bookings for ${date}`);
 
         // [new] A. Find Room
         let assignedRoom = null;
@@ -215,7 +231,8 @@ exports.createBooking = async (req, res) => {
             // TARGETED BOOKING (Drag & Drop)
             const targetRoom = allRooms.find(r => r._id.toString() === roomId);
             if (targetRoom) {
-                 const isBusy = bookingsToday.some(b => {
+                 // Check Capacity
+                 const concurrentBookings = bookingsToday.filter(b => {
                      if (b.roomId?.toString() === targetRoom._id.toString()) {
                          const bStart = dayjs(b.startTime);
                          const bEnd = dayjs(b.endTime).add(b.bufferTime || 0, 'minute');
@@ -223,26 +240,42 @@ exports.createBooking = async (req, res) => {
                      }
                      return false;
                  });
-                 if (!isBusy) assignedRoom = targetRoom;
+                 
+                 if (concurrentBookings.length < targetRoom.capacity) {
+                     assignedRoom = targetRoom;
+                 }
             }
         } else {
             // AUTO ASSIGN
-            assignedRoom = allRooms.find(room => {
-                const isBusy = bookingsToday.some(b => {
+            // 1. Filter by Required Type
+            const suitableRooms = allRooms.filter(r => r.type === service.requiredRoomType);
+            console.log(`[${requestId}] Suitable rooms (${service.requiredRoomType}): ${suitableRooms.length}`);
+            
+            // 2. Find first room with available capacity
+            assignedRoom = suitableRooms.find(room => {
+                const concurrentBookings = bookingsToday.filter(b => {
                     if (b.roomId?.toString() === room._id.toString()) {
                         const bStart = dayjs(b.startTime);
                         const bEnd = dayjs(b.endTime).add(b.bufferTime || 0, 'minute');
-                        return (startTime.isBefore(bEnd) && busyEndTime.isAfter(bStart));
+                        const overlaps = startTime.isBefore(bEnd) && busyEndTime.isAfter(bStart);
+                        if (overlaps) {
+                            console.log(`[${requestId}]   - Overlap found: Booking ${b._id} (${bStart.format('HH:mm')}-${bEnd.format('HH:mm')})`);
+                        }
+                        return overlaps;
                     }
                     return false;
                 });
-                return !isBusy;
+                const hasCapacity = concurrentBookings.length < room.capacity;
+                console.log(`[${requestId}] Room "${room.name}": ${concurrentBookings.length}/${room.capacity} - ${hasCapacity ? 'AVAILABLE' : 'FULL'}`);
+                return hasCapacity;
             });
         }
 
         if (!assignedRoom) {
+            console.log(`[${requestId}] ❌ NO ROOM AVAILABLE - Rejecting booking`);
             return res.status(409).json({ success: false, message: 'Hết phòng vào giờ này rồi!' });
         }
+        console.log(`[${requestId}] ✅ Assigned room: ${assignedRoom.name}`);
 
         // Find Staff
          const dayOfWeek = startTime.day();
@@ -272,39 +305,10 @@ exports.createBooking = async (req, res) => {
              return res.status(409).json({ success: false, message: 'Không còn nhân viên phù hợp!' });
          }
 
-         // --- [NEW] CONCURRENCY DOUBLE CHECK ---
-         // Check one last time if this specific Room/Staff is taken
-         const doubleCheck = await Booking.findOne({
-             $or: [
-                 { roomId: assignedRoom._id },
-                 { staffId: assignedStaff._id }
-             ],
-             startTime: { $lt: busyEndTime.toDate() }, // Overlap logic
-             bookings_endTime_plus_buffer: { $gt: startTime.toDate() }, // *Pseudo-code logic, need simple overlap*
-             status: { $ne: 'cancelled' }
-         });
-         
-         // Real overlap logic for Double Check
-         // New Booking: [Start, BusyEnd]
-         // Existing: [b.Start, b.End + Buffer]
-         const conflict = await Booking.find({
-             $or: [
-                 { roomId: assignedRoom._id },
-                 { staffId: assignedStaff._id }
-             ],
-             startTime: { $gte: dayStart, $lte: dayEnd },
-             status: { $ne: 'cancelled' }
-         });
-         
-         const isConflict = conflict.some(b => {
-              const bStart = dayjs(b.startTime);
-              const bEnd = dayjs(b.endTime).add(b.bufferTime || 0, 'minute');
-              return (startTime.isBefore(bEnd) && busyEndTime.isAfter(bStart));
-         });
-
-         if (isConflict) {
-             return res.status(409).json({ success: false, message: 'Tiếc quá, có người nhanh tay hơn rồi! Vui lòng chọn giờ khác.' });
-         }
+         // -------------------------------------
+         // [NOTE] Double Check removed as it conflicted with Multi-bed Logic. 
+         // Mutex + earlier checks are sufficient.
+         // -------------------------------------
          // -------------------------------------
 
          // 4. Create Booking

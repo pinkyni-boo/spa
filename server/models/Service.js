@@ -42,6 +42,12 @@ const ServiceSchema = new mongoose.Schema({
   requiredCapabilities: {
       type: [String],
       default: []
+  },
+  // [NEW] Strict Room Type Requirement
+  requiredRoomType: {
+      type: String,
+      enum: ['HEAD_SPA', 'BODY_SPA', 'NAIL_SPA', 'OTHER'],
+      default: 'BODY_SPA'
   }
 }, { timestamps: true });
 

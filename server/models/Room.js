@@ -9,8 +9,8 @@ const RoomSchema = new mongoose.Schema({
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }, // [NEW]
   type: { 
     type: String, 
-    enum: ['Standard', 'VIP', 'Couple'], 
-    default: 'Standard' 
+    enum: ['HEAD_SPA', 'BODY_SPA', 'NAIL_SPA', 'OTHER'], 
+    default: 'BODY_SPA' 
   },
   description: {
       type: String,

@@ -4,6 +4,7 @@ import { PhoneOutlined, ArrowRightOutlined, CloseOutlined, DownOutlined, CheckCi
 import { useBooking } from './BookingContext';
 import theme from '../../theme';
 import { bookingService } from '../../services/bookingService';
+import { branchService } from '../../services/branchService'; // [NEW] Import branchService
 import dayjs from 'dayjs';
 
 const { Title, Text, Paragraph } = Typography;
@@ -16,9 +17,9 @@ const SERVICE_OPTIONS = [
   { label: "Gội đầu dưỡng sinh (45p)", value: "Gội đầu dưỡng sinh" }
 ];
 
-// Tạo danh sách Full Slot từ 09:00 đến 17:30 (Khớp logic Server)
+// Tạo danh sách Full Slot từ 09:00 đến 20:00 (Backend cho phép lố giờ đến 20:30)
 const FULL_TIME_SLOTS = [];
-for (let i = 9; i < 18; i++) {
+for (let i = 9; i < 20; i++) {
     FULL_TIME_SLOTS.push(`${i.toString().padStart(2, '0')}:00`);
     FULL_TIME_SLOTS.push(`${i.toString().padStart(2, '0')}:30`);
 }
@@ -33,6 +34,27 @@ const Booking = () => {
   const [availableSlots, setAvailableSlots] = useState([]);
   const [selectedSlot, setSelectedSlot] = useState(null); 
   const [showSlots, setShowSlots] = useState(false); 
+
+  // [NEW] Branch State
+  const [branches, setBranches] = useState([]);
+  const [selectedBranch, setSelectedBranch] = useState(null);
+
+  // [NEW] Fetch Branches on Init
+  useEffect(() => {
+    if (isBookingOpen) {
+        branchService.getAllBranches().then(res => {
+            if (res.success) {
+                setBranches(res.branches || []);
+                // Optional: Auto-select if only 1 branch
+                if (res.branches?.length === 1) {
+                    const b = res.branches[0]._id || res.branches[0];
+                    setSelectedBranch(b);
+                    form.setFieldsValue({ branchId: b });
+                }
+            }
+        });
+    }
+  }, [isBookingOpen]); 
 
   // Reset form hoặc điền form khi mở
   useEffect(() => {
@@ -59,14 +81,15 @@ const Booking = () => {
 
   // Logic: Khi chọn Ngày hoặc Dịch vụ -> Tự động check giờ
   const handleCheckAvailability = async () => {
-    const values = form.getFieldsValue(['serviceName', 'date']);
-    if (values.serviceName && values.date) {
+    const values = form.getFieldsValue(['serviceName', 'date', 'branchId']);
+    if (values.serviceName && values.date && values.branchId) {
       setLoading(true);
       setShowSlots(true);
       setSelectedSlot(null); // Reset giờ đã chọn cũ
       
       const dateStr = values.date.format('YYYY-MM-DD');
-      const slots = await bookingService.checkAvailability(dateStr, values.serviceName);
+      // Pass branchId to check slot
+      const slots = await bookingService.checkAvailability(dateStr, values.serviceName, values.branchId);
       
       setAvailableSlots(slots);
       setLoading(false);
@@ -86,7 +109,8 @@ const Booking = () => {
       phone: values.phone,
       serviceName: values.serviceName,
       date: values.date.format('YYYY-MM-DD'),
-      time: selectedSlot
+      time: selectedSlot,
+      branchId: values.branchId // [NEW] Include branchId
     };
 
     const result = await bookingService.createBooking(bookingData);
@@ -257,6 +281,33 @@ const Booking = () => {
               {/* Cột Phải: Chọn Dịch Vụ & Giờ (CORE LOGIC) */}
               <Col xs={24} md={14} style={{ padding: '25px 30px' }}>
 
+                {/* [NEW] CHI NHÁNH - BẮT BUỘC */}
+                <Form.Item 
+                  name="branchId"
+                  label={<span style={{ color: theme.colors.primary[400], fontSize: '9px', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Select Branch</span>}
+                  rules={[{ required: true, message: 'Vui lòng chọn chi nhánh' }]}
+                  style={{ marginBottom: '15px' }}
+                >
+                  <Select 
+                    placeholder="Choose location..." 
+                    variant="borderless"
+                    suffixIcon={<DownOutlined style={{ color: theme.colors.primary[400] }} />}
+                    style={{ borderBottom: '1px solid #3a3528', padding: '2px 0', fontSize: '13px' }}
+                    dropdownStyle={{ backgroundColor: theme.colors.neutral[800], border: '1px solid #3a3528' }}
+                    onChange={(val) => {
+                        setSelectedBranch(val);
+                        form.setFieldsValue({ branchId: val }); // Ensure form value is set
+                        // Reset slots when branch changes
+                        setAvailableSlots([]);
+                        setSelectedSlot(null);
+                        handleCheckAvailability(); // Re-check if date/service already picked
+                    }}
+                  >
+                     {branches.map(b => (
+                         <Option key={b._id} value={b._id}>{b.name} - {b.address}</Option>
+                     ))}
+                  </Select>
+                </Form.Item>
 
                 <Form.Item 
                   name="serviceName"
@@ -294,7 +345,11 @@ const Booking = () => {
                         form.setFieldsValue({ date });
                         handleCheckAvailability();
                     }}
-                    disabledDate={(current) => current && current < dayjs().startOf('day')} // Không cho chọn ngày quá khứ
+                    inputReadOnly={true} // [FIX] Prevent manual typing to bypass disabledDate
+                    disabledDate={(current) => {
+                        // Can not select days before today and today + 7 days
+                        return current && (current < dayjs().startOf('day') || current > dayjs().add(7, 'day').endOf('day'));
+                    }} // Không cho chọn ngày quá khứ và quá 7 ngày
                     popupClassName="booking-datepicker-popup" // Class riêng để style popup
                   />
                 </Form.Item>
@@ -346,6 +401,40 @@ const Booking = () => {
                       })}
                     </div>
                   )}
+
+                  {/* [NEW] Overtime Warning */}
+                  {selectedSlot && (() => {
+                    const service = SERVICE_OPTIONS.find(s => s.value === form.getFieldValue('serviceName'));
+                    if (!service) return null;
+                    
+                    // Extract duration from label (e.g., "Massage (60p)" -> 60)
+                    const durationMatch = service.label.match(/(\d+)p/);
+                    const duration = durationMatch ? parseInt(durationMatch[1]) : 60;
+                    
+                    // Parse selected slot time
+                    const [hour, minute] = selectedSlot.split(':').map(Number);
+                    const slotMinutes = hour * 60 + minute;
+                    const endMinutes = slotMinutes + duration;
+                    const closeMinutes = 20 * 60; // 20:00
+                    
+                    // Show warning if service ends after 20:00
+                    if (endMinutes > closeMinutes) {
+                      return (
+                        <div style={{
+                          marginTop: '12px',
+                          padding: '10px 12px',
+                          backgroundColor: 'rgba(255, 165, 0, 0.1)',
+                          border: '1px solid rgba(255, 165, 0, 0.3)',
+                          borderRadius: '4px'
+                        }}>
+                          <Text style={{ color: '#FFA500', fontSize: '11px' }}>
+                            ⚠️ Lưu ý: Dịch vụ sẽ kết thúc sau giờ đóng cửa (20:00). Vui lòng đến đúng giờ!
+                          </Text>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
 
                 <Button 
