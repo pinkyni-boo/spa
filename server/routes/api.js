@@ -69,6 +69,8 @@ router.get('/bookings/search', BookingController.searchBookings); // [NEW] Globa
 router.get('/bookings/history/:phone', BookingController.getCustomerHistory); // [NEW] CRM - Customer History
 router.get('/bookings', BookingController.getAllBookings); // Admin
 router.put('/bookings/:id', BookingController.updateBooking);
+router.put('/bookings/:id/approve', BookingController.approveBooking); // [FIX] Add approve route
+router.put('/bookings/:id/complete', BookingController.completeBooking); // [FIX] Add complete route
 router.delete('/bookings/:id', BookingController.cancelBooking);
 
 // [PHASE 4] Smart Operations Routes

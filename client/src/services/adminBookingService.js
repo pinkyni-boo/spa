@@ -18,18 +18,18 @@ export const adminBookingService = {
       const response = await fetch(`${API_URL}/api/bookings?${params.toString()}`);
       const data = await response.json();
 
-      // Controller trả về Array trực tiếp
-      if (Array.isArray(data)) {
-        return data;
-      } else if (data.success && data.bookings) {
-          // Fallback nếu sau này controller đổi
-          return data.bookings;
+      // [FIX] Prioritize new format { success: true, bookings: [...] }
+      if (data.success && data.bookings) {
+          return data; // Return entire object so frontend can check .success
+      } else if (Array.isArray(data)) {
+          // Legacy format - wrap it
+          return { success: true, bookings: data };
       } else {
-        return [];
+        return { success: false, bookings: [] };
       }
     } catch (error) {
       console.error('Lỗi Mạng:', error);
-      return [];
+      return { success: false, bookings: [] };
     }
   },
 
@@ -81,6 +81,30 @@ export const adminBookingService = {
         // API Route: DELETE /api/bookings/:id
         const response = await fetch(`${API_URL}/api/bookings/${id}`, {
             method: 'DELETE'
+        });
+        return await response.json();
+    } catch (error) {
+        return { success: false, message: 'Lỗi kết nối' };
+    }
+  },
+
+  // [FIX] Add approve booking
+  approveBooking: async (id) => {
+    try {
+        const response = await fetch(`${API_URL}/api/bookings/${id}/approve`, {
+            method: 'PUT'
+        });
+        return await response.json();
+    } catch (error) {
+        return { success: false, message: 'Lỗi kết nối' };
+    }
+  },
+
+  // [FIX] Add complete booking
+  completeBooking: async (id) => {
+    try {
+        const response = await fetch(`${API_URL}/api/bookings/${id}/complete`, {
+            method: 'PUT'
         });
         return await response.json();
     } catch (error) {

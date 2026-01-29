@@ -52,6 +52,24 @@ const BookingManager = () => {
     const [managedBranches, setManagedBranches] = useState([]);
     
     const [staffs, setStaffs] = useState([]);
+    const [searchResults, setSearchResults] = useState([]); // [FIX] Add missing state for search autocomplete
+    const [isModalVisible, setIsModalVisible] = useState(false); // [FIX] Add missing modal state
+    const [drawerVisible, setDrawerVisible] = useState(false); // [FIX] Add missing drawer state
+    const [waitlist, setWaitlist] = useState([]); // [FIX] Add missing waitlist state
+    const [highlightBookingId, setHighlightBookingId] = useState(null); // [FIX] Add missing highlight state
+    const [refreshWaitlist, setRefreshWaitlist] = useState(0); // [FIX] Add missing trigger for waitlist refresh
+    const [draggedWaitlistItem, setDraggedWaitlistItem] = useState(null); // [FIX] Add missing drag state
+    const [selectedBooking, setSelectedBooking] = useState(null); // [FIX] Add missing selected booking state
+    
+    // [FIX] Add Form instance
+    const [form] = Form.useForm();
+    
+    // [FIX] Add customer options for autocomplete
+    const [customerOptions, setCustomerOptions] = useState([]);
+    
+    // [FIX] Add invoice modal states
+    const [isInvoiceVisible, setIsInvoiceVisible] = useState(false);
+    const [viewingInvoice, setViewingInvoice] = useState(null);
 
     useEffect(() => {
         // [AUTH] Load User Role & Branches
@@ -84,7 +102,90 @@ const BookingManager = () => {
         }
     }, []);
 
-    // ... (fetchData and other effects remain same)
+    // [FIX] Add missing fetchData function
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            // [FIX] Remove date filter - load ALL bookings, then filter by tabs
+            const params = {
+                // date: currentDate.format('YYYY-MM-DD'), // REMOVED - load all bookings
+                branchId: filterBranch,
+                staffId: filterStaff,
+                paymentStatus: filterPayment
+            };
+            
+            console.log('\n========== FRONTEND FETCH DEBUG ==========');
+            console.log('Params:', params);
+            
+            const result = await adminBookingService.getAllBookings(params);
+            
+            console.log('API Result:', result);
+            console.log('Result.success:', result?.success);
+            console.log('Result.bookings:', result?.bookings);
+            console.log('Bookings count:', result?.bookings?.length);
+            
+            if (result.success) {
+                // [FIX] Transform bookings to calendar event format
+                const transformedBookings = (result.bookings || []).map(booking => ({
+                    ...booking, // Keep all original fields
+                    start: new Date(booking.startTime), // Calendar needs 'start'
+                    end: new Date(booking.endTime), // Calendar needs 'end'
+                    title: booking.customerName || 'Khách', // Calendar needs 'title'
+                    resourceId: booking.roomId?._id || booking.roomId // Calendar needs 'resourceId'
+                }));
+                setBookings(transformedBookings);
+                console.log('State updated with', transformedBookings.length, 'bookings (transformed for calendar)');
+            } else {
+                console.warn('API returned success=false');
+            }
+            
+            // Fetch staff list
+            const staffRes = await resourceService.getAllStaff();
+            if (staffRes.success) {
+                setStaffs(staffRes.staff || []);
+            }
+            
+            // [FIX] Fetch rooms for calendar view
+            const roomsRes = await resourceService.getAllRooms();
+            console.log('Rooms response:', roomsRes);
+            if (roomsRes.success) {
+                // [FIX] Transform rooms to calendar resource format
+                const transformedRooms = (roomsRes.rooms || []).map(room => ({
+                    ...room, // Keep all original fields
+                    id: room._id, // Calendar needs 'id' (not '_id')
+                    title: room.name || 'Phòng' // Calendar needs 'title' (not 'name')
+                }));
+                setRooms(transformedRooms);
+                console.log('Loaded', transformedRooms.length, 'rooms (transformed for calendar)');
+            } else if (Array.isArray(roomsRes)) {
+                const transformedRooms = roomsRes.map(room => ({
+                    ...room,
+                    id: room._id,
+                    title: room.name || 'Phòng'
+                }));
+                setRooms(transformedRooms);
+                console.log('Loaded', transformedRooms.length, 'rooms (array format, transformed)');
+            }
+            
+            console.log('==========================================\n');
+        } catch (error) {
+            console.error('FETCH ERROR:', error);
+            message.error('Không thể tải dữ liệu');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // [FIX] Add missing openCreateModal function
+    const openCreateModal = () => {
+        setIsModalVisible(true);
+    };
+
+    // Fetch data when filters change
+    useEffect(() => {
+        // Both Admin and Owner can view all branches (filterBranch can be null)
+        fetchData();
+    }, [currentDate, filterBranch, filterStaff, filterPayment]);
 
     const handleCreateSubmit = async (values) => {
         // Logic create giống cũ
@@ -106,6 +207,134 @@ const BookingManager = () => {
          message.success("Tạo đơn thành công");
          setIsModalVisible(false);
          fetchData();
+    };
+
+    // [FIX] Add missing search select handler
+    const handleSearchSelect = (value, option) => {
+        // When user selects a search result, open the booking in edit mode
+        const booking = option.booking;
+        if (booking) {
+            setSelectedBooking(booking);
+            setIsEditing(true);
+        }
+    };
+
+    // [FIX] Add missing view change handler
+    const handleViewChange = (mode) => {
+        setViewMode(mode);
+    };
+
+    // [FIX] Add missing approve handler
+    const handleApprove = async (bookingId) => {
+        try {
+            const result = await adminBookingService.approveBooking(bookingId);
+            if (result.success) {
+                message.success('Đã duyệt đơn');
+                await fetchData(); // Refresh to show updated booking
+            } else {
+                message.error(result.message || 'Không thể duyệt đơn');
+            }
+        } catch (error) {
+            message.error('Không thể duyệt đơn');
+        }
+    };
+
+    // [FIX] Add missing action handler
+    const handleAction = async (action, bookingId, data) => {
+        try {
+            let result;
+            switch(action) {
+                case 'checkIn':
+                    result = await adminBookingService.checkIn(bookingId);
+                    if (result.success) message.success('Check-in thành công');
+                    break;
+                case 'complete':
+                    result = await adminBookingService.completeBooking(bookingId);
+                    if (result.success) message.success('Hoàn thành');
+                    break;
+                case 'cancel':
+                    result = await adminBookingService.cancelBooking(bookingId);
+                    if (result.success) message.success('Đã hủy');
+                    break;
+                case 'update':
+                    result = await adminBookingService.updateBooking(bookingId, data);
+                    if (result.success) message.success('Đã cập nhật');
+                    break;
+                default:
+                    break;
+            }
+            
+            // Only refresh if action was successful
+            if (result && result.success) {
+                setDrawerVisible(false);
+                await fetchData(); // Refresh bookings list
+            } else if (result && !result.success) {
+                message.error(result.message || 'Thao tác thất bại');
+            }
+        } catch (error) {
+            message.error('Thao tác thất bại');
+        }
+    };
+
+    // [FIX] Add missing calendar drag handlers
+    const handleEventDrop = async ({ event, start, end, resourceId }) => {
+        try {
+            await adminBookingService.updateBooking(event._id, {
+                startTime: start,
+                endTime: end,
+                roomId: resourceId
+            });
+            message.success('Đã chuyển lịch');
+            fetchData();
+        } catch (error) {
+            message.error('Không thể chuyển lịch');
+        }
+    };
+
+    const handleEventResize = async ({ event, start, end }) => {
+        try {
+            await adminBookingService.updateBooking(event._id, {
+                startTime: start,
+                endTime: end
+            });
+            message.success('Đã thay đổi thời gian');
+            fetchData();
+        } catch (error) {
+            message.error('Không thể thay đổi thời gian');
+        }
+    };
+
+    const handleWaitlistDrop = async ({ start, resourceId, draggedEvent }) => {
+        // Convert waitlist item to booking
+        try {
+            const waitlistItem = draggedEvent;
+            await adminBookingService.createBooking({
+                customerName: waitlistItem.customerName,
+                phone: waitlistItem.phone,
+                serviceName: waitlistItem.serviceName,
+                date: dayjs(start).format('YYYY-MM-DD'),
+                time: dayjs(start).format('HH:mm'),
+                branchId: filterBranch,
+                roomId: resourceId
+            });
+            message.success('Đã chuyển từ waitlist');
+            fetchData();
+        } catch (error) {
+            message.error('Không thể tạo booking');
+        }
+    };
+
+    // [FIX] Add missing invoice submit handler
+    const handleInvoiceSubmit = async (invoiceData) => {
+        try {
+            // Process payment and complete booking
+            await adminBookingService.processPayment(selectedBooking._id, invoiceData);
+            message.success('Thanh toán thành công');
+            setSelectedBooking(null);
+            fetchData();
+        } catch (error) {
+            message.error('Thanh toán thất bại');
+        }
     };
 
 

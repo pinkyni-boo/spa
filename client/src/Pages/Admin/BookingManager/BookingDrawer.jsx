@@ -1,5 +1,5 @@
 import React from 'react';
-import { Drawer, Button, Typography, Descriptions, Tag, Avatar, Space, Divider, Select, InputNumber } from 'antd';
+import { Drawer, Button, Typography, Descriptions, Tag, Avatar, Space, Divider, Select, InputNumber, message } from 'antd';
 import { HistoryOutlined } from '@ant-design/icons'; // [NEW] Icon
 import dayjs from 'dayjs';
 import theme from '../../../theme';
@@ -193,21 +193,21 @@ const BookingDrawer = ({ open, onClose, booking, onAction }) => {
             }}>
                 {/* GENERAL ACTIONS */}
                 {booking.status !== 'cancelled' && booking.status !== 'completed' && (
-                     <Button danger onClick={() => onAction('cancel', booking)}>Hủy Đơn</Button>
+                     <Button danger onClick={() => onAction('cancel', booking._id)}>Hủy Đơn</Button>
                 )}
 
                 {/* FLOW ACTIONS */}
                 
                 {/* A. PENDING -> CONFIRM */}
                 {booking.status === 'pending' && (
-                    <Button type="primary" onClick={() => onAction('approve', booking)}>
+                    <Button type="primary" onClick={() => onAction('approve', booking._id)}>
                         Duyệt Ngay
                     </Button>
                 )}
 
                 {/* B. CONFIRMED -> CHECK-IN (START) */}
                 {booking.status === 'confirmed' && (
-                    <Button type="primary" style={{ background: theme.colors.primary[500] }} onClick={() => onAction('checkin', booking)}>
+                    <Button type="primary" style={{ background: theme.colors.primary[500] }} onClick={() => onAction('checkIn', booking._id)}>
                         ▶ CHECK-IN (Bắt đầu)
                     </Button>
                 )}
@@ -216,12 +216,34 @@ const BookingDrawer = ({ open, onClose, booking, onAction }) => {
                 {booking.status === 'processing' && (
                     <>
                         <Button 
-                            onClick={() => setIsEditing(true)}
+                            onClick={() => {
+                                // [NEW] Check if near closing time (18:00) before allowing service addition
+                                const now = dayjs();
+                                const closingTime = dayjs().hour(20).minute(0).second(0); // [FIX] 20:00 closing time
+                                const minutesToClose = closingTime.diff(now, 'minute');
+                                
+                                console.log('[ADD SERVICE DEBUG] Now:', now.format('HH:mm'));
+                                console.log('[ADD SERVICE DEBUG] Closing time:', closingTime.format('HH:mm'));
+                                console.log('[ADD SERVICE DEBUG] Minutes to close:', minutesToClose);
+                                
+                                // Warning if less than 30 minutes to closing time
+                                if (minutesToClose < 30) {
+                                    console.log('[ADD SERVICE DEBUG] BLOCKING - Too close to closing time!');
+                                    message.warning({
+                                        content: '⚠️ Sắp đến giờ đóng cửa (20:00)! Không nên thêm dịch vụ để đảm bảo chất lượng phục vụ.',
+                                        duration: 4
+                                    });
+                                    return;
+                                }
+                                
+                                console.log('[ADD SERVICE DEBUG] ALLOWING - Enough time before closing');
+                                setIsEditing(true);
+                            }}
                             disabled={isEditing}
                         >
                             🔓 Thêm Dịch vụ
                         </Button>
-                        <Button type="primary" style={{ background: '#52c41a', borderColor: '#52c41a' }} onClick={() => onAction('checkout', booking)}>
+                        <Button type="primary" style={{ background: '#52c41a', borderColor: '#52c41a' }} onClick={() => onAction('complete', booking._id)}>
                             💰 THANH TOÁN
                         </Button>
                     </>

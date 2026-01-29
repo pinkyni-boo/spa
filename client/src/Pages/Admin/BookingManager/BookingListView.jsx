@@ -125,7 +125,7 @@ const BookingListView = ({ bookings, loading, onEdit, onApprove, filterDate, set
                         size="small"
                         onClick={(e) => {
                             e.stopPropagation();
-                            onApprove && onApprove(record);
+                            onApprove && onApprove(record._id); // [FIX] Pass ID string, not object
                         }}
                         style={{ fontSize: 12 }}
                     >

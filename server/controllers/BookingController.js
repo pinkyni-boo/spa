@@ -349,6 +349,14 @@ exports.createBooking = async (req, res) => {
 exports.getAllBookings = async (req, res) => {
   try {
     const { date, phone, staffId, paymentStatus, branchId } = req.query; // [UPDATED] Added branchId
+    
+    console.log('\n========== GET ALL BOOKINGS DEBUG ==========');
+    console.log('Request Query:', req.query);
+    console.log('Date:', date);
+    console.log('BranchId:', branchId);
+    console.log('StaffId:', staffId);
+    console.log('PaymentStatus:', paymentStatus);
+    
     let query = {};
 
     if (branchId) {
@@ -392,9 +400,15 @@ exports.getAllBookings = async (req, res) => {
       .populate('roomId', 'name')  // New
       .sort({ createdAt: -1 }); // Xếp theo mới tạo nhất (để Admin dễ thấy đơn vừa đặt)
 
-    res.json(bookings);
+    console.log('Final Query:', JSON.stringify(query, null, 2));
+    console.log('Found Bookings:', bookings.length);
+    console.log('==========================================\n');
+
+    // [FIX] Return consistent format { success: true, bookings: [...] }
+    res.json({ success: true, bookings });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error in getAllBookings:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -413,6 +427,40 @@ exports.cancelBooking = async (req, res) => {
     try {
         await Booking.findByIdAndUpdate(req.params.id, { status: 'cancelled' });
         res.json({ success: true, message: 'Đã hủy đơn' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// [FIX] Add approve booking endpoint
+exports.approveBooking = async (req, res) => {
+    try {
+        const booking = await Booking.findByIdAndUpdate(
+            req.params.id, 
+            { status: 'confirmed' },
+            { new: true }
+        );
+        if (!booking) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy đơn' });
+        }
+        res.json({ success: true, booking, message: 'Đã duyệt đơn' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// [FIX] Add complete booking endpoint
+exports.completeBooking = async (req, res) => {
+    try {
+        const booking = await Booking.findByIdAndUpdate(
+            req.params.id,
+            { status: 'completed', paymentStatus: 'paid' },
+            { new: true }
+        );
+        if (!booking) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy đơn' });
+        }
+        res.json({ success: true, booking, message: 'Hoàn thành đơn' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
