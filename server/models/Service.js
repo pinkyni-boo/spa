@@ -29,7 +29,7 @@ const ServiceSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['Body', 'Face', 'Combo', 'Other', 'Head'],
+    enum: ['Body', 'Face', 'Combo', 'Other', 'Head', 'Skincare', 'Haircare', 'Voucher'], // Added product categories
     default: 'Body'
   },
   // [NEW] Service Type (service vs product)

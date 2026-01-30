@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Button, Modal, Form, Input, InputNumber, Select, message, Upload, Tag } from 'antd';
 import { PlusOutlined, DeleteOutlined, EditOutlined, ShoppingCartOutlined, UploadOutlined } from '@ant-design/icons';
 import theme from '../../../theme';
-import { adminBookingService } from '../../../services/adminBookingService'; 
-// Reuse adminBookingService for now as it handles services/products
+import { resourceService } from '../../../services/resourceService'; // [FIX] Use resourceService like ServiceManager
 
 const { Option } = Select;
 
@@ -16,9 +15,11 @@ const ProductManager = () => {
 
     const fetchProducts = async () => {
         setLoading(true);
-        // [IMPORTANT] Fetch only type='product'
-        const res = await adminBookingService.getServices('product');
+        // [FIX] Use resourceService like ServiceManager
+        const res = await resourceService.getAllServices('product');
+        console.log('[PRODUCT MANAGER] Fetch response:', res); // [DEBUG]
         if (res && res.success) {
+            console.log('[PRODUCT MANAGER] Products count:', res.services?.length); // [DEBUG]
             setProducts(res.services || []);
         } else {
             message.error("Lỗi tải sản phẩm");
@@ -32,13 +33,16 @@ const ProductManager = () => {
 
     const handleDelete = async (id) => {
         if (!window.confirm("Xóa sản phẩm này?")) return;
-        // In real app, check stock before deleting
-        // Reuse service delete API as it works for both
-        // But need to make sure we have access to it. 
-        // Currently adminBookingService doesn't expose deleteService directly?
-        // Let's assume we might need to add it or use a separate service file.
-        // For now, let's just mock the UI feedback or assume we'll add delete to service.
-        message.info("Tính năng xóa đang phát triển (Backend Shared)");
+        
+        setLoading(true);
+        const res = await resourceService.deleteService(id);
+        if (res.success) {
+            message.success('Xóa sản phẩm thành công');
+            fetchProducts();
+        } else {
+            message.error('Lỗi khi xóa');
+        }
+        setLoading(false);
     };
 
     const handleEdit = (record) => {
@@ -58,12 +62,30 @@ const ProductManager = () => {
         const payload = { ...values, type: 'product', duration: 0 }; 
         // Products don't have duration -> 0
 
-        // Call Create/Update API
-        // For now, mock success to show UI flow
-        message.success(editingProduct ? "Cập nhật thành công!" : "Thêm mới thành công!");
-        setIsModalVisible(false);
-        fetchProducts(); 
-        // Note: Real API call depends on adminBookingService expansion
+        setLoading(true);
+        try {
+            let res;
+            if (editingProduct) {
+                // Update existing product
+                res = await resourceService.updateService(editingProduct._id, payload);
+            } else {
+                // Create new product  
+                res = await resourceService.createService(payload);
+            }
+
+            if (res.success) {
+                message.success(editingProduct ? "Cập nhật thành công!" : "Thêm mới thành công!");
+                setIsModalVisible(false);
+                fetchProducts();
+            } else {
+                message.error('Có lỗi xảy ra: ' + (res.message || 'Unknown'));
+            }
+        } catch (error) {
+            console.error('Error saving product:', error);
+            message.error('Lỗi khi lưu sản phẩm');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const columns = [

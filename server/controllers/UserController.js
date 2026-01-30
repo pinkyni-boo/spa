@@ -3,7 +3,14 @@ const User = require('../models/User');
 // Get all users
 exports.getAllUsers = async (req, res) => {
     try {
-        const users = await User.find().populate('managedBranches', 'name').sort({ createdAt: -1 });
+        const users = await User.find()
+            .populate('managedBranches', 'name')
+            .populate({
+                path: 'staffId',
+                select: 'name phone role',
+                populate: { path: 'branchId', select: 'name' } // Nested populate
+            })
+            .sort({ createdAt: -1 });
         res.json({ success: true, users });
     } catch (error) {
         console.error('Error getting users:', error);
@@ -14,7 +21,7 @@ exports.getAllUsers = async (req, res) => {
 // Create new user
 exports.createUser = async (req, res) => {
     try {
-        const { username, password, name, role, managedBranches, phone } = req.body;
+        const { username, password, name, role, managedBranches, phone, staffId } = req.body; // [NEW] Add staffId
 
         const existingUser = await User.findOne({ username });
         if (existingUser) {
@@ -26,6 +33,7 @@ exports.createUser = async (req, res) => {
             password, // Plain text for now as requested
             name,
             role,
+            staffId, // [NEW] Save staffId
             managedBranches: role === 'admin' ? managedBranches : [], // Only admins have branches
             phone
         });
@@ -43,13 +51,14 @@ exports.createUser = async (req, res) => {
 exports.updateUser = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, role, managedBranches, phone, password, isActive } = req.body;
+        const { name, role, managedBranches, phone, password, isActive, staffId } = req.body; // [NEW] Add staffId
 
         const updateData = {
             name,
             role,
             phone,
             isActive,
+            staffId, // [NEW] Include staffId
             managedBranches: role === 'admin' ? managedBranches : []
         };
 

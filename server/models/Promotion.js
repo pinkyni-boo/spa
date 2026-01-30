@@ -80,12 +80,11 @@ const promotionSchema = new mongoose.Schema({
 });
 
 // Auto-update status based on dates
-promotionSchema.pre('save', function(next) {
+promotionSchema.pre('save', function() {
     const now = new Date();
     if (this.endDate < now) {
         this.status = 'expired';
     }
-    next();
 });
 
 module.exports = mongoose.model('Promotion', promotionSchema);

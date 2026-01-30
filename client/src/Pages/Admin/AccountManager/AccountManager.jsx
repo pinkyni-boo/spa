@@ -3,6 +3,7 @@ import { Layout, Typography, Card, Table, Button, Modal, Form, Input, Select, Ta
 import { UserOutlined, PlusOutlined, EditOutlined, DeleteOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { userService } from '../../../services/userService';
 import { branchService } from '../../../services/branchService';
+import { resourceService } from '../../../services/resourceService'; // [NEW] For fetching staff
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -10,6 +11,7 @@ const { Option } = Select;
 const AccountManager = () => {
     const [users, setUsers] = useState([]);
     const [branches, setBranches] = useState([]);
+    const [staffList, setStaffList] = useState([]); // [NEW] Staff with admin/owner roles
     const [loading, setLoading] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -20,6 +22,7 @@ const AccountManager = () => {
     useEffect(() => {
         fetchUsers();
         fetchBranches();
+        fetchStaff(); // [NEW] Fetch staff list
     }, []);
 
     const fetchUsers = async () => {
@@ -43,6 +46,33 @@ const AccountManager = () => {
         }
     };
 
+    // [NEW] Fetch staff with admin/owner roles
+    const fetchStaff = async () => {
+        try {
+            const res = await resourceService.getAllStaff();
+            if (res.success) {
+                // Filter staff with role = admin or owner
+                const adminStaff = (res.staff || []).filter(s => s.role === 'admin' || s.role === 'owner');
+                setStaffList(adminStaff);
+            }
+        } catch (error) {
+            console.error('Lỗi tải nhân viên', error);
+        }
+    };
+
+    // [NEW] Handle staff selection - auto-populate fields
+    const handleStaffSelect = (staffId) => {
+        const staff = staffList.find(s => s._id === staffId);
+        if (staff) {
+            form.setFieldsValue({
+                staffId: staffId,
+                role: staff.role, // Auto-set role from staff
+                managedBranches: staff.branchId ? [staff.branchId._id || staff.branchId] : [] // Auto-set branch
+            });
+            setRole(staff.role);
+        }
+    };
+
     const handleCreate = () => {
         setIsEditing(false);
         setSelectedUser(null);
@@ -57,6 +87,7 @@ const AccountManager = () => {
         setRole(record.role);
         form.setFieldsValue({
             ...record,
+            staffId: record.staffId?._id || record.staffId, // [NEW] Load staffId
             managedBranches: record.managedBranches ? record.managedBranches.map(b => b._id || b) : []
         });
         setModalVisible(true);
@@ -94,6 +125,25 @@ const AccountManager = () => {
             dataIndex: 'name',
             key: 'name',
             render: (text) => <span style={{ fontWeight: 500 }}>{text}</span>
+        },
+        {
+            title: 'Nhân viên',
+            dataIndex: 'staffId',
+            key: 'staffId',
+            render: (staff) => {
+                if (staff?.name) {
+                    return (
+                        <Space>
+                            <UserOutlined />
+                            <span>{staff.name}</span>
+                            {staff.branchId?.name && (
+                                <Tag color="cyan" style={{ fontSize: 11 }}>Chi nhánh: {staff.branchId.name}</Tag>
+                            )}
+                        </Space>
+                    );
+                }
+                return <span style={{ color: '#ccc' }}>Chưa gán</span>;
+            }
         },
         {
             title: 'Tên đăng nhập',
@@ -175,6 +225,27 @@ const AccountManager = () => {
                     width={600}
                 >
                     <Form form={form} layout="vertical" onFinish={onFinish}>
+                        {/* [NEW] Staff Selection Dropdown */}
+                        <Form.Item 
+                            name="staffId" 
+                            label="📋 Chọn Nhân Viên" 
+                            rules={[{ required: true, message: 'Vui lòng chọn nhân viên' }]}
+                            help="Chỉ hiển thị nhân viên có chức vụ ADMIN hoặc OWNER"
+                        >
+                            <Select 
+                                placeholder="Chọn nhân viên..." 
+                                onChange={handleStaffSelect}
+                                showSearch
+                                optionFilterProp="children"
+                            >
+                                {staffList.map(s => (
+                                    <Option key={s._id} value={s._id}>
+                                        {s.name} ({s.branchId?.name || 'Chưa gán chi nhánh'}) - {s.role === 'owner' ? 'OWNER' : 'ADMIN'}
+                                    </Option>
+                                ))}
+                            </Select>
+                        </Form.Item>
+
                         <Form.Item name="name" label="Tên hiển thị" rules={[{ required: true, message: 'Vui lòng nhập tên' }]}>
                             <Input placeholder="VD: Nguyễn Văn A" />
                         </Form.Item>
@@ -194,11 +265,12 @@ const AccountManager = () => {
                         <Row gutter={16}>
                             <Col span={12}>
                                 <Form.Item name="role" label="Vai trò" rules={[{ required: true }]}>
-                                    <Select onChange={(val) => setRole(val)}>
+                                    <Select onChange={(val) => setRole(val)} disabled>
                                         <Option value="owner">OWNER (Toàn quyền)</Option>
                                         <Option value="admin">ADMIN (Quản lý chi nhánh)</Option>
                                     </Select>
                                 </Form.Item>
+                                <span style={{ fontSize: 12, color: '#888' }}>✨ Tự động điền từ chức vụ nhân viên</span>
                             </Col>
                             <Col span={12}>
                                 <Form.Item name="isActive" label="Trạng thái" valuePropName="checked" initialValue={true}>

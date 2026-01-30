@@ -95,6 +95,7 @@ router.delete('/rooms/:id', RoomController.deleteRoom);
 
 // --- STAFF ROUTES ---
 router.get('/staff', StaffController.getAllStaff);
+router.post('/staff', StaffController.createStaff); // [NEW] Create staff
 router.put('/staff/:id', StaffController.updateStaffDetails);
 
 // --- WAITLIST ROUTES (NEW) ---

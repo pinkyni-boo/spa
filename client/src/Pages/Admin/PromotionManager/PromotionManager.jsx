@@ -68,23 +68,30 @@ const PromotionManager = () => {
 
     const handleSubmit = async (values) => {
         try {
+            console.log('[FRONTEND] Form values:', values); // [DEBUG]
             const promotionData = {
                 ...values,
                 startDate: values.dateRange[0].toDate(),
                 endDate: values.dateRange[1].toDate()
             };
             delete promotionData.dateRange;
+            console.log('[FRONTEND] Sending to backend:', promotionData); // [DEBUG]
 
             const response = editingPromotion
                 ? await promotionService.updatePromotion(editingPromotion._id, promotionData)
                 : await promotionService.createPromotion(promotionData);
 
+            console.log('[FRONTEND] Response:', response); // [DEBUG]
             if (response.success) {
                 message.success(editingPromotion ? 'Cập nhật thành công' : 'Tạo khuyến mãi thành công');
                 setModalVisible(false);
                 fetchPromotions();
+            } else {
+                // [DEBUG] Show backend error if available
+                message.error(response.message || response.error || 'Có lỗi xảy ra');
             }
         } catch (error) {
+            console.error('[FRONTEND] Error:', error); // [DEBUG]
             message.error('Có lỗi xảy ra');
         }
     };

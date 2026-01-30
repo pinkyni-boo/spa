@@ -112,6 +112,19 @@ export const resourceService = {
       }
   },
 
+  createStaff: async (data) => {
+      try {
+          const response = await fetch(`${API_URL}/staff`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data)
+          });
+          return await response.json();
+      } catch (error) {
+          return { success: false, message: 'Network error' };
+      }
+  },
+
   updateStaff: async (id, data) => {
       try {
           const response = await fetch(`${API_URL}/staff/${id}`, {

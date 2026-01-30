@@ -19,6 +19,12 @@ const UserSchema = new mongoose.Schema({
     enum: ['owner', 'admin', 'staff'], 
     default: 'staff' 
   },
+  // [NEW] Link to Staff profile
+  staffId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Staff',
+    default: null
+  },
   // If role is 'admin', this array contains Branch IDs they manage
   managedBranches: [{
     type: mongoose.Schema.Types.ObjectId,

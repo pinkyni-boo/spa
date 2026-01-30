@@ -3,7 +3,9 @@ const Room = require('../models/Room');
 // 1. Lấy danh sách tất cả phòng
 exports.getAllRooms = async (req, res) => {
   try {
-    const rooms = await Room.find().sort({ isActive: -1, name: 1 });
+    const rooms = await Room.find()
+      .populate('branchId', 'name') // [FIX] Populate Branch Name
+      .sort({ isActive: -1, name: 1 });
     res.json({ success: true, rooms });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi lấy danh sách phòng' });
@@ -13,13 +15,13 @@ exports.getAllRooms = async (req, res) => {
 // 2. Tạo phòng mới
 exports.createRoom = async (req, res) => {
   try {
-    const { name, type, capacity } = req.body;
+    const { name, branchId, type, capacity, description } = req.body;
     
     // Check trùng tên
     const existing = await Room.findOne({ name });
     if (existing) return res.status(400).json({ message: 'Tên phòng đã tồn tại' });
 
-    const newRoom = new Room({ name, type, capacity });
+    const newRoom = new Room({ name, branchId, type, capacity, description });
     await newRoom.save();
     
     res.json({ success: true, message: 'Tạo phòng thành công', room: newRoom });
@@ -32,13 +34,13 @@ exports.createRoom = async (req, res) => {
 exports.updateRoom = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, type, capacity, isActive } = req.body;
+        const { name, branchId, type, capacity, description, isActive } = req.body;
 
         const room = await Room.findByIdAndUpdate(
             id, 
-            { name, type, capacity, isActive }, 
+            { name, branchId, type, capacity, description, isActive }, 
             { new: true }
-        );
+        ).populate('branchId', 'name');
 
         if (!room) return res.status(404).json({ message: 'Không tìm thấy phòng' });
         res.json({ success: true, message: 'Cập nhật thành công', room });

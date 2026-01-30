@@ -30,7 +30,7 @@ exports.getAllServices = async (req, res) => {
 
 exports.createService = async (req, res) => {
     try {
-        const { name, price, duration, breakTime, category, description, image } = req.body;
+        const { name, price, duration, breakTime, category, description, image, type } = req.body; // [FIX] Add type
         const newService = new Service({
             name,
             price,
@@ -38,7 +38,8 @@ exports.createService = async (req, res) => {
             breakTime: breakTime || 30, // Default 30 if not provided
             category,
             description,
-            image
+            image,
+            type: type || 'service' // [FIX] Save type field
         });
         await newService.save();
         res.json({ success: true, service: newService });

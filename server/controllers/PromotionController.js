@@ -42,6 +42,7 @@ exports.getActivePromotions = async (req, res) => {
 // Create promotion
 exports.createPromotion = async (req, res) => {
     try {
+        console.log('[CREATE PROMOTION] Request body:', JSON.stringify(req.body, null, 2)); // [DEBUG] Log request
         const promotion = new Promotion(req.body);
         await promotion.save();
         
@@ -52,7 +53,13 @@ exports.createPromotion = async (req, res) => {
         });
     } catch (error) {
         console.error('Error creating promotion:', error);
-        res.status(500).json({ success: false, message: 'Server error' });
+        console.error('Error details:', error.message); // [DEBUG] Detailed error
+        console.error('Stack:', error.stack); // [DEBUG] Stack trace
+        res.status(500).json({ 
+            success: false, 
+            message: 'Server error', 
+            error: error.message // [DEBUG] Send error message to frontend
+        });
     }
 };
 

@@ -3,7 +3,9 @@ const Branch = require('../models/Branch');
 // Get all branches
 exports.getAllBranches = async (req, res) => {
     try {
-        const branches = await Branch.find().sort({ createdAt: -1 });
+        const branches = await Branch.find()
+            .populate('managerId', 'name phone email') // [NEW] Populate manager info
+            .sort({ createdAt: -1 });
         res.json({
             success: true,
             branches
@@ -17,7 +19,8 @@ exports.getAllBranches = async (req, res) => {
 // Get single branch
 exports.getBranch = async (req, res) => {
     try {
-        const branch = await Branch.findById(req.params.id);
+        const branch = await Branch.findById(req.params.id)
+            .populate('managerId', 'name phone email'); // [NEW]
         if (!branch) {
             return res.status(404).json({ success: false, message: 'Branch not found' });
         }
@@ -34,14 +37,14 @@ exports.getBranch = async (req, res) => {
 // Create branch
 exports.createBranch = async (req, res) => {
     try {
-        const { name, address, phone, email, manager, operatingHours } = req.body;
+        const { name, address, phone, email, managerId, operatingHours } = req.body;
 
         const branch = new Branch({
             name,
             address,
             phone,
             email,
-            manager,
+            managerId, // [UPDATED] Use managerId instead of manager object
             operatingHours,
             status: 'active'
         });
@@ -62,13 +65,13 @@ exports.createBranch = async (req, res) => {
 // Update branch
 exports.updateBranch = async (req, res) => {
     try {
-        const { name, address, phone, email, manager, operatingHours, status } = req.body;
+        const { name, address, phone, email, managerId, operatingHours, status } = req.body;
 
         const branch = await Branch.findByIdAndUpdate(
             req.params.id,
-            { name, address, phone, email, manager, operatingHours, status },
+            { name, address, phone, email, managerId, operatingHours, status }, // [UPDATED]
             { new: true, runValidators: true }
-        );
+        ).populate('managerId', 'name phone email');
 
         if (!branch) {
             return res.status(404).json({ success: false, message: 'Branch not found' });

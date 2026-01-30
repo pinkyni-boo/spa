@@ -6,6 +6,7 @@ const Booking = require('../models/Booking'); // Import Booking model
 exports.searchCustomers = async (req, res) => {
     try {
         const { query } = req.query; // Search by name or phone
+        console.log('[SEARCH CUSTOMERS] Query:', query); // [DEBUG]
         
         let customers = [];
         let bookings = [];
@@ -17,6 +18,7 @@ exports.searchCustomers = async (req, res) => {
                 .select('customerName phone createdAt')
                 .sort({ createdAt: -1 })
                 .limit(200);
+            console.log('[SEARCH CUSTOMERS] Default view, bookings count:', bookings.length); // [DEBUG]
         } else {
             // [SEARCH VIEW]
             // Priority 1: Search in Customer collection (synced data)
@@ -26,6 +28,7 @@ exports.searchCustomers = async (req, res) => {
                     { name: { $regex: query, $options: 'i' } }
                 ]
             }).limit(20).sort({ lastVisit: -1 });
+            console.log('[SEARCH CUSTOMERS] Customers from CRM:', customers.length); // [DEBUG]
 
             // Priority 2: Fallback search in Booking collection
             bookings = await Booking.find({
@@ -34,6 +37,7 @@ exports.searchCustomers = async (req, res) => {
                     { customerName: { $regex: query, $options: 'i' } }
                 ]
             }).select('customerName phone createdAt').sort({ createdAt: -1 }).limit(100);
+            console.log('[SEARCH CUSTOMERS] Bookings found:', bookings.length); // [DEBUG]
         }
 
         // Aggregate unique phone numbers
@@ -63,6 +67,7 @@ exports.searchCustomers = async (req, res) => {
             }
         }
 
+        console.log('[SEARCH CUSTOMERS] Final result count:', result.length); // [DEBUG]
         // Return top 50
         res.json({
             success: true,

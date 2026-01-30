@@ -23,9 +23,9 @@ const branchSchema = new mongoose.Schema({
         enum: ['active', 'inactive'],
         default: 'active'
     },
-    manager: {
-        name: String,
-        phone: String
+    managerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Staff' // [CHANGED] from 'User' to 'Staff' - Admin is a staff member with role='admin'
     },
     operatingHours: {
         open: {

@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Typography, Button, Card, Row, Col, Modal, Form, Input, TimePicker, Tag, message, Popconfirm, Spin } from 'antd';
+import { Layout, Typography, Button, Card, Row, Col, Modal, Form, Input, TimePicker, Tag, message, Popconfirm, Spin, Select } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, EnvironmentOutlined, PhoneOutlined, MailOutlined, UserOutlined } from '@ant-design/icons';
 import { branchService } from '../../../services/branchService';
+import { resourceService } from '../../../services/resourceService'; // [CHANGED] Use resourceService to fetch staff
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
+const { Option } = Select;
 
 const BranchManager = () => {
     const [branches, setBranches] = useState([]);
     const [loading, setLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);
     const [editingBranch, setEditingBranch] = useState(null);
+    const [adminUsers, setAdminUsers] = useState([]); // [NEW]
     const [form] = Form.useForm();
 
     const fetchBranches = async () => {
@@ -27,8 +30,22 @@ const BranchManager = () => {
         }
     };
 
+    const fetchAdmins = async () => {
+        try {
+            const response = await resourceService.getAllStaff(); // [CHANGED] from userService.getAllUsers
+            if (response.success) {
+                // Filter staff with role='admin'
+                const admins = response.staff.filter(s => s.role === 'admin');
+                setAdminUsers(admins);
+            }
+        } catch (error) {
+            console.error('Failed to fetch admins:', error);
+        }
+    };
+
     useEffect(() => {
         fetchBranches();
+        fetchAdmins(); // [NEW]
     }, []);
 
     const handleCreate = () => {
@@ -41,6 +58,7 @@ const BranchManager = () => {
         setEditingBranch(branch);
         form.setFieldsValue({
             ...branch,
+            managerId: branch.managerId?._id || branch.managerId, // [UPDATED]
             operatingHours: branch.operatingHours ? [
                 dayjs(branch.operatingHours.open, 'HH:mm'),
                 dayjs(branch.operatingHours.close, 'HH:mm')
@@ -165,14 +183,14 @@ const BranchManager = () => {
                                         </div>
                                     )}
 
-                                    {branch.manager?.name && (
+                                    {branch.managerId && (
                                         <div style={{ marginTop: 12, padding: 8, background: '#f5f5f5', borderRadius: 4 }}>
                                             <UserOutlined style={{ marginRight: 8 }} />
                                             <Text strong>Quản lý: </Text>
-                                            <Text>{branch.manager.name}</Text>
-                                            {branch.manager.phone && (
+                                            <Text>{branch.managerId.name}</Text>
+                                            {branch.managerId.phone && (
                                                 <Text type="secondary" style={{ marginLeft: 8 }}>
-                                                    ({branch.manager.phone})
+                                                    ({branch.managerId.phone})
                                                 </Text>
                                             )}
                                         </div>
@@ -254,24 +272,25 @@ const BranchManager = () => {
 
                         <Title level={5}>Thông Tin Quản Lý</Title>
 
-                        <Row gutter={16}>
-                            <Col span={12}>
-                                <Form.Item
-                                    name={['manager', 'name']}
-                                    label="Tên Quản Lý"
-                                >
-                                    <Input placeholder="Nguyễn Văn A" />
-                                </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                                <Form.Item
-                                    name={['manager', 'phone']}
-                                    label="SĐT Quản Lý"
-                                >
-                                    <Input placeholder="0987654321" />
-                                </Form.Item>
-                            </Col>
-                        </Row>
+                        <Form.Item
+                            name="managerId"
+                            label="Chọn Quản Lý"
+                        >
+                            <Select 
+                                placeholder="Chọn Admin quản lý chi nhánh này"
+                                allowClear
+                                showSearch
+                                filterOption={(input, option) =>
+                                    option.children.toLowerCase().includes(input.toLowerCase())
+                                }
+                            >
+                                {adminUsers.map(admin => (
+                                    <Option key={admin._id} value={admin._id}>
+                                        {admin.name} ({admin.phone})
+                                    </Option>
+                                ))}
+                            </Select>
+                        </Form.Item>
                     </Form>
                 </Modal>
             </div>

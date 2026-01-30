@@ -1,40 +1,53 @@
-import React, { useState, useEffect } from 'react';
-import { Layout, Input, Table, Typography, Drawer, Card, Tag, Statistic, Row, Col, Avatar, Timeline, message } from 'antd';
+import React, { useState, useEffect, useRef } from 'react';
+import { Layout, Input, Table, Typography, Drawer, Card, Tag, Statistic, Row, Col, Avatar, Timeline, message, AutoComplete } from 'antd';
 import { SearchOutlined, UserOutlined, HistoryOutlined, PhoneOutlined, DatabaseOutlined, DollarOutlined } from '@ant-design/icons';
 import { customerService } from '../../../services/customerService';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
-const { Search } = Input;
 
 const CustomerManager = () => {
     const [loading, setLoading] = useState(false);
     const [customers, setCustomers] = useState([]);
+    const [suggestions, setSuggestions] = useState([]); // [NEW] For autocomplete
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [historyLoading, setHistoryLoading] = useState(false);
     const [drawerVisible, setDrawerVisible] = useState(false);
     const [customerHistory, setCustomerHistory] = useState({ profile: {}, stats: {}, history: [] });
+    const searchTimerRef = useRef(null); // [NEW] For debouncing
 
     // Load initial data (recent customers)
     useEffect(() => {
         handleSearch('');
     }, []);
 
-    // Search Customers
+    // Search Customers (used for both autocomplete and table)
     const handleSearch = async (value) => {
         setLoading(true);
         try {
-            const response = await customerService.searchCustomers(value || ''); // Send empty string if null
+            const response = await customerService.searchCustomers(value || '');
             if (response.success) {
                 setCustomers(response.customers);
                 
-                // UX: If Searching (not default load) and only 1 result found, Auto Open History
+                // [NEW] Update autocomplete suggestions
+                const options = response.customers.map(c => ({
+                    value: `${c.name || c.customerName} (${c.phone})`,
+                    label: (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>
+                                <UserOutlined style={{ marginRight: 8 }} />
+                                {c.name || c.customerName}
+                            </span>
+                            <Text type="secondary" style={{ fontSize: 12 }}>{c.phone}</Text>
+                        </div>
+                    ),
+                    customer: c
+                }));
+                setSuggestions(options);
+                
+                // UX: If only 1 result found, Auto Open History
                 if (value && response.customers.length === 1) {
                     handleViewHistory(response.customers[0]);
-                }
-                
-                if (value && response.customers.length === 0) {
-                    message.info('Không tìm thấy khách hàng nào');
                 }
             }
         } catch (error) {
@@ -44,17 +57,18 @@ const CustomerManager = () => {
         }
     };
 
-    // Handle Clear Search (X button)
-    const onSearch = (value) => {
-        handleSearch(value);
-    };
-
-    const handleChangeString = (e) => {
-        // Optional: Real-time search or Reset on clear
-        if (e.target.value === '') {
-            handleSearch('');
+    // [NEW] Debounced search on typing
+    const handleSearchInput = (value) => {
+        // Clear previous timer
+        if (searchTimerRef.current) {
+            clearTimeout(searchTimerRef.current);
         }
-    }
+
+        // Set new timer (debounce 500ms)
+        searchTimerRef.current = setTimeout(() => {
+            handleSearch(value);
+        }, 500);
+    };
 
     // View Customer History
     const handleViewHistory = async (record) => {
@@ -117,16 +131,26 @@ const CustomerManager = () => {
                 <Title level={2}>📖 Tra Cứu Lịch Sử Khách Hàng</Title>
                 
                 <Card style={{ marginBottom: 24, borderRadius: 8 }}>
-                    <Search
+                    <AutoComplete
+                        options={suggestions}
+                        onSearch={handleSearchInput}
+                        onSelect={(value, option) => {
+                            // When user selects from dropdown, open history immediately
+                            if (option.customer) {
+                                handleViewHistory(option.customer);
+                            }
+                        }}
                         placeholder="Nhập tên khách hàng hoặc số điện thoại..."
-                        enterButton="Tìm kiếm"
+                        style={{ width: '100%' }}
                         size="large"
-                        onSearch={onSearch}
-                        onChange={handleChangeString}
-                        loading={loading}
                         allowClear
-                        prefix={<SearchOutlined />}
-                    />
+                    >
+                        <Input
+                            prefix={<SearchOutlined />}
+                            suffix={loading ? <span style={{ fontSize: 12, color: '#999' }}>Đang tìm...</span> : null}
+                        />
+                    </AutoComplete>
+         
                 </Card>
 
                 <Table

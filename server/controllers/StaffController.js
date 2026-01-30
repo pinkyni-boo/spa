@@ -3,25 +3,51 @@ const Staff = require('../models/Staff');
 // 1. Lấy danh sách nhân viên
 exports.getAllStaff = async (req, res) => {
     try {
-        const staff = await Staff.find().sort({ isActive: -1, name: 1 });
+        const staff = await Staff.find()
+            .populate('branchId', 'name') // [FIX] Populate Branch Name
+            .sort({ isActive: -1, name: 1 });
         res.json({ success: true, staff });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Lỗi lấy danh sách nhân viên' });
     }
 };
 
-// 2. Cập nhật Kỹ năng & Ca làm việc (Quan trọng cho Booking)
+// 2. Tạo nhân viên mới
+exports.createStaff = async (req, res) => {
+    try {
+        const { name, phone, branchId, role, shifts, isActive } = req.body; // [UPDATED] add role
+        
+        const newStaff = new Staff({
+            name,
+            phone,
+            branchId,
+            role, // [NEW]
+            shifts: shifts || [],
+            isActive: isActive !== undefined ? isActive : true
+        });
+        
+        await newStaff.save();
+        
+        res.json({ success: true, message: 'Tạo nhân viên thành công', staff: newStaff });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Lỗi tạo nhân viên' });
+    }
+};
+
+// 3. Cập nhật Kỹ năng & Ca làm việc (Quan trọng cho Booking)
 exports.updateStaffDetails = async (req, res) => {
     try {
         const { id } = req.params;
-        const { skills, shifts, isActive } = req.body;
+        // [FIX] Allow updating name, phone, branchId
+        const { name, phone, branchId, role, skills, shifts, isActive } = req.body; // [UPDATED] add role
 
         // Validate shifts logic (nếu cần)
         // VD: startTime < endTime
 
         const staff = await Staff.findByIdAndUpdate(
             id,
-            { skills, shifts, isActive },
+            { name, phone, branchId, role, skills, shifts, isActive }, // [UPDATED]
             { new: true }
         );
 

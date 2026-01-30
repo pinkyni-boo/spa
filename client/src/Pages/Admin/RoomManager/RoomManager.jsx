@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Card, Typography, Modal, Form, Input, Select, InputNumber, Tag, Space, message, Popconfirm } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, HomeOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, HomeOutlined, ShopOutlined } from '@ant-design/icons';
 import theme from '../../../theme';
 import { resourceService } from '../../../services/resourceService';
+import { branchService } from '../../../services/branchService'; // [NEW]
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -10,6 +11,7 @@ const { Option } = Select;
 const RoomManager = () => {
   const [loading, setLoading] = useState(false);
   const [rooms, setRooms] = useState([]);
+  const [branches, setBranches] = useState([]); // [NEW]
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -29,8 +31,16 @@ const RoomManager = () => {
     setLoading(false);
   };
 
+  const fetchBranches = async () => {
+      const res = await branchService.getAllBranches();
+      if (res.success) {
+          setBranches(res.branches || []);
+      }
+  };
+
   useEffect(() => {
     fetchRooms();
+    fetchBranches();
   }, []);
 
   // 2. Handle Actions
@@ -42,7 +52,10 @@ const RoomManager = () => {
 
   const handleEdit = (record) => {
     setEditingRoom(record);
-    form.setFieldsValue(record);
+    form.setFieldsValue({
+        ...record,
+        branchId: record.branchId?._id || record.branchId // Handle populated or ID
+    });
     setIsModalOpen(true);
   };
 
@@ -91,18 +104,25 @@ const RoomManager = () => {
        key: 'type',
        render: (type) => {
            let color = 'default';
-           if (type === 'VIP') color = 'gold';
-           if (type === 'Couple') color = 'magenta';
-           if (type === 'Standard') color = 'blue';
+           if (type === 'VIP' || type === 'HEAD_SPA') color = 'gold';
+           if (type === 'Couple' || type === 'BODY_SPA') color = 'blue';
+           if (type === 'NAIL_SPA') color = 'magenta';
            
-           return <Tag color={color}>{type.toUpperCase()}</Tag>
+           const label = type === 'BODY_SPA' ? 'Body' : type === 'HEAD_SPA' ? 'Gội' : type === 'NAIL_SPA' ? 'Nail' : type;
+           return <Tag color={color}>{label.toUpperCase()}</Tag>
        }
+    },
+    {
+        title: 'Chi Nhánh',
+        dataIndex: 'branchId',
+        key: 'branchId',
+        render: (branch) => branch ? <Tag icon={<ShopOutlined />} color="purple">{branch.name || 'Chi nhánh'}</Tag> : <Text type="secondary">Chưa gán</Text>
     },
     {
         title: 'Sức chứa',
         dataIndex: 'capacity',
         key: 'capacity',
-        render: (val) => <Text style={{ color: '#333' }}>{val} người</Text>
+        render: (val) => <Text style={{ color: '#333' }}>{val} giường</Text>
     },
     {
         title: 'Trạng thái',
@@ -163,23 +183,36 @@ const RoomManager = () => {
              `}</style>
              <Form form={form} layout="vertical" onFinish={handleSubmit}>
                  <Form.Item name="name" label="Tên Phòng" rules={[{ required: true, message: 'Nhập tên phòng' }]}>
-                     <Input placeholder="VD: Phòng 101, VIP 1..." size="large"/>
+                     <Input prefix={<HomeOutlined />} placeholder="VD: Phòng Body, Phòng Gội..." size="large"/>
+                 </Form.Item>
+
+                 <Form.Item name="branchId" label="Chi Nhánh" rules={[{ required: true, message: 'Chọn chi nhánh' }]}>
+                     <Select placeholder="Chọn chi nhánh" size="large">
+                         {branches.map(b => (
+                             <Option key={b._id} value={b._id}>{b.name}</Option>
+                         ))}
+                     </Select>
                  </Form.Item>
 
                  <Form.Item name="type" label="Loại phòng" rules={[{ required: true }]}>
                      <Select size="large">
-                         <Option value="Standard">Standard (Tiêu chuẩn)</Option>
-                         <Option value="VIP">VIP</Option>
-                         <Option value="Couple">Couple (Đôi)</Option>
+                         <Option value="BODY_SPA">Body Spa</Option>
+                         <Option value="HEAD_SPA">Head Spa (Gội đầu)</Option>
+                         <Option value="NAIL_SPA">Nail Spa</Option>
+                         <Option value="OTHER">Khác</Option>
                      </Select>
                  </Form.Item>
 
-                 <Form.Item name="capacity" label="Sức chứa (Người)" rules={[{ required: true }]}>
-                     <InputNumber min={1} max={5} style={{ width: '100%' }} size="large" />
+                 <Form.Item name="capacity" label="Sức chứa (Số giường)" rules={[{ required: true }]}>
+                     <InputNumber min={1} max={10} style={{ width: '100%' }} size="large" />
+                 </Form.Item>
+
+                 <Form.Item name="description" label="Mô tả (Tùy chọn)">
+                     <Input.TextArea rows={2} placeholder="Ghi chú về phòng..." size="large" />
                  </Form.Item>
 
                  {editingRoom && (
-                     <Form.Item name="isActive" label="Trạng thái" valuePropName="checked">
+                     <Form.Item name="isActive" label="Trạng thái">
                          <Select size="large">
                              <Option value={true}>Sẵn sàng đón khách</Option>
                              <Option value={false}>Đang bảo trì / Dọn dẹp</Option>

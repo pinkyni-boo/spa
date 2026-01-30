@@ -71,6 +71,8 @@ const BookingManager = () => {
     const [isInvoiceVisible, setIsInvoiceVisible] = useState(false);
     const [viewingInvoice, setViewingInvoice] = useState(null);
 
+    const [isInitialized, setIsInitialized] = useState(false); // [FIX] Block fetch until init
+
     useEffect(() => {
         // [AUTH] Load User Role & Branches
         const raw = localStorage.getItem('user');
@@ -84,7 +86,9 @@ const BookingManager = () => {
                     branchService.getAllBranches().then(res => {
                         if (res.success) {
                             setManagedBranches(res.branches || []);
-                            // Optional: Default to first branch or All (null)
+                            // Owner defaults to null (All) or first branch
+                            // If you want default View to be All, leave null.
+                            setIsInitialized(true); // Ready!
                         }
                     });
                 } else {
@@ -95,10 +99,16 @@ const BookingManager = () => {
                     if (u.role === 'admin' && u.managedBranches?.length === 1) {
                         setFilterBranch(u.managedBranches[0]._id || u.managedBranches[0]);
                     } else if (u.role === 'admin' && u.managedBranches?.length > 1) {
-                         setFilterBranch(u.managedBranches[0]._id || u.managedBranches[0]);
+                         setFilterBranch(u.managedBranches[0]._id || u.managedBranches[0]); // Default to first
                     }
+                    setIsInitialized(true); // Ready!
                 }
-            } catch (e) { console.error("Parse user error", e); }
+            } catch (e) { 
+                console.error("Parse user error", e); 
+                setIsInitialized(true); // Fallback ready
+            }
+        } else {
+            setIsInitialized(true); // No user, ready (will likely redirect or show empty)
         }
     }, []);
 
@@ -106,6 +116,13 @@ const BookingManager = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
+            // [SECURITY] Admin MUST have a branch filter. Only Owner can query all branches.
+            if (userRole === 'admin' && !filterBranch) {
+                console.warn('[SECURITY] Admin attempted to fetch without branch filter. Blocking request.');
+                setLoading(false);
+                return; // Do not proceed with fetch
+            }
+
             // [FIX] Remove date filter - load ALL bookings, then filter by tabs
             const params = {
                 // date: currentDate.format('YYYY-MM-DD'), // REMOVED - load all bookings
@@ -144,27 +161,83 @@ const BookingManager = () => {
             if (staffRes.success) {
                 setStaffs(staffRes.staff || []);
             }
-            
+                
             // [FIX] Fetch rooms for calendar view
             const roomsRes = await resourceService.getAllRooms();
-            console.log('Rooms response:', roomsRes);
             if (roomsRes.success) {
-                // [FIX] Transform rooms to calendar resource format
-                const transformedRooms = (roomsRes.rooms || []).map(room => ({
-                    ...room, // Keep all original fields
-                    id: room._id, // Calendar needs 'id' (not '_id')
-                    title: room.name || 'Phòng' // Calendar needs 'title' (not 'name')
-                }));
-                setRooms(transformedRooms);
-                console.log('Loaded', transformedRooms.length, 'rooms (transformed for calendar)');
+                let allRooms = roomsRes.rooms || [];
+                
+                // [FIX] Client-side filter rooms by branch
+                // If filterBranch is selected, ONLY show rooms from that branch.
+                if (filterBranch) {
+                    allRooms = allRooms.filter(r => {
+                        const rBranchId = r.branchId?._id || r.branchId;
+                        return rBranchId === filterBranch;
+                    });
+                }
+                
+                // [FIX] Transform rooms to calendar resource format (With Bed Splitting)
+                const transformedResources = [];
+                
+                allRooms.forEach(room => {
+                    const capacity = room.capacity || 1;
+                    
+                    if (capacity > 1) {
+                        // Create sub-resources for each bed
+                        for (let i = 1; i <= capacity; i++) {
+                            transformedResources.push({
+                                ...room,
+                                id: `${room._id}_bed_${i}`, // Unique ID for calendar
+                                title: `${room.name} - Giường ${i}`,
+                                parentRoomId: room._id, // Keep track of real room ID
+                                isBed: true
+                            });
+                        }
+                    } else {
+                        // Single bed room
+                        transformedResources.push({
+                             ...room,
+                             id: room._id,
+                             title: room.name
+                        });
+                    }
+                });
+
+                setRooms(transformedResources);
+                console.log('Loaded', transformedResources.length, 'resources (beds expanded)');
             } else if (Array.isArray(roomsRes)) {
-                const transformedRooms = roomsRes.map(room => ({
-                    ...room,
-                    id: room._id,
-                    title: room.name || 'Phòng'
-                }));
-                setRooms(transformedRooms);
-                console.log('Loaded', transformedRooms.length, 'rooms (array format, transformed)');
+                 // Fallback legacy
+                 let allRooms = roomsRes;
+                 if (filterBranch) {
+                    allRooms = allRooms.filter(r => {
+                        const rBranchId = r.branchId?._id || r.branchId;
+                        return rBranchId === filterBranch;
+                    });
+                 }
+                 
+                // Same transformation for legacy array
+                const transformedResources = [];
+                allRooms.forEach(room => {
+                    const capacity = room.capacity || 1;
+                    if (capacity > 1) {
+                        for (let i = 1; i <= capacity; i++) {
+                            transformedResources.push({
+                                ...room,
+                                id: `${room._id}_bed_${i}`,
+                                title: `${room.name} - Giường ${i}`,
+                                parentRoomId: room._id,
+                                isBed: true
+                            });
+                        }
+                    } else {
+                        transformedResources.push({
+                             ...room,
+                             id: room._id,
+                             title: room.name
+                        });
+                    }
+                });
+                setRooms(transformedResources);
             }
             
             console.log('==========================================\n');
@@ -183,9 +256,11 @@ const BookingManager = () => {
 
     // Fetch data when filters change
     useEffect(() => {
+        if (!isInitialized) return; // [FIX] Block until auth loaded
+
         // Both Admin and Owner can view all branches (filterBranch can be null)
         fetchData();
-    }, [currentDate, filterBranch, filterStaff, filterPayment]);
+    }, [currentDate, filterBranch, filterStaff, filterPayment, isInitialized]);
 
     const handleCreateSubmit = async (values) => {
         // Logic create giống cũ
@@ -279,10 +354,16 @@ const BookingManager = () => {
     // [FIX] Add missing calendar drag handlers
     const handleEventDrop = async ({ event, start, end, resourceId }) => {
         try {
+            // [FIX] Handle Bed Resource ID (e.g. roomId_bed_1)
+            let finalRoomId = resourceId;
+            if (typeof resourceId === 'string' && resourceId.includes('_bed_')) {
+                 finalRoomId = resourceId.split('_bed_')[0];
+            }
+
             await adminBookingService.updateBooking(event._id, {
                 startTime: start,
                 endTime: end,
-                roomId: resourceId
+                roomId: finalRoomId
             });
             message.success('Đã chuyển lịch');
             fetchData();
@@ -304,22 +385,64 @@ const BookingManager = () => {
         }
     };
 
-    const handleWaitlistDrop = async ({ start, resourceId, draggedEvent }) => {
-        // Convert waitlist item to booking
+    const handleWaitlistDrop = async ({ start, resourceId }) => {
+        // [FIX] Use state instead of event arg (which is unreliable from external drop)
+        const waitlistItem = draggedWaitlistItem;
+        
+        if (!waitlistItem) {
+            console.warn('No dragged waitlist item found');
+            return;
+        }
+
+        // [FIX] Handle Bed Resource ID (e.g. roomId_bed_1)
+        // If resourceId contains '_bed_', split it to get real roomId
+        let finalRoomId = resourceId;
+        if (typeof resourceId === 'string' && resourceId.includes('_bed_')) {
+             finalRoomId = resourceId.split('_bed_')[0];
+        }
+
+        // [FIX] Resolve Branch ID
+        // If filterBranch is present, use it.
+        // If not (Owner viewing all), find branch from the Target Room
+        let targetBranchId = filterBranch;
+        if (!targetBranchId) {
+            // Find room using finalRoomId or resourceId
+            // Note: rooms state now contains generated resources (flattened)
+            // So we can find by 'id' (resourceId) which matches the one in state
+            const targetResource = rooms.find(r => r.id === resourceId); 
+            
+            if (targetResource) {
+                targetBranchId = targetResource.branchId?._id || targetResource.branchId;
+            }
+        }
+
+        if (!targetBranchId) {
+             message.error('Không xác định được chi nhánh cho phòng này');
+             return;
+        }
+
         try {
-            const waitlistItem = draggedEvent;
             await adminBookingService.createBooking({
                 customerName: waitlistItem.customerName,
                 phone: waitlistItem.phone,
                 serviceName: waitlistItem.serviceName,
                 date: dayjs(start).format('YYYY-MM-DD'),
                 time: dayjs(start).format('HH:mm'),
-                branchId: filterBranch,
-                roomId: resourceId
+                branchId: targetBranchId,
+                roomId: finalRoomId // Use the real Room ID
             });
-            message.success('Đã chuyển từ waitlist');
+            
+            // Validate and Remove from Waitlist if success
+            await adminBookingService.deleteWaitlist(waitlistItem._id);
+            
+            message.success(`Đã xếp lịch cho ${waitlistItem.customerName}`);
+            setDraggedWaitlistItem(null); // Clear state
+            
             fetchData();
+            // Trigger refresh waitlist sidebar
+            setRefreshWaitlist(prev => prev + 1);
         } catch (error) {
+            console.error('Drop Error:', error);
             message.error('Không thể tạo booking');
         }
     };
@@ -370,10 +493,16 @@ const BookingManager = () => {
                                 style={{ width: 220, border: '1px solid #D4Af37', borderRadius: 8 }}
                                 value={filterBranch}
                                 onChange={setFilterBranch}
-                                options={managedBranches.map(b => ({ 
-                                    value: b._id || b, 
-                                    label: b.name || `Chi nhánh ${b._id || b}` 
-                                }))}
+                                // [FIX] Only Owner can clear (to see all branches), Admin cannot clear
+                                allowClear={userRole === 'owner'}
+                                options={[
+                                    // [FIX] Add 'All Branches' option for Owner
+                                    ...(userRole === 'owner' ? [{ value: null, label: 'Tất cả chi nhánh' }] : []),
+                                    ...managedBranches.map(b => ({ 
+                                        value: b._id || b, 
+                                        label: b.name || `Chi nhánh ${b._id || b}` 
+                                    }))
+                                ]}
                             />
                          )}
 

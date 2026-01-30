@@ -42,7 +42,7 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
         {
             key: '/admin/accounts',
             icon: <SafetyCertificateOutlined />,
-            label: 'Tài Khoản (Admin)',
+            label: 'Tài Khoản',
             // Role check logic would hide this for non-owners later
         },
         {

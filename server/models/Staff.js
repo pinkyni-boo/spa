@@ -18,7 +18,13 @@ const StaffSchema = new mongoose.Schema({
     type: String, 
     required: true 
   },
+  phone: { type: String, default: "" }, // [NEW]
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }, // [NEW]
+  role: {
+    type: String,
+    enum: ['ktv', 'admin', 'owner'],
+    default: 'ktv'
+  }, // [NEW] Staff role: ktv (service provider), admin (manager), or owner
   avatar: {
     type: String,
     default: ""
