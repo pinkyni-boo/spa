@@ -77,4 +77,26 @@ const BookingSchema = new mongoose.Schema({
   note: { type: String }
 }, { timestamps: true });
 
+// ---------------------------------------------------------
+// DATABASE INDEXES (Performance Optimization)
+// ---------------------------------------------------------
+// Index 1: Time-based queries (checkAvailability, getAllBookings)
+// Most common query: Find bookings by date range + status
+BookingSchema.index({ startTime: 1, status: 1 });
+
+// Index 2: Branch isolation (checkAvailability, createBooking)
+// Queries filter by branch heavily
+BookingSchema.index({ branchId: 1, startTime: 1 });
+
+// Index 3: Room allocation (createBooking - overlap detection)
+// Check concurrent bookings in same room
+BookingSchema.index({ roomId: 1, startTime: 1, status: 1 });
+
+// Index 4: Staff allocation (createBooking - overlap detection)
+// Check staff busy times
+BookingSchema.index({ staffId: 1, startTime: 1, status: 1 });
+
+// Index 5: Customer history (getCustomerHistory)
+BookingSchema.index({ phone: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Booking', BookingSchema);

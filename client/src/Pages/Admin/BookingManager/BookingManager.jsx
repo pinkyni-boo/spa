@@ -3,6 +3,7 @@ import { Layout, Typography, Segmented, Button, message, notification, Modal, Fo
 import { AppstoreOutlined, BarsOutlined, PlusOutlined, LeftOutlined, RightOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import theme from '../../../theme';
+import { useSocket } from '../../../context/SocketContext';
 
 // Services
 import { adminBookingService } from '../../../services/adminBookingService';
@@ -112,6 +113,40 @@ const BookingManager = () => {
         }
     }, []);
 
+    // [REALTIME] Socket.io listener for new bookings
+    const socket = useSocket();
+    
+    useEffect(() => {
+        if (!socket) return;
+        
+        const handleNewBooking = (data) => {
+            console.log('🔔 New booking received:', data);
+            
+            // Play notification sound (optional)
+            try {
+                const audio = new Audio('/notification.mp3');
+                audio.play().catch(e => console.log('Audio play blocked:', e));
+            } catch (e) {
+                console.log('Audio not available');
+            }
+            
+            // Show toast notification
+            notification.success({
+                message: '🔔 Đơn Đặt Lịch Mới!',
+                description: `${data.message} - ${data.serviceName} lúc ${data.time}`,
+                duration: 8,
+                placement: 'topRight'
+            });
+            
+            // Auto-refresh booking list
+            fetchData();
+        };
+        
+        socket.on('new-booking', handleNewBooking);
+        
+        return () => socket.off('new-booking', handleNewBooking);
+    }, [socket, isInitialized]); // Re-attach when socket or init changes
+
     // [FIX] Add missing fetchData function
     const fetchData = async () => {
         setLoading(true);
@@ -142,16 +177,61 @@ const BookingManager = () => {
             console.log('Bookings count:', result?.bookings?.length);
             
             if (result.success) {
+                
                 // [FIX] Transform bookings to calendar event format
-                const transformedBookings = (result.bookings || []).map(booking => ({
-                    ...booking, // Keep all original fields
-                    start: new Date(booking.startTime), // Calendar needs 'start'
-                    end: new Date(booking.endTime), // Calendar needs 'end'
-                    title: booking.customerName || 'Khách', // Calendar needs 'title'
-                    resourceId: booking.roomId?._id || booking.roomId // Calendar needs 'resourceId'
-                }));
+                const transformedBookings = (result.bookings || []).map(booking => {
+                    // Extract roomId carefully (handle both populated object and string ID)
+                    let resourceId = null;
+                    if (booking.roomId) {
+                        if (typeof booking.roomId === 'object') {
+                            resourceId = booking.roomId._id; // Populated
+                        } else {
+                            resourceId = booking.roomId; // String ID
+                        }
+                    }
+                    
+                    // [DEBUG] Log bookings without room
+                    if (!resourceId) {
+                        console.warn('⚠️ Booking without roomId:', booking._id, booking.customerName);
+                    }
+                    
+                    return {
+                        ...booking,
+                        start: new Date(booking.startTime),
+                        end: new Date(booking.endTime),
+                        title: booking.customerName || 'Khách',
+                        resourceId: resourceId || 'unassigned' // Fallback to 'unassigned' if no room
+                    };
+                });
+                
                 setBookings(transformedBookings);
                 console.log('State updated with', transformedBookings.length, 'bookings (transformed for calendar)');
+                
+                // [DEBUG] Count bookings without resourceId
+                const withoutRoom = transformedBookings.filter(b => b.resourceId === 'unassigned');
+                if (withoutRoom.length > 0) {
+                    console.warn(`⚠️ ${withoutRoom.length} bookings không có phòng!`);
+                }
+                
+                // [DEBUG] CHECK BOOKING DATES
+                const today = dayjs();
+                const groupedByDate = {};
+                transformedBookings.forEach(b => {
+                    const dateKey = dayjs(b.start).format('YYYY-MM-DD');
+                    groupedByDate[dateKey] = (groupedByDate[dateKey] || 0) + 1;
+                });
+                
+                console.log('📅 BOOKING DISTRIBUTION BY DATE:');
+                console.table(groupedByDate);
+                
+                // Show the most common date
+                const sortedDates = Object.entries(groupedByDate).sort((a, b) => b[1] - a[1]);
+                if (sortedDates.length > 0) {
+                    console.log(`🎯 Most bookings (${sortedDates[0][1]}) are on: ${sortedDates[0][0]}`);
+                }
+                
+                // [DEBUG] Check if calendar is receiving events
+                console.log(`📅 Transformed ${transformedBookings.length} bookings for calendar`);
             } else {
                 console.warn('API returned success=false');
             }
@@ -162,18 +242,25 @@ const BookingManager = () => {
                 setStaffs(staffRes.staff || []);
             }
                 
-            // [FIX] Fetch rooms for calendar view
             const roomsRes = await resourceService.getAllRooms();
             if (roomsRes.success) {
                 let allRooms = roomsRes.rooms || [];
                 
-                // [FIX] Client-side filter rooms by branch
-                // If filterBranch is selected, ONLY show rooms from that branch.
+                console.log('🏠 Fetched', allRooms.length, 'total rooms from API');
+                
+                // [FIX] ONLY filter rooms by branch if:
+                // 1. User is Admin (always has filterBranch)
+                // 2. OR Owner has selected a specific branch (filterBranch is not null)
+                // If Owner views "All Branches" (filterBranch = null), show ALL rooms
                 if (filterBranch) {
+                    const beforeFilter = allRooms.length;
                     allRooms = allRooms.filter(r => {
                         const rBranchId = r.branchId?._id || r.branchId;
                         return rBranchId === filterBranch;
                     });
+                    console.log(`🏠 Filtered rooms by branch: ${beforeFilter} → ${allRooms.length}`);
+                } else {
+                    console.log('🏠 Owner viewing all branches → Showing all rooms');
                 }
                 
                 // [FIX] Transform rooms to calendar resource format (With Bed Splitting)
@@ -203,8 +290,16 @@ const BookingManager = () => {
                     }
                 });
 
-                setRooms(transformedResources);
-                console.log('Loaded', transformedResources.length, 'resources (beds expanded)');
+                // [NEW] Add "Unassigned" virtual room for bookings without roomId
+                const unassignedRoom = {
+                    id: 'unassigned',
+                    title: '❓ Chưa Phân Phòng',
+                    type: 'unassigned',
+                    _id: 'unassigned'
+                };
+
+                setRooms([unassignedRoom, ...transformedResources]); // Unassigned first
+                console.log('Loaded', transformedResources.length + 1, 'resources (beds expanded + unassigned)');
             } else if (Array.isArray(roomsRes)) {
                  // Fallback legacy
                  let allRooms = roomsRes;

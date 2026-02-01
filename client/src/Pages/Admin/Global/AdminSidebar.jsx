@@ -15,7 +15,8 @@ import {
     SafetyCertificateOutlined,
     MenuUnfoldOutlined,
     MenuFoldOutlined,
-    LogoutOutlined
+    LogoutOutlined,
+    PictureOutlined // [NEW]
 } from '@ant-design/icons';
 
 const { Sider } = Layout;

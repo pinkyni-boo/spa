@@ -10,8 +10,10 @@ const BranchController = require('../controllers/BranchController');
 const PromotionController = require('../controllers/PromotionController');
 const FeedbackController = require('../controllers/FeedbackController');
 const UserController = require('../controllers/UserController');
+const SeedController = require('../controllers/SeedController'); // [NEW]
 
 // --- DASHBOARD ROUTES ---
+router.post('/seed-data', SeedController.seedGalleryAndFeedback); // [NEW] Seed Route
 router.get('/dashboard/stats', DashboardController.getStats);
 router.get('/dashboard/revenue-chart', DashboardController.getRevenueChart);
 router.get('/dashboard/top-services', DashboardController.getTopServices);
@@ -97,6 +99,21 @@ router.delete('/rooms/:id', RoomController.deleteRoom);
 router.get('/staff', StaffController.getAllStaff);
 router.post('/staff', StaffController.createStaff); // [NEW] Create staff
 router.put('/staff/:id', StaffController.updateStaffDetails);
+
+// --- GALLERY ROUTES (NEW) ---
+const GalleryController = require('../controllers/GalleryController');
+const upload = require('../middleware/upload'); // [NEW]
+
+const galleryUpload = upload.fields([
+    { name: 'beforeImage', maxCount: 1 },
+    { name: 'afterImage', maxCount: 1 },
+    { name: 'imageUrl', maxCount: 1 }
+]);
+
+router.get('/gallery', GalleryController.getAllGalleryItems);
+router.post('/gallery', galleryUpload, GalleryController.createGalleryItem);
+router.put('/gallery/:id', galleryUpload, GalleryController.updateGalleryItem);
+router.delete('/gallery/:id', GalleryController.deleteGalleryItem);
 
 // --- WAITLIST ROUTES (NEW) ---
 const WaitlistController = require('../controllers/WaitlistController');
