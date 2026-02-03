@@ -3,7 +3,6 @@ import { Layout, Typography, Segmented, Button, message, notification, Modal, Fo
 import { AppstoreOutlined, BarsOutlined, PlusOutlined, LeftOutlined, RightOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import theme from '../../../theme';
-import { useSocket } from '../../../context/SocketContext';
 
 // Services
 import { adminBookingService } from '../../../services/adminBookingService';
@@ -113,208 +112,97 @@ const BookingManager = () => {
         }
     }, []);
 
-    // [REALTIME] Socket.io listener for new bookings
-    const socket = useSocket();
+    // [POLLING] Check for new bookings every 10 seconds
+    const [lastBookingCount, setLastBookingCount] = React.useState(0);
     
     useEffect(() => {
-        if (!socket) return;
+        if (!isInitialized) return;
         
-        const handleNewBooking = (data) => {
-            console.log('🔔 New booking received:', data);
-            
-            // Play notification sound (optional)
+        const pollInterval = setInterval(async () => {
             try {
-                const audio = new Audio('/notification.mp3');
-                audio.play().catch(e => console.log('Audio play blocked:', e));
-            } catch (e) {
-                console.log('Audio not available');
+                // Quick count check (lightweight API call)
+                const params = {
+                    branchId: filterBranch,
+                    staffId: filterStaff,
+                    paymentStatus: filterPayment
+                };
+                
+                const result = await adminBookingService.getAllBookings(params);
+                
+                if (result.success) {
+                    const currentCount = result.bookings?.length || 0;
+                    
+                    // If count increased → New booking!
+                    if (lastBookingCount > 0 && currentCount > lastBookingCount) {
+                        console.log('🔔 New booking detected via polling!');
+                        
+                        // Play notification sound (optional)
+                        try {
+                            const audio = new Audio('/notification.mp3');
+                            audio.play().catch(e => console.log('Audio play blocked:', e));
+                        } catch (e) {
+                            console.log('Audio not available');
+                        }
+                        
+                        // Show toast notification
+                        notification.success({
+                            message: '🔔 Đơn Đặt Lịch Mới!',
+                            description: `Có ${currentCount - lastBookingCount} đơn mới!`,
+                            duration: 8,
+                            placement: 'topRight'
+                        });
+                        
+                        // Auto-refresh booking list
+                        fetchData();
+                    }
+                    
+                    setLastBookingCount(currentCount);
+                }
+            } catch (error) {
+                console.error('Polling error:', error);
             }
-            
-            // Show toast notification
-            notification.success({
-                message: '🔔 Đơn Đặt Lịch Mới!',
-                description: `${data.message} - ${data.serviceName} lúc ${data.time}`,
-                duration: 8,
-                placement: 'topRight'
-            });
-            
-            // Auto-refresh booking list
-            fetchData();
-        };
+        }, 10000); // Poll every 10 seconds
         
-        socket.on('new-booking', handleNewBooking);
-        
-        return () => socket.off('new-booking', handleNewBooking);
-    }, [socket, isInitialized]); // Re-attach when socket or init changes
+        return () => clearInterval(pollInterval);
+    }, [isInitialized, lastBookingCount, filterBranch, filterStaff, filterPayment]);
 
     // [FIX] Add missing fetchData function
     const fetchData = async () => {
         setLoading(true);
         try {
-            // [SECURITY] Admin MUST have a branch filter. Only Owner can query all branches.
-            if (userRole === 'admin' && !filterBranch) {
-                console.warn('[SECURITY] Admin attempted to fetch without branch filter. Blocking request.');
-                setLoading(false);
-                return; // Do not proceed with fetch
-            }
+            // 1. Fetch Resources (Rooms & Staff) FIRST
+            const [roomsRes, staffRes] = await Promise.all([
+                resourceService.getAllRooms(),
+                resourceService.getAllStaff()
+            ]);
 
-            // [FIX] Remove date filter - load ALL bookings, then filter by tabs
-            const params = {
-                // date: currentDate.format('YYYY-MM-DD'), // REMOVED - load all bookings
-                branchId: filterBranch,
-                staffId: filterStaff,
-                paymentStatus: filterPayment
-            };
-            
-            console.log('\n========== FRONTEND FETCH DEBUG ==========');
-            console.log('Params:', params);
-            
-            const result = await adminBookingService.getAllBookings(params);
-            
-            console.log('API Result:', result);
-            console.log('Result.success:', result?.success);
-            console.log('Result.bookings:', result?.bookings);
-            console.log('Bookings count:', result?.bookings?.length);
-            
-            if (result.success) {
-                
-                // [FIX] Transform bookings to calendar event format
-                const transformedBookings = (result.bookings || []).map(booking => {
-                    // Extract roomId carefully (handle both populated object and string ID)
-                    let resourceId = null;
-                    if (booking.roomId) {
-                        if (typeof booking.roomId === 'object') {
-                            resourceId = booking.roomId._id; // Populated
-                        } else {
-                            resourceId = booking.roomId; // String ID
-                        }
-                    }
-                    
-                    // [DEBUG] Log bookings without room
-                    if (!resourceId) {
-                        console.warn('⚠️ Booking without roomId:', booking._id, booking.customerName);
-                    }
-                    
-                    return {
-                        ...booking,
-                        start: new Date(booking.startTime),
-                        end: new Date(booking.endTime),
-                        title: booking.customerName || 'Khách',
-                        resourceId: resourceId || 'unassigned' // Fallback to 'unassigned' if no room
-                    };
-                });
-                
-                setBookings(transformedBookings);
-                console.log('State updated with', transformedBookings.length, 'bookings (transformed for calendar)');
-                
-                // [DEBUG] Count bookings without resourceId
-                const withoutRoom = transformedBookings.filter(b => b.resourceId === 'unassigned');
-                if (withoutRoom.length > 0) {
-                    console.warn(`⚠️ ${withoutRoom.length} bookings không có phòng!`);
-                }
-                
-                // [DEBUG] CHECK BOOKING DATES
-                const today = dayjs();
-                const groupedByDate = {};
-                transformedBookings.forEach(b => {
-                    const dateKey = dayjs(b.start).format('YYYY-MM-DD');
-                    groupedByDate[dateKey] = (groupedByDate[dateKey] || 0) + 1;
-                });
-                
-                console.log('📅 BOOKING DISTRIBUTION BY DATE:');
-                console.table(groupedByDate);
-                
-                // Show the most common date
-                const sortedDates = Object.entries(groupedByDate).sort((a, b) => b[1] - a[1]);
-                if (sortedDates.length > 0) {
-                    console.log(`🎯 Most bookings (${sortedDates[0][1]}) are on: ${sortedDates[0][0]}`);
-                }
-                
-                // [DEBUG] Check if calendar is receiving events
-                console.log(`📅 Transformed ${transformedBookings.length} bookings for calendar`);
-            } else {
-                console.warn('API returned success=false');
-            }
-            
-            // Fetch staff list
-            const staffRes = await resourceService.getAllStaff();
+            // Handle Staff
             if (staffRes.success) {
                 setStaffs(staffRes.staff || []);
             }
-                
-            const roomsRes = await resourceService.getAllRooms();
-            if (roomsRes.success) {
-                let allRooms = roomsRes.rooms || [];
-                
-                console.log('🏠 Fetched', allRooms.length, 'total rooms from API');
-                
-                // [FIX] ONLY filter rooms by branch if:
-                // 1. User is Admin (always has filterBranch)
-                // 2. OR Owner has selected a specific branch (filterBranch is not null)
-                // If Owner views "All Branches" (filterBranch = null), show ALL rooms
+
+            // Handle Rooms and Build Resources + Lookup Map
+            let transformedResources = [];
+            let multiBedRoomMap = {}; // Map<roomId, boolean>
+
+            if (roomsRes.success || Array.isArray(roomsRes.rooms) || Array.isArray(roomsRes)) {
+                let allRooms = roomsRes.rooms || roomsRes;
+                if (!Array.isArray(allRooms)) allRooms = [];
+
+                console.log('🏠 Loaded', allRooms.length, 'rooms');
+
+                // Filter by branch
                 if (filterBranch) {
-                    const beforeFilter = allRooms.length;
                     allRooms = allRooms.filter(r => {
                         const rBranchId = r.branchId?._id || r.branchId;
                         return rBranchId === filterBranch;
                     });
-                    console.log(`🏠 Filtered rooms by branch: ${beforeFilter} → ${allRooms.length}`);
-                } else {
-                    console.log('🏠 Owner viewing all branches → Showing all rooms');
                 }
-                
-                // [FIX] Transform rooms to calendar resource format (With Bed Splitting)
-                const transformedResources = [];
-                
-                allRooms.forEach(room => {
-                    const capacity = room.capacity || 1;
-                    
-                    if (capacity > 1) {
-                        // Create sub-resources for each bed
-                        for (let i = 1; i <= capacity; i++) {
-                            transformedResources.push({
-                                ...room,
-                                id: `${room._id}_bed_${i}`, // Unique ID for calendar
-                                title: `${room.name} - Giường ${i}`,
-                                parentRoomId: room._id, // Keep track of real room ID
-                                isBed: true
-                            });
-                        }
-                    } else {
-                        // Single bed room
-                        transformedResources.push({
-                             ...room,
-                             id: room._id,
-                             title: room.name
-                        });
-                    }
-                });
 
-                // [NEW] Add "Unassigned" virtual room for bookings without roomId
-                const unassignedRoom = {
-                    id: 'unassigned',
-                    title: '❓ Chưa Phân Phòng',
-                    type: 'unassigned',
-                    _id: 'unassigned'
-                };
-
-                setRooms([unassignedRoom, ...transformedResources]); // Unassigned first
-                console.log('Loaded', transformedResources.length + 1, 'resources (beds expanded + unassigned)');
-            } else if (Array.isArray(roomsRes)) {
-                 // Fallback legacy
-                 let allRooms = roomsRes;
-                 if (filterBranch) {
-                    allRooms = allRooms.filter(r => {
-                        const rBranchId = r.branchId?._id || r.branchId;
-                        return rBranchId === filterBranch;
-                    });
-                 }
-                 
-                // Same transformation for legacy array
-                const transformedResources = [];
                 allRooms.forEach(room => {
                     const capacity = room.capacity || 1;
                     if (capacity > 1) {
+                        multiBedRoomMap[room._id] = true;
                         for (let i = 1; i <= capacity; i++) {
                             transformedResources.push({
                                 ...room,
@@ -326,16 +214,93 @@ const BookingManager = () => {
                         }
                     } else {
                         transformedResources.push({
-                             ...room,
-                             id: room._id,
-                             title: room.name
+                            ...room,
+                            id: room._id,
+                            title: room.name
                         });
                     }
                 });
-                setRooms(transformedResources);
+
+                // Add Unassigned Resource
+                const unassignedRoom = {
+                    id: 'unassigned',
+                    title: '❓ Chưa Phân Phòng',
+                    type: 'unassigned',
+                    _id: 'unassigned'
+                };
+                
+                setRooms([unassignedRoom, ...transformedResources]);
             }
-            
-            console.log('==========================================\n');
+
+            // 2. Security Check for Bookings
+            let shouldFetchBookings = true;
+            if (userRole === 'admin' && !filterBranch) {
+                shouldFetchBookings = false;
+            }
+
+            // 3. Fetch Bookings if allowed
+            if (shouldFetchBookings) {
+                const params = {
+                    branchId: filterBranch,
+                    staffId: filterStaff,
+                    paymentStatus: filterPayment
+                };
+                
+                const result = await adminBookingService.getAllBookings(params);
+
+                if (result.success) {
+                    // Transform bookings
+                    const transformedBookings = (result.bookings || []).map((booking) => {
+                        try {
+                            let resourceId = null;
+                            if (booking.roomId) {
+                                resourceId = typeof booking.roomId === 'object' ? booking.roomId._id : booking.roomId;
+                                
+                                // [CRITICAL FIX] Map to Bed 1 for multi-bed rooms
+                                if (resourceId && multiBedRoomMap[resourceId]) {
+                                    resourceId = `${resourceId}_bed_1`;
+                                }
+                            }
+
+                            return {
+                                ...booking,
+                                start: new Date(booking.startTime),
+                                end: new Date(booking.endTime),
+                                title: booking.customerName || 'Khách',
+                                resourceId: resourceId || 'unassigned'
+                            };
+                        } catch (err) {
+                            return null;
+                        }
+                    }).filter(b => b !== null);
+                    
+                    setBookings(transformedBookings);
+                    console.log(`📅 Loaded ${transformedBookings.length} bookings`);
+
+                    // [NEW] Smart Calendar Date: Auto-focus logic
+                    // Only switch if current view has NO bookings
+                    if (transformedBookings.length > 0) {
+                         const currentViewStr = currentDate.format('YYYY-MM-DD');
+                         const hasBookingOnCurrentDate = transformedBookings.some(b => dayjs(b.start).format('YYYY-MM-DD') === currentViewStr);
+                         
+                         if (!hasBookingOnCurrentDate) {
+                             const dateCounts = {};
+                             transformedBookings.forEach(b => {
+                                 const d = dayjs(b.start).format('YYYY-MM-DD');
+                                 dateCounts[d] = (dateCounts[d] || 0) + 1;
+                             });
+                             
+                             const sortedDates = Object.entries(dateCounts).sort((a,b) => b[1] - a[1]);
+                             if (sortedDates.length > 0) {
+                                 const bestDate = dayjs(sortedDates[0][0]);
+                                 // console.log(`🎯 Smart Date: Switching to ${bestDate.format('YYYY-MM-DD')}`);
+                                 setCurrentDate(bestDate);
+                             }
+                         }
+                    }
+                }
+            }
+
         } catch (error) {
             console.error('FETCH ERROR:', error);
             message.error('Không thể tải dữ liệu');
@@ -343,6 +308,7 @@ const BookingManager = () => {
             setLoading(false);
         }
     };
+
 
     // [FIX] Add missing openCreateModal function
     const openCreateModal = () => {

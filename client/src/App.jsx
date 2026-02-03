@@ -18,7 +18,6 @@ import Home from './Pages/Home.jsx';
 import Booking from './component/Booking/Booking.jsx';
 import Detail from './component/Service/Detail.jsx';
 import { BookingProvider } from './component/Booking/BookingContext.jsx';
-import { SocketProvider } from './context/SocketContext.jsx';
 import Contact from './component/Contact/Contact.jsx';
 import Dashboard from './Pages/Admin/Dashboard/Dashboard.jsx';
 import BookingManager from './Pages/Admin/BookingManager/BookingManager.jsx';
@@ -133,14 +132,12 @@ const MainContent = () => {
 };
 
 const App = () => (
-  <SocketProvider>
-    <BookingProvider>
-      <BrowserRouter>
-        <ScrollToTop />
-        <MainContent />
-      </BrowserRouter>
-    </BookingProvider>
-  </SocketProvider>
+  <BookingProvider>
+    <BrowserRouter>
+      <ScrollToTop />
+      <MainContent />
+    </BrowserRouter>
+  </BookingProvider>
 );
 
 export default App;

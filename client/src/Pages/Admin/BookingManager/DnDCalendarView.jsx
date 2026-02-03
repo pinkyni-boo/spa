@@ -95,18 +95,16 @@ const DnDCalendarView = ({ date, views, events, resources, onNavigate, onEventDr
         }
     }, [highlightBookingId, date]); // Run when ID changes or Date changes (view update)
 
-    // [DEBUG] Log events received by calendar
-    console.log('🗓️ DnDCalendarView received:', events?.length, 'events');
-    console.log('🗓️ Sample event:', events?.[0]);
-    console.log('🏠 Resources (rooms):', resources?.length, 'rooms');
-    console.log('🏠 Sample resource:', resources?.[0]);
-    
-    // [DEBUG] Check if events have valid resourceId
-    const eventsWithoutResource = events?.filter(e => !e.resourceId);
-    if (eventsWithoutResource?.length > 0) {
-        console.warn('⚠️ Found', eventsWithoutResource.length, 'events WITHOUT resourceId!');
-        console.warn('Sample event without resourceId:', eventsWithoutResource[0]);
+    // [DEBUG] Check resourceId matching (Only warn if needed)
+    /*
+    if (events?.length > 0 && resources?.length > 0) {
+        const resourceIds = new Set(resources.map(r => r.id));
+        const unmatchedEvents = events.filter(e => e.resourceId && !resourceIds.has(e.resourceId));
+        if (unmatchedEvents.length > 0) {
+            console.warn(`⚠️ ${unmatchedEvents.length} bookings have resourceId mismatch!`);
+        }
     }
+    */
 
     // Style cho event
     const eventPropGetter = useCallback((event) => {

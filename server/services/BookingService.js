@@ -158,7 +158,7 @@ const checkAvailability = async (date, serviceId, serviceName, branchId) => {
 // ---------------------------------------------------------
 // 2. CREATE BOOKING (Business Logic)
 // ---------------------------------------------------------
-const createBooking = async (bookingData, io = null) => {
+const createBooking = async (bookingData) => {
     const { customerName, phone, serviceName, date, time, roomId, staffId, branchId, status, source } = bookingData;
     
     const requestId = Math.random().toString(36).substring(7);
@@ -293,19 +293,6 @@ const createBooking = async (bookingData, io = null) => {
         });
 
         await newBooking.save();
-        
-        // Emit Socket.io event for realtime notification
-        if (io) {
-            io.emit('new-booking', {
-                booking: newBooking,
-                message: `Đơn mới từ ${customerName}`,
-                serviceName: service.name,
-                time: startTime.format('HH:mm'),
-                date: startTime.format('DD/MM/YYYY'),
-                timestamp: new Date()
-            });
-            console.log(`[${requestId}] 🔔 Realtime notification sent`);
-        }
         
         return { 
             success: true, 

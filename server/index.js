@@ -1,32 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose'); // Gọi thư viện Mongoose vừa cài
-const http = require('http');
-const { Server } = require('socket.io');
 
 const app = express();
-const server = http.createServer(app); // Wrap Express app with HTTP server
 const PORT = 3000;
 
-// Socket.io setup with CORS
-const io = new Server(server, {
-    cors: {
-        origin: process.env.CLIENT_URL || 'http://localhost:5173',
-        methods: ['GET', 'POST']
-    }
-});
-
-// Store io in app.locals for safe dependency injection
-app.locals.io = io;
-
-// Socket.io connection handler
-io.on('connection', (socket) => {
-    console.log('🔌 Admin connected:', socket.id);
-    
-    socket.on('disconnect', () => {
-        console.log('❌ Admin disconnected:', socket.id);
-    });
-});
 
 // Cấu hình để React gọi được API
 app.use(cors());
@@ -116,10 +94,8 @@ app.post('/login', async (req, res) => {
 });
 
 // --- KHỞI ĐỘNG SERVER ---
-// Use server.listen instead of app.listen to support Socket.io
-server.listen(PORT, () => {
+app.listen(PORT, () => {
   console.log(`✅ Server Spa đang chạy tại http://localhost:${PORT}`);
-  console.log(`🔌 Socket.io ready for realtime notifications`);
   seedData();
 });
 

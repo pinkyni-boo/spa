@@ -34,8 +34,7 @@ exports.checkAvailability = async (req, res) => {
 // ---------------------------------------------------------
 exports.createBooking = async (req, res) => {
     try {
-        const io = req.app.locals.io; // Get Socket.io instance from app.locals
-        const result = await BookingService.createBooking(req.body, io);
+        const result = await BookingService.createBooking(req.body);
         res.json(result);
         
     } catch (error) {
@@ -53,12 +52,9 @@ exports.getAllBookings = async (req, res) => {
   try {
     const { date, phone, staffId, paymentStatus, branchId } = req.query; // [UPDATED] Added branchId
     
-    console.log('\n========== GET ALL BOOKINGS DEBUG ==========');
-    console.log('Request Query:', req.query);
-    console.log('Date:', date);
-    console.log('BranchId:', branchId);
-    console.log('StaffId:', staffId);
-    console.log('PaymentStatus:', paymentStatus);
+    // console.log('\n========== GET ALL BOOKINGS DEBUG ==========');
+    // console.log('Request Query:', req.query);
+
     
     let query = {};
 
