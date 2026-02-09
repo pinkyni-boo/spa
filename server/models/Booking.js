@@ -74,6 +74,15 @@ const BookingSchema = new mongoose.Schema({
   // [NEW] Tổng tiền chốt (Sau khi xong xuôi)
   finalPrice: { type: Number, default: 0 },
 
+  // [NEW] Promotion Tracking (For Conflict Detection)
+  appliedPromotions: [{
+    promotionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Promotion' },
+    code: String,
+    discountAmount: Number,
+    appliedAt: { type: Date, default: Date.now }
+  }],
+  totalDiscount: { type: Number, default: 0 }, // Sum of all discounts
+
   note: { type: String }
 }, { timestamps: true });
 

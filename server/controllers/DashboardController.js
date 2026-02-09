@@ -1,6 +1,72 @@
 const Booking = require('../models/Booking');
 const Staff = require('../models/Staff');
+const Room = require('../models/Room'); // [NEW] Import Room model
 const dayjs = require('dayjs');
+
+// Get occupancy rate for all rooms
+exports.getOccupancyRate = async (req, res) => {
+    try {
+        const todayStr = req.query.date || dayjs().format('YYYY-MM-DD');
+        const todayStart = dayjs(todayStr).startOf('day');
+        const todayEnd = dayjs(todayStr).endOf('day');
+
+        // 1. Get all active rooms for this branch
+        const rooms = await Room.find({ 
+            ...req.branchQuery, // [FIX] Isolation
+            isActive: true 
+        });
+
+        // 2. Get today's bookings
+        const bookings = await Booking.find({
+            ...req.branchQuery,
+            startTime: { $gte: todayStart.toDate(), $lte: todayEnd.toDate() },
+            status: { $in: ['processing', 'confirmed', 'completed'] },
+            roomId: { $exists: true, $ne: null } // Only bookings with rooms
+        });
+
+        // 3. Calculate occupancy per room
+        // Standard operating hours: 11 hours (09:00 - 20:00) = 660 minutes
+        const TOTAL_MINUTES = 11 * 60; 
+
+        const occupancyData = rooms.map(room => {
+            // Find bookings for this room
+            const roomBookings = bookings.filter(b => 
+                b.roomId && b.roomId.toString() === room._id.toString()
+            );
+
+            // Calculate total booked minutes
+            let bookedMinutes = 0;
+            roomBookings.forEach(booking => {
+                const start = dayjs(booking.startTime);
+                const end = dayjs(booking.endTime);
+                bookedMinutes += end.diff(start, 'minute');
+            });
+
+            // Calculate percentage (capped at 100% just in case of overtime)
+            let percentage = Math.round((bookedMinutes / TOTAL_MINUTES) * 100);
+            
+            return {
+                name: room.name,
+                capacity: room.capacity,
+                bookedMinutes,
+                percentage: percentage,
+                bookingsCount: roomBookings.length
+            };
+        });
+
+        // Sort by occupancy descending
+        occupancyData.sort((a, b) => b.percentage - a.percentage);
+
+        res.json({
+            success: true,
+            date: todayStr,
+            data: occupancyData
+        });
+    } catch (error) {
+        console.error('Error getting occupancy rate:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
 
 // Get dashboard statistics
 exports.getStats = async (req, res) => {

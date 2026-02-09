@@ -17,7 +17,12 @@ import {
     MenuFoldOutlined,
     LogoutOutlined,
     PictureOutlined,
-    SmileOutlined // [NEW] For Customers
+    SmileOutlined, // [OLD] For Customers
+    SettingOutlined, // [NEW] For Management group
+    ControlOutlined, // [NEW] For System group
+    TeamOutlined, // [NEW] For Customers
+    ShoppingOutlined, // [NEW] For Products
+    BarChartOutlined // [NEW] For Reports
 } from '@ant-design/icons';
 
 const { Sider } = Layout;
@@ -46,30 +51,17 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
             icon: <DashboardOutlined />,
             label: 'Tổng Quan',
         },
-        // GROUP 1: VẬN HÀNH (Daily Operations - Việc hàng ngày)
+        // Đặt Lịch - Flat Item (không có group)
         {
-            key: 'grp_operation',
-            label: 'Vận Hành',
-            type: 'group', // Use AntD Group type for cleaner look, or SubMenu
-            children: [
-                {
-                    key: '/admin/bookings',
-                    icon: <CalendarOutlined />, // Moved icon here
-                    label: 'Đặt Lịch (Booking)',
-                },
-                {
-                    key: '/admin/rooms',
-                    icon: <HomeOutlined />,
-                    label: 'Sơ Đồ Phòng',
-                },
-                // { key: '/admin/waitlist', icon: <ClockCircleOutlined />, label: 'Hàng Chờ' }, // Future
-            ]
+            key: '/admin/bookings',
+            icon: <CalendarOutlined />,
+            label: 'Đặt Lịch',
         },
-        // GROUP 2: QUẢN LÝ (Management - Cài đặt tài nguyên)
+        // GROUP 1: QUẢN LÝ (Management - Cài đặt tài nguyên)
         {
             key: 'grp_management', 
             label: 'Quản Lý',
-            type: 'group',
+            icon: <SettingOutlined />,
             children: [
                 {
                     key: '/admin/services',
@@ -82,41 +74,41 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
                     label: 'Nhân Viên',
                 },
                 {
+                    key: '/admin/rooms',
+                    icon: <HomeOutlined />,
+                    label: 'Phòng',
+                },
+                {
                     key: '/admin/customers',
-                    icon: <SmileOutlined />, // Changed icon
+                    icon: <TeamOutlined />,
                     label: 'Khách Hàng',
                 },
                 {
                     key: '/admin/products',
-                    icon: <ShopOutlined />,
+                    icon: <ShoppingOutlined />,
                     label: 'Sản Phẩm',
                 },
                 {
                     key: '/admin/promotions',
                     icon: <GiftOutlined />,
-                    label: 'Khuyến Mãi (Voucher)',
-                },
-                {
-                    key: '/admin/gallery', // [RESTORED]
-                    icon: <PictureOutlined />,
-                    label: 'Thư Viện Ảnh',
+                    label: 'Khuyến Mãi',
                 },
             ]
         },
-        // GROUP 3: HỆ THỐNG (System - Cấu hình cao cấp)
+        // GROUP 2: HỆ THỐNG (System - Cấu hình cao cấp)
         {
             key: 'grp_system',
             label: 'Hệ Thống',
-            type: 'group',
+            icon: <ControlOutlined />,
             children: [
                 {
                     key: '/admin/reports',
-                    icon: <PieChartOutlined />,
+                    icon: <BarChartOutlined />,
                     label: 'Báo Cáo',
                 },
                 {
                     key: '/admin/branches',
-                    icon: <ShopOutlined />,
+                    icon: <EnvironmentOutlined />,
                     label: 'Chi Nhánh',
                 },
                 {
@@ -133,14 +125,19 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
         },
     ];
 
-    const [openKeys, setOpenKeys] = useState(['grp_operation']); // Default open one group
-    const rootSubmenuKeys = ['grp_operation', 'grp_business', 'grp_system'];
+    // Accordion behavior: Only one submenu open at a time
+    const [openKeys, setOpenKeys] = useState(['grp_management']); // Default open Quản Lý
+    const rootSubmenuKeys = ['grp_management', 'grp_system'];
 
     const onOpenChange = (keys) => {
+        // Find the latest opened key
         const latestOpenKey = keys.find((key) => openKeys.indexOf(key) === -1);
+        
+        // If it's not a root submenu, allow normal behavior
         if (latestOpenKey && rootSubmenuKeys.indexOf(latestOpenKey) === -1) {
             setOpenKeys(keys);
         } else {
+            // Accordion: only allow one root submenu open
             setOpenKeys(latestOpenKey ? [latestOpenKey] : []);
         }
     };

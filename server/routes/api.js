@@ -21,6 +21,7 @@ router.get('/dashboard/revenue-chart', verifyToken, checkRole(['admin', 'owner']
 router.get('/dashboard/top-services', verifyToken, branchCheck, DashboardController.getTopServices);
 router.get('/dashboard/staff-status', verifyToken, branchCheck, DashboardController.getStaffStatus);
 router.get('/dashboard/staff-performance', verifyToken, checkRole(['admin', 'owner']), branchCheck, DashboardController.getStaffPerformance);
+router.get('/dashboard/occupancy-rate', verifyToken, branchCheck, DashboardController.getOccupancyRate); // [NEW] Occupancy Route
 
 // --- USER MANAGEMENT ROUTES ---
 router.get('/users', verifyToken, checkRole(['admin', 'owner']), UserController.getAllUsers);

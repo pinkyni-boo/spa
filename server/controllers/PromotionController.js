@@ -1,5 +1,6 @@
 const Promotion = require('../models/Promotion');
 const PromotionUsage = require('../models/PromotionUsage');
+const Booking = require('../models/Booking'); // [NEW] For conflict checking
 
 // Get all promotions
 exports.getAllPromotions = async (req, res) => {
@@ -145,7 +146,7 @@ exports.deletePromotion = async (req, res) => {
 // Validate promotion code
 exports.validateCode = async (req, res) => {
     try {
-        const { code, orderValue, serviceId, branchId, customerPhone } = req.body;
+        const { code, orderValue, serviceId, branchId, customerPhone, bookingId } = req.body; // [NEW] bookingId for conflict check
         
         // Find promotion
         const promotion = await Promotion.findOne({ 
@@ -236,6 +237,46 @@ exports.validateCode = async (req, res) => {
             }
         }
         
+        // [NEW] ⚠️ COUPON CONFLICT CHECK ⚠️
+        // Check if booking already has promotions that conflict
+        if (bookingId) {
+            const booking = await Booking.findById(bookingId).populate('appliedPromotions.promotionId');
+            
+            if (booking && booking.appliedPromotions && booking.appliedPromotions.length > 0) {
+                // Booking already has at least one promotion
+                const existingPromotion = booking.appliedPromotions[0].promotionId;
+                
+                // Check if EXISTING promotion allows combining
+                if (existingPromotion && existingPromotion.allowCombine === false) {
+                    return res.json({
+                        success: false,
+                        message: `⛔ Đơn hàng đã có mã "${existingPromotion.code}" không cho phép kết hợp với mã khác!`,
+                        conflictReason: 'existing_promotion_no_combine',
+                        existingPromotion: {
+                            code: existingPromotion.code,
+                            name: existingPromotion.name
+                        }
+                    });
+                }
+                
+                // Check if NEW promotion allows combining
+                if (promotion.allowCombine === false) {
+                    return res.json({
+                        success: false,
+                        message: `⛔ Mã "${promotion.code}" không thể dùng chung với các ưu đãi khác! Vui lòng hủy mã hiện tại để sử dụng mã này.`,
+                        conflictReason: 'new_promotion_no_combine',
+                        existingPromotion: {
+                            code: existingPromotion.code,
+                            name: existingPromotion.name
+                        }
+                    });
+                }
+                
+                // Both allow combining → Show warning but allow
+                // (Optional: You can add more complex rules here, e.g. max 2 promotions)
+            }
+        }
+        
         // Calculate discount
         let discountAmount = 0;
         if (promotion.type === 'percentage') {
@@ -273,6 +314,48 @@ exports.applyPromotion = async (req, res) => {
     try {
         const { promotionId, bookingId, customerPhone, discountAmount } = req.body;
         
+        // [NEW] ⚠️ DOUBLE CHECK CONFLICT BEFORE APPLYING ⚠️
+        // This is the FINAL gate - validateCode already checked, but we check again for safety
+        const booking = await Booking.findById(bookingId).populate('appliedPromotions.promotionId');
+        const promotion = await Promotion.findById(promotionId);
+        
+        if (!booking) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
+        }
+        
+        if (!promotion) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy mã khuyến mãi' });
+        }
+        
+        // Final conflict check
+        if (booking.appliedPromotions && booking.appliedPromotions.length > 0) {
+            const existingPromotion = booking.appliedPromotions[0].promotionId;
+            
+            if (existingPromotion.allowCombine === false || promotion.allowCombine === false) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: '⛔ Không thể áp dụng mã này do xung đột với mã hiện tại!' 
+                });
+            }
+        }
+        
+        // [NEW] Save promotion to booking
+        booking.appliedPromotions.push({
+            promotionId: promotion._id,
+            code: promotion.code,
+            discountAmount: discountAmount
+        });
+        
+        // [NEW] Update total discount and final price
+        booking.totalDiscount = (booking.totalDiscount || 0) + discountAmount;
+        
+        // Recalculate final price
+        // Assume booking has a base price (from serviceId or calculated before)
+        const basePrice = booking.finalPrice + (booking.totalDiscount - discountAmount) || 0;
+        booking.finalPrice = Math.max(0, basePrice - booking.totalDiscount);
+        
+        await booking.save();
+        
         // Create usage record
         const usage = new PromotionUsage({
             promotionId,
@@ -288,7 +371,6 @@ exports.applyPromotion = async (req, res) => {
         });
         
         // Decrement flash sale stock if applicable
-        const promotion = await Promotion.findById(promotionId);
         if (promotion.isFlashSale && promotion.flashSaleStock !== null) {
             await Promotion.findByIdAndUpdate(promotionId, {
                 $inc: { flashSaleStock: -1 }
@@ -297,7 +379,12 @@ exports.applyPromotion = async (req, res) => {
         
         res.json({
             success: true,
-            message: 'Promotion applied successfully'
+            message: 'Áp dụng mã thành công!',
+            booking: {
+                appliedPromotions: booking.appliedPromotions,
+                totalDiscount: booking.totalDiscount,
+                finalPrice: booking.finalPrice
+            }
         });
     } catch (error) {
         console.error('Error applying promotion:', error);

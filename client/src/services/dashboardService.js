@@ -73,5 +73,22 @@ export const dashboardService = {
             console.error('Error fetching staff performance:', error);
             throw error;
         }
+    },
+
+    // [NEW] Get Occupancy Rate
+    getOccupancyRate: async (date) => {
+        try {
+            const url = date 
+                ? `${API_URL}/api/dashboard/occupancy-rate?date=${date}`
+                : `${API_URL}/api/dashboard/occupancy-rate`;
+                
+            const response = await fetch(url, {
+                headers: getAuthHeaders()
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching occupancy rate:', error);
+            throw error;
+        }
     }
 };

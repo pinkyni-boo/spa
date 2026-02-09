@@ -3,6 +3,7 @@ import { Layout, Typography, Row, Col, Card, List, Tag, Spin, Button } from 'ant
 import { DollarOutlined, UserOutlined, CalendarOutlined, TeamOutlined, ReloadOutlined } from '@ant-design/icons';
 import StatsCard from './StatsCard';
 import RevenueChart from './RevenueChart';
+import OccupancyChart from './OccupancyChart'; // [NEW] Import
 import { dashboardService } from '../../../services/dashboardService';
 import theme from '../../../theme';
 
@@ -13,6 +14,7 @@ const Dashboard = () => {
     const [revenueData, setRevenueData] = useState([]);
     const [topServices, setTopServices] = useState([]);
     const [staffStatus, setStaffStatus] = useState([]);
+    const [occupancyData, setOccupancyData] = useState([]); // [NEW] State
     const [loading, setLoading] = useState(true);
     const [period, setPeriod] = useState('week');
 
@@ -20,22 +22,19 @@ const Dashboard = () => {
         setLoading(true);
         console.log('🔄 [DASHBOARD] Fetching data...');
         try {
-            const [statsRes, revenueRes, servicesRes, staffRes] = await Promise.all([
+            const [statsRes, revenueRes, servicesRes, staffRes, occupancyRes] = await Promise.all([
                 dashboardService.getStats(),
                 dashboardService.getRevenueChart(period),
                 dashboardService.getTopServices(),
-                dashboardService.getStaffStatus()
+                dashboardService.getStaffStatus(),
+                dashboardService.getOccupancyRate() // [NEW] API call
             ]);
-
-            console.log('📊 [DASHBOARD] Stats Response:', statsRes);
-            console.log('📈 [DASHBOARD] Revenue Response:', revenueRes);
-            console.log('🏆 [DASHBOARD] Services Response:', servicesRes);
-            console.log('👥 [DASHBOARD] Staff Response:', staffRes);
 
             if (statsRes.success) setStats(statsRes.stats);
             if (revenueRes.success) setRevenueData(revenueRes.data);
             if (servicesRes.success) setTopServices(servicesRes.services);
             if (staffRes.success) setStaffStatus(staffRes.staff);
+            if (occupancyRes.success) setOccupancyData(occupancyRes.data); // [NEW] Set data
         } catch (error) {
             console.error('❌ [DASHBOARD] Error fetching data:', error);
         } finally {
@@ -105,11 +104,18 @@ const Dashboard = () => {
                             </Col>
                         </Row>
 
-                        {/* Revenue Chart */}
+                        {/* Revenue & Occupancy Charts [UPDATED LAYOUT] */}
                         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                             <Col xs={24} lg={16}>
                                 <RevenueChart data={revenueData} loading={loading} />
                             </Col>
+                            <Col xs={24} lg={8}>
+                                <OccupancyChart data={occupancyData} loading={loading} />
+                            </Col>
+                        </Row>
+
+                        {/* Top Services & Staff [UPDATED LAYOUT] */}
+                        <Row gutter={[16, 16]}>
                             <Col xs={24} lg={8}>
                                 <Card
                                     title={<Title level={4} style={{ margin: 0 }}>Top Dịch Vụ</Title>}
@@ -138,17 +144,14 @@ const Dashboard = () => {
                                     />
                                 </Card>
                             </Col>
-                        </Row>
-
-                        {/* Staff Status */}
-                        <Row gutter={[16, 16]}>
-                            <Col xs={24}>
+                            <Col xs={24} lg={16}>
                                 <Card
                                     title={<Title level={4} style={{ margin: 0 }}><TeamOutlined /> Trạng Thái Nhân Viên</Title>}
                                     style={{ 
                                         borderRadius: 12,
                                         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                                        border: '1px solid #f0f0f0'
+                                        border: '1px solid #f0f0f0',
+                                        height: '100%'
                                     }}
                                 >
                                     <Row gutter={[16, 16]}>
@@ -158,13 +161,13 @@ const Dashboard = () => {
                                                     size="small"
                                                     style={{ 
                                                         borderRadius: 8,
-                                                        border: `2px solid ${staff.status === 'busy' ? '#ff4d4f' : '#52c41a'}`
+                                                        border: staff.status === 'busy' ? '2px solid #ff4d4f' : '2px solid #52c41a'
                                                     }}
                                                 >
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                                                         <div style={{
-                                                            width: 8,
-                                                            height: 8,
+                                                            width: '8px',
+                                                            height: '8px',
                                                             borderRadius: '50%',
                                                             background: staff.status === 'busy' ? '#ff4d4f' : '#52c41a'
                                                         }} />
