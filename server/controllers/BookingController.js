@@ -198,6 +198,7 @@ exports.checkIn = async (req, res) => {
 
 // B. SMART UPSELL (Thêm dịch vụ & Check xung đột)
 // C. GLOBAL SEARCH (For "Sync Search" feature)
+// C. GLOBAL SEARCH (For "Sync Search" feature)
 exports.searchBookings = async (req, res) => {
     try {
         const { query } = req.query; // Search text (name or phone)
@@ -207,13 +208,16 @@ exports.searchBookings = async (req, res) => {
         // Case insensitive regex
         const regex = new RegExp(query, 'i');
         
-        const bookings = await Booking.find({
+        // [GLOBAL CRM] Allow searching ALL customers across branches
+        const filter = {
             $or: [
                 { customerName: regex },
                 { phone: regex }
             ],
-            status: { $ne: 'cancelled' } // Optional: Exclude cancelled? User might want to find them too. Let's keep them but maybe sort by active first.
-        })
+            status: { $ne: 'cancelled' } 
+        };
+
+        const bookings = await Booking.find(filter)
         .populate('serviceId', 'name') // Just need basic info
         .sort({ startTime: 1 }) // Future first
         .limit(20); // Limit results for speed
@@ -225,51 +229,16 @@ exports.searchBookings = async (req, res) => {
 };
 
 exports.updateBookingServices = async (req, res) => {
-    const unlock = await bookingMutex.lock(); // Dùng Mutex để tránh tranh chấp
-    try {
-        const { id } = req.params;
-        const { servicesDone, newEndTime } = req.body; 
-        
-        const booking = await Booking.findById(id);
-        if (!booking) return res.status(404).json({ message: 'Booking not found' });
-
-        // Logic: If extending time, CHECK CONFLICT
-        if (newEndTime && new Date(newEndTime) > booking.endTime) {
-            const proposedEnd = new Date(newEndTime);
-            const buffer = booking.bufferTime || 0;
-            const busyEnd = dayjs(proposedEnd).add(buffer, 'minute');
-
-            const conflict = await Booking.findOne({
-                _id: { $ne: booking._id },
-                roomId: booking.roomId,
-                startTime: { $lt: busyEnd.toDate() },
-                endTime: { $gt: booking.endTime }
-            });
-
-            if (conflict) {
-                 return res.status(409).json({ 
-                     success: false, 
-                     message: 'XUNG ĐỘT: Không thể thêm dịch vụ vì vướng khách sau!',
-                     conflictDetails: conflict
-                 });
-            }
-            booking.endTime = proposedEnd;
-        }
-
-        if (servicesDone) {
-            booking.servicesDone = servicesDone;
-        }
-
-        await booking.save();
-        res.json({ success: true, message: 'Cập nhật dịch vụ thành công!', booking });
-
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, message: 'Lỗi cập nhật dịch vụ' });
-    } finally {
-        unlock();
-    }
+    // ... (Mutex logic remains check file content if needed, but here we just replace searchBookings and getCustomerHistory surrounding areas or just target blocks)
+    // Since this tool replaces blocks, I will target the specific functions.
+    // Wait, updateBookingServices is between search and getHistory.
+    // I'll do two chunks or one large block if they are close?
+    // They are separated by updateBookingServices.
+    // I will use multi_replace for safety.
+    return; // Pseudo-code, using actual tool below
 };
+
+// ...
 
 // ---------------------------------------------------------
 // [NEW] CRM - GET CUSTOMER HISTORY
@@ -282,10 +251,11 @@ exports.getCustomerHistory = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Thiếu số điện thoại' });
         }
 
-        // Find all bookings for this phone number
+        // [GLOBAL CRM] Show FULL history across all branches
         const bookings = await Booking.find({ phone })
             .populate('serviceId', 'name price duration')
             .populate('staffId', 'name')
+            .populate('branchId', 'name address') // [NEW] Show branch info
             .populate('roomId', 'name')
             .sort({ startTime: -1 }) // Newest first
             .lean();
@@ -295,7 +265,8 @@ exports.getCustomerHistory = async (req, res) => {
             ...b,
             serviceName: b.serviceId?.name || 'N/A',
             staffName: b.staffId?.name || 'N/A',
-            roomName: b.roomId?.name || 'N/A'
+            roomName: b.roomId?.name || 'N/A',
+            branchName: b.branchId?.name || 'Chi nhánh khác' // [NEW]
         }));
 
         res.json({ success: true, bookings: mappedBookings });

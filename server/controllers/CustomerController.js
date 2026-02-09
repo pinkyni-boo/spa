@@ -5,22 +5,28 @@ const Booking = require('../models/Booking'); // Import Booking model
 // 1. Search Customers (Aggregated from Booking & Customer)
 exports.searchCustomers = async (req, res) => {
     try {
-        const { query } = req.query; // Search by name or phone
-        console.log('[SEARCH CUSTOMERS] Query:', query); // [DEBUG]
+        const { query, branchId } = req.query; // Search by name or phone, filter by branch
+        console.log('[SEARCH CUSTOMERS] Query:', query, 'Branch:', branchId); // [DEBUG]
         
         let customers = [];
         let bookings = [];
 
         if (!query) {
             // [DEFAULT VIEW] Return recent unique customers (from recent bookings)
-            // Get last 100 bookings to aggregate
-            bookings = await Booking.find({})
+            // Filter by Branch if provided (for Admins)
+            const filter = {};
+            if (branchId) {
+                filter.branchId = branchId;
+            }
+
+            // Get last 200 bookings to aggregate
+            bookings = await Booking.find(filter)
                 .select('customerName phone createdAt')
                 .sort({ createdAt: -1 })
                 .limit(200);
             console.log('[SEARCH CUSTOMERS] Default view, bookings count:', bookings.length); // [DEBUG]
         } else {
-            // [SEARCH VIEW]
+            // [SEARCH VIEW] GLOBAL SEARCH (As per requirement: CRM is Global)
             // Priority 1: Search in Customer collection (synced data)
             customers = await Customer.find({
                 $or: [
@@ -145,6 +151,10 @@ exports.syncCustomerStats = async (data) => {
 
         let customer = await Customer.findOne({ phone: data.phone });
 
+        // [CONFIG] 1 Point per 10,000 VND
+        const POINTS_DIVISOR = 10000; 
+        const newPoints = Math.floor((data.amount || 0) / POINTS_DIVISOR);
+
         if (!customer) {
             // New Customer
             customer = new Customer({
@@ -153,14 +163,14 @@ exports.syncCustomerStats = async (data) => {
                 totalVisits: 1,
                 totalSpent: data.amount || 0,
                 lastVisit: new Date(),
-                loyaltyPoints: Math.floor((data.amount || 0) / 100000) // 1 point per 100k
+                loyaltyPoints: newPoints
             });
         } else {
             // Returning Customer
             customer.totalVisits += 1;
             customer.totalSpent += (data.amount || 0);
             customer.lastVisit = new Date();
-            customer.loyaltyPoints += Math.floor((data.amount || 0) / 100000);
+            customer.loyaltyPoints = (customer.loyaltyPoints || 0) + newPoints;
             
             // Allow name update if provided and different
              if (data.name && data.name !== customer.name) {
@@ -169,9 +179,29 @@ exports.syncCustomerStats = async (data) => {
         }
         
         await customer.save();
-        console.log(`[CRM] Synced Customer: ${customer.name} (${customer.phone})`);
+        console.log(`[CRM] Synced Customer: ${customer.name} (${customer.phone}) - Added ${newPoints} points`);
         return customer;
     } catch (error) {
         console.error("[CRM] Sync Error:", error);
+    }
+};
+
+// 4. [INTERNAL] Deduct Points
+exports.deductPoints = async (phone, points) => {
+    try {
+        const customer = await Customer.findOne({ phone });
+        if (!customer) throw new Error('Customer not found');
+        
+        if (customer.loyaltyPoints < points) {
+            throw new Error('Not enough points');
+        }
+
+        customer.loyaltyPoints -= points;
+        await customer.save();
+        console.log(`[CRM] Deducted ${points} points from ${phone}`);
+        return true;
+    } catch (error) {
+        console.error("Deduct Points Error:", error);
+        throw error;
     }
 };

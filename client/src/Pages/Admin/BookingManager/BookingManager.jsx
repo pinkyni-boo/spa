@@ -512,7 +512,7 @@ const BookingManager = () => {
     const handleInvoiceSubmit = async (invoiceData) => {
         try {
             // Process payment and complete booking
-            await adminBookingService.processPayment(selectedBooking._id, invoiceData);
+            await adminBookingService.createInvoice(invoiceData);
             message.success('Thanh toán thành công');
             setSelectedBooking(null);
             fetchData();

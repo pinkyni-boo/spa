@@ -78,7 +78,7 @@ const MainContent = () => {
         return (
             <Layout style={{ minHeight: '100vh' }}>
                 <AdminSidebar collapsed={collapsed} setCollapsed={setCollapsed} />
-                <Layout>
+                <Layout style={{ marginLeft: collapsed ? 80 : 250, transition: 'all 0.2s' }}>
                     <Content style={{ margin: 0, minHeight: 280, background: '#f0f2f5', overflow: 'hidden' }}>
                         <Routes>
                             <Route path="/admin/accounts" element={<AccountManager />} />

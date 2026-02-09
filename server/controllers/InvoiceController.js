@@ -1,15 +1,51 @@
 const Invoice = require('../models/Invoice');
 const Booking = require('../models/Booking');
 const CustomerController = require('./CustomerController'); // [NEW] Link CRM
+const Promotion = require('../models/Promotion'); // [NEW] Link Promotion
+const PromotionUsage = require('../models/PromotionUsage'); // [NEW] Link Usage
 
 // 1. Create Invoice (Checkout)
 exports.createInvoice = async (req, res) => {
     try {
-        const { bookingId, customerName, phone, items, subTotal, discount, tax, finalTotal, paymentMethod, cashierName } = req.body;
+        const { bookingId, customerName, phone, items, subTotal, discount, tax, finalTotal, paymentMethod, cashierName, promotionId, pointsUsed } = req.body;
 
         // Validation
-        if (!finalTotal || finalTotal < 0) {
+        if (!finalTotal && finalTotal !== 0) { // Check undefined/null but allow 0
             return res.status(400).json({ success: false, message: 'Tổng tiền không hợp lệ' });
+        }
+
+        // [LOGIC] 1. Handle Promotion Usage
+        if (promotionId) {
+            // Find Promotion
+            const promotion = await Promotion.findById(promotionId);
+            if (promotion) {
+                // Record Usage
+                const usage = new PromotionUsage({
+                    promotionId: promotion._id,
+                    bookingId: bookingId, // Can be null for retail
+                    customerPhone: phone || 'GUEST',
+                    discountAmount: discount || 0, // Assuming discount comes from promotion
+                    usedAt: new Date()
+                });
+                await usage.save();
+                
+                // Increment Counter
+                await Promotion.findByIdAndUpdate(promotionId, { $inc: { usageCount: 1 } });
+                
+                // Decrement Flash Sale Stock
+                if (promotion.isFlashSale && promotion.flashSaleStock !== null) {
+                    await Promotion.findByIdAndUpdate(promotionId, { $inc: { flashSaleStock: -1 } });
+                }
+            }
+        }
+
+        // [LOGIC] 2. Handle Loyalty Points Redemption
+        if (pointsUsed && phone) {
+            try {
+                await CustomerController.deductPoints(phone, parseInt(pointsUsed));
+            } catch (err) {
+                return res.status(400).json({ success: false, message: 'Lỗi trừ điểm tích lũy: ' + err.message });
+            }
         }
 
         // Create Invoice
@@ -23,17 +59,18 @@ exports.createInvoice = async (req, res) => {
             tax,
             finalTotal,
             paymentMethod,
-            cashierName
+            cashierName,
+            note: promotionId ? `Used Promotion: ${promotionId}` : (pointsUsed ? `Used ${pointsUsed} pts` : '')
         });
 
         await newInvoice.save();
 
-        // [CRM] Sync Customer Stats
+        // [CRM] Sync Customer Stats (Accumulate Points for the Amount PAID)
         if (phone) {
             await CustomerController.syncCustomerStats({
                 phone,
                 name: customerName,
-                amount: finalTotal
+                amount: finalTotal // Only award points for what they actually PAID
             });
         }
 

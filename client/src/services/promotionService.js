@@ -23,6 +23,21 @@ export const promotionService = {
         }
     },
 
+    // [NEW] Suggest Promotions (Context Aware)
+    suggestPromotions: async (orderValue, branchId) => {
+        try {
+            const response = await fetch(`${API_URL}/api/promotions/suggest`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderValue, branchId })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error suggesting promotions:', error);
+            return { success: false, promotions: [] };
+        }
+    },
+
     // Create promotion
     createPromotion: async (promotionData) => {
         try {

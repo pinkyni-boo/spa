@@ -39,6 +39,37 @@ exports.getActivePromotions = async (req, res) => {
     }
 };
 
+// [NEW] Suggest Applicable Promotions
+exports.suggestPromotions = async (req, res) => {
+    try {
+        const { orderValue, branchId } = req.body; // Expecting current cart total
+        const now = new Date();
+
+        // Find active promotions
+        const promotions = await Promotion.find({
+            status: 'active',
+            startDate: { $lte: now },
+            endDate: { $gte: now },
+            // Filter by Order Value
+            minOrderValue: { $lte: orderValue || 0 }
+        });
+
+        // Further Filter by Branch (if specific) in memory or query
+        const validPromotions = promotions.filter(p => {
+            // Check Branch
+            if (p.applicableBranches && p.applicableBranches.length > 0 && branchId) {
+                return p.applicableBranches.map(b => b.toString()).includes(branchId);
+            }
+            return true; // No branch restriction = Global
+        });
+
+        res.json({ success: true, promotions: validPromotions });
+    } catch (error) {
+        console.error('Error suggesting promotions:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
 // Create promotion
 exports.createPromotion = async (req, res) => {
     try {
