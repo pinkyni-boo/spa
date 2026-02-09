@@ -40,7 +40,12 @@ const StaffSchema = new mongoose.Schema({
     type: String
   }],
   // Ca làm việc cố định trong tuần
-  shifts: [ShiftSchema]
+  shifts: [ShiftSchema],
+  // [NEW] Soft Delete
+  isDeleted: {
+      type: Boolean,
+      default: false
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Staff', StaffSchema);

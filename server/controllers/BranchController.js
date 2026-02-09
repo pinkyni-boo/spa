@@ -37,7 +37,7 @@ exports.getBranch = async (req, res) => {
 // Create branch
 exports.createBranch = async (req, res) => {
     try {
-        const { name, address, phone, email, managerId, operatingHours } = req.body;
+        const { name, address, phone, email, managerId, workingHours } = req.body; // [FIX] Updated field name
 
         const branch = new Branch({
             name,
@@ -45,7 +45,7 @@ exports.createBranch = async (req, res) => {
             phone,
             email,
             managerId, // [UPDATED] Use managerId instead of manager object
-            operatingHours,
+            workingHours,
             status: 'active'
         });
 
@@ -65,11 +65,11 @@ exports.createBranch = async (req, res) => {
 // Update branch
 exports.updateBranch = async (req, res) => {
     try {
-        const { name, address, phone, email, managerId, operatingHours, status } = req.body;
+        const { name, address, phone, email, managerId, workingHours, status } = req.body; // [FIX] Updated field name
 
         const branch = await Branch.findByIdAndUpdate(
             req.params.id,
-            { name, address, phone, email, managerId, operatingHours, status }, // [UPDATED]
+            { name, address, phone, email, managerId, workingHours, status },
             { new: true, runValidators: true }
         ).populate('managerId', 'name phone email');
 

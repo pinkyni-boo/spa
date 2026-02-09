@@ -47,6 +47,7 @@ const LoginPage = () => {
                 message.success(`Chào mừng ${data.user.name}! 👋`);
                 // Save user info (with Role and Branches)
                 localStorage.setItem('user', JSON.stringify(data.user));
+                localStorage.setItem('token', data.token); // [NEW] Save token
                 navigate('/admin/dashboard');
                 window.location.reload(); // Force App.jsx to re-check Auth
             } else {

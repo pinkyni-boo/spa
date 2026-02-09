@@ -184,6 +184,14 @@ const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
             }
             // Cap at subtotal
             setPromotionDiscount(Math.min(val, subTotal));
+            
+            // [LOGIC] Check Conflict
+            if (promo.allowCombine === false) { // Explicit check
+                if (usePoints) {
+                    setUsePoints(false);
+                    message.warning(`Mã ${promo.code} không dùng chung với điểm tích lũy. Đã tắt dùng điểm.`);
+                }
+            }
             message.success(`Applied: ${promo.name}`);
         }
     };
@@ -447,6 +455,7 @@ const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
                                             <span style={{ fontWeight: 'bold', color: '#1890ff' }}>{p.code}</span>
                                             {' - '}
                                             {p.name} ({p.type === 'percentage' ? `-${p.value}%` : `-${p.value.toLocaleString()}₫`})
+                                            {!p.allowCombine && <Tag color="red" style={{marginLeft: 5}}>Riêng</Tag>}
                                         </Select.Option>
                                     ))
                                 )}
@@ -459,15 +468,23 @@ const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
                         </div>
                      )}
 
-                     {/* [NEW] LOYALTY POINTS */}
-                     {!invoice && customerPoints > 0 && (
-                        <div style={{ width: '100%', background: '#fff7e6', padding: 8, borderRadius: 8, border: '1px solid #ffe7ba' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Text strong style={{ color: '#d48806' }}>👑 Dùng điểm tích lũy</Text>
-                                <Switch size="small" checked={usePoints} onChange={setUsePoints} />
-                            </div>
-                            
-                            {usePoints && (
+                      {/* [NEW] LOYALTY POINTS */}
+                      {/* Derived State for Conflict */}
+                      {(() => {
+                          const selectedPromo = promotions.find(p => p._id === selectedPromotionId);
+                          const isConflict = selectedPromo && selectedPromo.allowCombine === false;
+                          
+                          return !invoice && customerPoints > 0 && (
+                            <div style={{ width: '100%', background: isConflict ? '#f5f5f5' : '#fff7e6', padding: 8, borderRadius: 8, border: '1px solid #ffe7ba', opacity: isConflict ? 0.7 : 1 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div>
+                                        <Text strong style={{ color: isConflict ? '#999' : '#d48806' }}>👑 Dùng điểm tích lũy</Text>
+                                        {isConflict && <div style={{fontSize: 11, color: 'red'}}>Không áp dụng cùng mã này</div>}
+                                    </div>
+                                    <Switch size="small" checked={usePoints} onChange={setUsePoints} disabled={isConflict} />
+                                </div>
+                                
+                                {usePoints && (
                                 <div style={{ marginTop: 8 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
                                         <span>Dùng: <b>{pointsToRedeem}</b> điểm</span>
@@ -493,7 +510,8 @@ const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
                                 </div>
                             )}
                         </div>
-                     )}
+                          );
+                      })()}
 
                      <Divider style={{ margin: '8px 0' }} />
 

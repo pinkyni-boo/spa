@@ -16,7 +16,8 @@ import {
     MenuUnfoldOutlined,
     MenuFoldOutlined,
     LogoutOutlined,
-    PictureOutlined // [NEW]
+    PictureOutlined,
+    SmileOutlined // [NEW] For Customers
 } from '@ant-design/icons';
 
 const { Sider } = Layout;
@@ -45,76 +46,88 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
             icon: <DashboardOutlined />,
             label: 'Tổng Quan',
         },
-        // Core Function (Priority)
-        {
-            key: '/admin/bookings',
-            icon: <CalendarOutlined />,
-            label: 'Đặt Lịch (Booking)',
-        },
-        {
-            type: 'divider',
-        },
-        // GROUP 1: VẬN HÀNH (SubMenu)
+        // GROUP 1: VẬN HÀNH (Daily Operations - Việc hàng ngày)
         {
             key: 'grp_operation',
             label: 'Vận Hành',
-            icon: <HomeOutlined />,
+            type: 'group', // Use AntD Group type for cleaner look, or SubMenu
             children: [
                 {
-                    key: '/admin/rooms',
-                    label: 'Phòng & Giường',
+                    key: '/admin/bookings',
+                    icon: <CalendarOutlined />, // Moved icon here
+                    label: 'Đặt Lịch (Booking)',
                 },
                 {
-                    key: '/admin/staff',
-                    label: 'Nhân Viên',
+                    key: '/admin/rooms',
+                    icon: <HomeOutlined />,
+                    label: 'Sơ Đồ Phòng',
                 },
+                // { key: '/admin/waitlist', icon: <ClockCircleOutlined />, label: 'Hàng Chờ' }, // Future
             ]
         },
-        // GROUP 2: KINH DOANH (SubMenu)
+        // GROUP 2: QUẢN LÝ (Management - Cài đặt tài nguyên)
         {
-            key: 'grp_business',
-            label: 'Kinh Doanh',
-            icon: <ShopOutlined />,
+            key: 'grp_management', 
+            label: 'Quản Lý',
+            type: 'group',
             children: [
                 {
                     key: '/admin/services',
+                    icon: <SkinOutlined />,
                     label: 'Dịch Vụ',
                 },
                 {
+                    key: '/admin/staff',
+                    icon: <UserOutlined />,
+                    label: 'Nhân Viên',
+                },
+                {
+                    key: '/admin/customers',
+                    icon: <SmileOutlined />, // Changed icon
+                    label: 'Khách Hàng',
+                },
+                {
                     key: '/admin/products',
+                    icon: <ShopOutlined />,
                     label: 'Sản Phẩm',
                 },
                 {
                     key: '/admin/promotions',
-                    label: 'Ưu Đãi',
+                    icon: <GiftOutlined />,
+                    label: 'Khuyến Mãi (Voucher)',
                 },
                 {
-                    key: '/admin/customers',
-                    label: 'Khách Hàng',
+                    key: '/admin/gallery', // [RESTORED]
+                    icon: <PictureOutlined />,
+                    label: 'Thư Viện Ảnh',
                 },
             ]
         },
-        // GROUP 3: HỆ THỐNG (SubMenu)
+        // GROUP 3: HỆ THỐNG (System - Cấu hình cao cấp)
         {
             key: 'grp_system',
             label: 'Hệ Thống',
-            icon: <EnvironmentOutlined />,
+            type: 'group',
             children: [
                 {
                     key: '/admin/reports',
+                    icon: <PieChartOutlined />,
                     label: 'Báo Cáo',
                 },
                 {
                     key: '/admin/branches',
+                    icon: <ShopOutlined />,
                     label: 'Chi Nhánh',
                 },
                 {
                     key: '/admin/accounts',
+                    icon: <SafetyCertificateOutlined />,
                     label: 'Tài Khoản',
                 },
                 {
                     key: '/admin/feedbacks',
-                    label: 'Feedback',
+                    icon: <MessageOutlined />,
+                    label: 'Phản Hồi',
                 },
             ]
         },

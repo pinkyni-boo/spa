@@ -1,15 +1,22 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('token')}`
+});
+
 export const userService = {
     getAllUsers: async () => {
-        const response = await fetch(`${API_URL}/api/users`);
+        const response = await fetch(`${API_URL}/api/users`, {
+            headers: getAuthHeaders()
+        });
         return await response.json();
     },
 
     createUser: async (data) => {
         const response = await fetch(`${API_URL}/api/users`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify(data)
         });
         return await response.json();
@@ -18,7 +25,7 @@ export const userService = {
     updateUser: async (id, data) => {
         const response = await fetch(`${API_URL}/api/users/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify(data)
         });
         return await response.json();
@@ -26,7 +33,8 @@ export const userService = {
 
     deleteUser: async (id) => {
         const response = await fetch(`${API_URL}/api/users/${id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: getAuthHeaders()
         });
         return await response.json();
     }

@@ -1,10 +1,17 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('token')}`
+});
+
 export const promotionService = {
     // Get all promotions
     getAllPromotions: async () => {
         try {
-            const response = await fetch(`${API_URL}/api/promotions`);
+            const response = await fetch(`${API_URL}/api/promotions`, {
+                headers: getAuthHeaders()
+            });
             return await response.json();
         } catch (error) {
             console.error('Error fetching promotions:', error);
@@ -28,7 +35,7 @@ export const promotionService = {
         try {
             const response = await fetch(`${API_URL}/api/promotions/suggest`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({ orderValue, branchId })
             });
             return await response.json();
@@ -43,7 +50,7 @@ export const promotionService = {
         try {
             const response = await fetch(`${API_URL}/api/promotions`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify(promotionData)
             });
             return await response.json();
@@ -58,7 +65,7 @@ export const promotionService = {
         try {
             const response = await fetch(`${API_URL}/api/promotions/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify(promotionData)
             });
             return await response.json();
@@ -72,7 +79,8 @@ export const promotionService = {
     deletePromotion: async (id) => {
         try {
             const response = await fetch(`${API_URL}/api/promotions/${id}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: getAuthHeaders()
             });
             return await response.json();
         } catch (error) {

@@ -48,6 +48,11 @@ const ServiceSchema = new mongoose.Schema({
       type: String,
       enum: ['HEAD_SPA', 'BODY_SPA', 'NAIL_SPA', 'OTHER'],
       default: 'BODY_SPA'
+  },
+  // [NEW] Soft Delete
+  isDeleted: {
+      type: Boolean,
+      default: false
   }
 }, { timestamps: true });
 

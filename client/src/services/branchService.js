@@ -1,10 +1,17 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('token')}`
+});
+
 export const branchService = {
     // Get all branches
     getAllBranches: async () => {
         try {
-            const response = await fetch(`${API_URL}/api/branches`);
+            const response = await fetch(`${API_URL}/api/branches`, {
+                headers: getAuthHeaders()
+            });
             return await response.json();
         } catch (error) {
             console.error('Error fetching branches:', error);
@@ -15,7 +22,9 @@ export const branchService = {
     // Get single branch
     getBranch: async (id) => {
         try {
-            const response = await fetch(`${API_URL}/api/branches/${id}`);
+            const response = await fetch(`${API_URL}/api/branches/${id}`, {
+                headers: getAuthHeaders()
+            });
             return await response.json();
         } catch (error) {
             console.error('Error fetching branch:', error);
@@ -28,7 +37,7 @@ export const branchService = {
         try {
             const response = await fetch(`${API_URL}/api/branches`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify(branchData)
             });
             return await response.json();
@@ -43,7 +52,7 @@ export const branchService = {
         try {
             const response = await fetch(`${API_URL}/api/branches/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify(branchData)
             });
             return await response.json();
@@ -57,7 +66,8 @@ export const branchService = {
     deleteBranch: async (id) => {
         try {
             const response = await fetch(`${API_URL}/api/branches/${id}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: getAuthHeaders()
             });
             return await response.json();
         } catch (error) {
@@ -69,7 +79,9 @@ export const branchService = {
     // Get branch statistics
     getBranchStats: async (id) => {
         try {
-            const response = await fetch(`${API_URL}/api/branches/${id}/stats`);
+            const response = await fetch(`${API_URL}/api/branches/${id}/stats`, {
+                headers: getAuthHeaders()
+            });
             return await response.json();
         } catch (error) {
             console.error('Error fetching branch stats:', error);

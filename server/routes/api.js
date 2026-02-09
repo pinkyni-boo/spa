@@ -11,36 +11,38 @@ const PromotionController = require('../controllers/PromotionController');
 const FeedbackController = require('../controllers/FeedbackController');
 const UserController = require('../controllers/UserController');
 const SeedController = require('../controllers/SeedController'); // [NEW]
+const { verifyToken, checkRole } = require('../middleware/auth'); // [NEW] Auth Middleware
+const { branchCheck } = require('../middleware/branchCheck'); // [NEW] Isolation Middleware
 
 // --- DASHBOARD ROUTES ---
 router.post('/seed-data', SeedController.seedGalleryAndFeedback); // [NEW] Seed Route
-router.get('/dashboard/stats', DashboardController.getStats);
-router.get('/dashboard/revenue-chart', DashboardController.getRevenueChart);
-router.get('/dashboard/top-services', DashboardController.getTopServices);
-router.get('/dashboard/staff-status', DashboardController.getStaffStatus);
-router.get('/dashboard/staff-performance', DashboardController.getStaffPerformance);
+router.get('/dashboard/stats', verifyToken, branchCheck, DashboardController.getStats);
+router.get('/dashboard/revenue-chart', verifyToken, checkRole(['admin', 'owner']), branchCheck, DashboardController.getRevenueChart);
+router.get('/dashboard/top-services', verifyToken, branchCheck, DashboardController.getTopServices);
+router.get('/dashboard/staff-status', verifyToken, branchCheck, DashboardController.getStaffStatus);
+router.get('/dashboard/staff-performance', verifyToken, checkRole(['admin', 'owner']), branchCheck, DashboardController.getStaffPerformance);
 
 // --- USER MANAGEMENT ROUTES ---
-router.get('/users', UserController.getAllUsers);
-router.post('/users', UserController.createUser);
-router.put('/users/:id', UserController.updateUser);
-router.delete('/users/:id', UserController.deleteUser);
+router.get('/users', verifyToken, checkRole(['admin', 'owner']), UserController.getAllUsers);
+router.post('/users', verifyToken, checkRole(['admin', 'owner']), UserController.createUser);
+router.put('/users/:id', verifyToken, checkRole(['admin', 'owner']), UserController.updateUser);
+router.delete('/users/:id', verifyToken, checkRole(['admin', 'owner']), UserController.deleteUser);
  // [NEW]
 
 // --- BRANCH ROUTES ---
-router.get('/branches', BranchController.getAllBranches);
-router.post('/branches', BranchController.createBranch);
-router.get('/branches/:id', BranchController.getBranch);
-router.put('/branches/:id', BranchController.updateBranch);
-router.delete('/branches/:id', BranchController.deleteBranch);
-router.get('/branches/:id/stats', BranchController.getBranchStats);
+router.get('/branches', verifyToken, BranchController.getAllBranches);
+router.post('/branches', verifyToken, checkRole(['owner']), BranchController.createBranch);
+router.get('/branches/:id', verifyToken, BranchController.getBranch);
+router.put('/branches/:id', verifyToken, checkRole(['owner']), BranchController.updateBranch);
+router.delete('/branches/:id', verifyToken, checkRole(['owner']), BranchController.deleteBranch);
+router.get('/branches/:id/stats', verifyToken, checkRole(['admin', 'owner']), BranchController.getBranchStats);
 
 // --- PROMOTION ROUTES ---
-router.get('/promotions', PromotionController.getAllPromotions);
-router.get('/promotions/active', PromotionController.getActivePromotions);
-router.post('/promotions', PromotionController.createPromotion);
-router.put('/promotions/:id', PromotionController.updatePromotion);
-router.delete('/promotions/:id', PromotionController.deletePromotion);
+router.get('/promotions', verifyToken, PromotionController.getAllPromotions);
+router.get('/promotions/active', PromotionController.getActivePromotions); // Public
+router.post('/promotions', verifyToken, checkRole(['admin', 'owner']), PromotionController.createPromotion);
+router.put('/promotions/:id', verifyToken, checkRole(['admin', 'owner']), PromotionController.updatePromotion);
+router.delete('/promotions/:id', verifyToken, checkRole(['admin', 'owner']), PromotionController.deletePromotion);
 router.post('/promotions/validate', PromotionController.validateCode);
 router.post('/promotions/apply', PromotionController.applyPromotion);
 
@@ -58,30 +60,31 @@ router.get('/customers/search', CustomerController.searchCustomers);
 router.get('/customers/:phone/history', CustomerController.getCustomerHistory);
 
 // --- SERVICE ROUTES (NEW PHASE 6) ---
-router.get('/services', ServiceController.getAllServices);
-router.post('/services', ServiceController.createService);
-router.post('/services/seed', ServiceController.seedServices); // [NEW]
-router.put('/services/:id', ServiceController.updateService);
-router.delete('/services/:id', ServiceController.deleteService);
+router.get('/services', ServiceController.getAllServices); // Public
+router.post('/services', verifyToken, checkRole(['admin', 'owner']), ServiceController.createService);
+router.post('/services/seed', verifyToken, checkRole(['admin', 'owner']), ServiceController.seedServices);
+router.put('/services/:id', verifyToken, checkRole(['admin', 'owner']), ServiceController.updateService);
+router.delete('/services/:id', verifyToken, checkRole(['admin', 'owner']), ServiceController.deleteService);
 
 // --- BOOKING ROUTES ---
-router.post('/bookings/check-slot', BookingController.checkAvailability);
-router.post('/bookings', BookingController.createBooking);
-router.get('/bookings/search', BookingController.searchBookings); // [NEW] Global Search - Trigger Restart
-router.get('/bookings/history/:phone', BookingController.getCustomerHistory); // [NEW] CRM - Customer History
-router.get('/bookings', BookingController.getAllBookings); // Admin
-router.put('/bookings/:id', BookingController.updateBooking);
-router.put('/bookings/:id/approve', BookingController.approveBooking); // [FIX] Add approve route
-router.put('/bookings/:id/complete', BookingController.completeBooking); // [FIX] Add complete route
-router.delete('/bookings/:id', BookingController.cancelBooking);
+// --- BOOKING ROUTES ---
+router.post('/bookings/check-slot', BookingController.checkAvailability); // Public
+router.post('/bookings', BookingController.createBooking); // Public (Customers)
+router.get('/bookings/search', verifyToken, branchCheck, BookingController.searchBookings); // Admin
+router.get('/bookings/history/:phone', verifyToken, BookingController.getCustomerHistory); // Admin
+router.get('/bookings', verifyToken, branchCheck, BookingController.getAllBookings); // Admin
+router.put('/bookings/:id', verifyToken, checkRole(['admin', 'owner', 'ktv']), BookingController.updateBooking);
+router.put('/bookings/:id/approve', verifyToken, checkRole(['admin', 'owner']), BookingController.approveBooking);
+router.put('/bookings/:id/complete', verifyToken, checkRole(['admin', 'owner']), BookingController.completeBooking);
+router.delete('/bookings/:id', verifyToken, checkRole(['admin', 'owner']), BookingController.cancelBooking);
 
 // [PHASE 4] Smart Operations Routes
-router.post('/bookings/:id/check-in', BookingController.checkIn);
-router.put('/bookings/:id/services', BookingController.updateBookingServices);
-router.post('/bookings/complete-past', BookingController.completePastBookings); // [NEW] Bulk complete
-router.get('/bookings/complete-past', BookingController.completePastBookings); // [NEW] Also support GET for browser
-router.get('/bookings/fix-future', BookingController.fixFutureBookings); // [NEW] Fix future completed bookings
-router.post('/bookings/find-waitlist-match', BookingController.findMatchingWaitlist); // [NEW] Smart Alert
+router.post('/bookings/:id/check-in', verifyToken, BookingController.checkIn);
+router.put('/bookings/:id/services', verifyToken, BookingController.updateBookingServices);
+router.post('/bookings/complete-past', verifyToken, checkRole(['admin', 'owner']), BookingController.completePastBookings);
+router.get('/bookings/complete-past', verifyToken, checkRole(['admin', 'owner']), BookingController.completePastBookings);
+router.get('/bookings/fix-future', verifyToken, checkRole(['admin', 'owner']), BookingController.fixFutureBookings);
+router.post('/bookings/find-waitlist-match', verifyToken, BookingController.findMatchingWaitlist);
 
 // --- INVOICE ROUTES (NEW PHASE 4) ---
 const InvoiceController = require('../controllers/InvoiceController'); 
@@ -96,9 +99,10 @@ router.put('/rooms/:id', RoomController.updateRoom);
 router.delete('/rooms/:id', RoomController.deleteRoom);
 
 // --- STAFF ROUTES ---
-router.get('/staff', StaffController.getAllStaff);
-router.post('/staff', StaffController.createStaff); // [NEW] Create staff
-router.put('/staff/:id', StaffController.updateStaffDetails);
+router.get('/staff', verifyToken, StaffController.getAllStaff);
+router.post('/staff', verifyToken, checkRole(['admin', 'owner']), StaffController.createStaff);
+router.put('/staff/:id', verifyToken, checkRole(['admin', 'owner']), StaffController.updateStaffDetails);
+router.delete('/staff/:id', verifyToken, checkRole(['admin', 'owner']), StaffController.deleteStaff); // [NEW] Soft Delete
 
 // --- GALLERY ROUTES (NEW) ---
 const GalleryController = require('../controllers/GalleryController');

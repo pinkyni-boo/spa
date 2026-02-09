@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose'); // Gọi thư viện Mongoose vừa cài
+const jwt = require('jsonwebtoken'); // [NEW] Auth Support
 
 const app = express();
 const PORT = 3000;
@@ -73,9 +74,21 @@ app.post('/login', async (req, res) => {
     if (user) {
       if (!user.isActive) return res.status(403).json({ success: false, message: 'Tài khoản đã bị khóa!' });
       
+      // [NEW] Generate Token
+      const token = jwt.sign(
+        { 
+            id: user._id, 
+            role: user.role, 
+            branchId: user.managedBranches?.[0] // Simple primary branch for now
+        }, 
+        'miu_spa_secret_2024', 
+        { expiresIn: '24h' }
+      );
+
       res.json({ 
           success: true, 
           message: 'Đăng nhập thành công!',
+          token, // [NEW] Send token
           user: {
               id: user._id,
               name: user.name,

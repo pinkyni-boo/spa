@@ -3,11 +3,13 @@ const Service = require('../models/Service');
 exports.getAllServices = async (req, res) => {
     try {
         const { type } = req.query;
-        let query = {};
+        let query = { isDeleted: { $ne: true } }; // [FIX] Soft Delete Filter
+        
         
         if (type === 'service') {
             // [FIX] Legacy Data Support: Old docs don't have 'type', treat as service.
             query = { 
+                ...query, // [FIX] Preserve isDeleted check
                 $or: [
                     { type: 'service' }, 
                     { type: { $exists: false } }, 
@@ -15,7 +17,7 @@ exports.getAllServices = async (req, res) => {
                 ] 
             };
         } else if (type === 'product') {
-            query = { type: 'product' };
+            query = { ...query, type: 'product' }; // [FIX] Preserve isDeleted check
         }
 
         console.log('GET Services Query:', JSON.stringify(query));
@@ -61,8 +63,9 @@ exports.updateService = async (req, res) => {
 exports.deleteService = async (req, res) => {
     try {
         const { id } = req.params;
-        await Service.findByIdAndDelete(id);
-        res.json({ success: true, message: 'Deleted successfully' });
+        // [FIX] Soft Delete
+        await Service.findByIdAndUpdate(id, { isDeleted: true });
+        res.json({ success: true, message: 'Deleted successfully (Soft)' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

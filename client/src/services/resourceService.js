@@ -1,10 +1,17 @@
-const API_URL = 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('token')}`
+});
 
 export const resourceService = {
   // --- ROOMS ---
   getAllRooms: async () => {
     try {
-      const response = await fetch(`${API_URL}/rooms`);
+      const response = await fetch(`${API_URL}/api/rooms`, {
+          headers: getAuthHeaders()
+      });
       return await response.json();
     } catch (error) {
       return { success: false, message: 'Network error' };
@@ -13,9 +20,9 @@ export const resourceService = {
   
   createRoom: async (data) => {
     try {
-      const response = await fetch(`${API_URL}/rooms`, {
+      const response = await fetch(`${API_URL}/api/rooms`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data)
       });
       return await response.json();
@@ -26,9 +33,9 @@ export const resourceService = {
 
   updateRoom: async (id, data) => {
     try {
-       const response = await fetch(`${API_URL}/rooms/${id}`, {
+       const response = await fetch(`${API_URL}/api/rooms/${id}`, {
          method: 'PUT',
-         headers: { 'Content-Type': 'application/json' },
+         headers: getAuthHeaders(),
          body: JSON.stringify(data)
        });
        return await response.json();
@@ -39,7 +46,10 @@ export const resourceService = {
 
   deleteRoom: async (id) => {
     try {
-        const response = await fetch(`${API_URL}/rooms/${id}`, { method: 'DELETE' });
+        const response = await fetch(`${API_URL}/api/rooms/${id}`, { 
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
         return await response.json();
     } catch (error) {
         return { success: false, message: 'Network error' };
@@ -49,7 +59,7 @@ export const resourceService = {
   // --- SERVICES (NEW PHASE 6) ---
   getAllServices: async (type) => {
       try {
-          let url = `${API_URL}/services`;
+          let url = `${API_URL}/api/services`;
           if (type) url += `?type=${type}`;
           const response = await fetch(url);
           return await response.json();
@@ -60,9 +70,9 @@ export const resourceService = {
 
   createService: async (data) => {
       try {
-          const response = await fetch(`${API_URL}/services`, {
+          const response = await fetch(`${API_URL}/api/services`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: getAuthHeaders(),
               body: JSON.stringify(data)
           });
           return await response.json();
@@ -73,9 +83,9 @@ export const resourceService = {
 
   updateService: async (id, data) => {
       try {
-          const response = await fetch(`${API_URL}/services/${id}`, {
+          const response = await fetch(`${API_URL}/api/services/${id}`, {
               method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
+              headers: getAuthHeaders(),
               body: JSON.stringify(data)
           });
           return await response.json();
@@ -86,7 +96,10 @@ export const resourceService = {
 
   deleteService: async (id) => {
       try {
-          const response = await fetch(`${API_URL}/services/${id}`, { method: 'DELETE' });
+          const response = await fetch(`${API_URL}/api/services/${id}`, { 
+              method: 'DELETE',
+              headers: getAuthHeaders()
+          });
           return await response.json();
       } catch (error) {
           return { success: false, message: 'Network error' };
@@ -95,7 +108,10 @@ export const resourceService = {
 
   seedServices: async () => {
       try {
-          const response = await fetch(`${API_URL}/services/seed`, { method: 'POST' });
+          const response = await fetch(`${API_URL}/api/services/seed`, { 
+              method: 'POST',
+              headers: getAuthHeaders()
+          });
           return await response.json();
       } catch (error) {
           return { success: false, message: 'Network error' };
@@ -105,7 +121,9 @@ export const resourceService = {
   // --- STAFF ---
   getAllStaff: async () => {
       try {
-          const response = await fetch(`${API_URL}/staff`);
+          const response = await fetch(`${API_URL}/api/staff`, {
+              headers: getAuthHeaders()
+          });
           return await response.json();
       } catch (error) {
           return { success: false, message: 'Network error' };
@@ -114,9 +132,9 @@ export const resourceService = {
 
   createStaff: async (data) => {
       try {
-          const response = await fetch(`${API_URL}/staff`, {
+          const response = await fetch(`${API_URL}/api/staff`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: getAuthHeaders(),
               body: JSON.stringify(data)
           });
           return await response.json();
@@ -127,10 +145,23 @@ export const resourceService = {
 
   updateStaff: async (id, data) => {
       try {
-          const response = await fetch(`${API_URL}/staff/${id}`, {
+          const response = await fetch(`${API_URL}/api/staff/${id}`, {
               method: 'PUT',
-               headers: { 'Content-Type': 'application/json' },
+               headers: getAuthHeaders(),
                body: JSON.stringify(data)
+          });
+          return await response.json();
+      } catch (error) {
+          return { success: false, message: 'Network error' };
+      }
+  },
+
+  // Delete staff (Soft Delete)
+  deleteStaff: async (id) => {
+      try {
+          const response = await fetch(`${API_URL}/api/staff/${id}`, {
+              method: 'DELETE',
+              headers: getAuthHeaders()
           });
           return await response.json();
       } catch (error) {

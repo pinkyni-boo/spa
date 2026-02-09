@@ -1,10 +1,17 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('token')}`
+});
+
 export const dashboardService = {
     // Get dashboard statistics
     getStats: async () => {
         try {
-            const response = await fetch(`${API_URL}/api/dashboard/stats`);
+            const response = await fetch(`${API_URL}/api/dashboard/stats`, {
+                headers: getAuthHeaders()
+            });
             return await response.json();
         } catch (error) {
             console.error('Error fetching dashboard stats:', error);
@@ -15,7 +22,9 @@ export const dashboardService = {
     // Get revenue chart data
     getRevenueChart: async (period = 'week') => {
         try {
-            const response = await fetch(`${API_URL}/api/dashboard/revenue-chart?period=${period}`);
+            const response = await fetch(`${API_URL}/api/dashboard/revenue-chart?period=${period}`, {
+                headers: getAuthHeaders()
+            });
             return await response.json();
         } catch (error) {
             console.error('Error fetching revenue chart:', error);
@@ -26,7 +35,9 @@ export const dashboardService = {
     // Get top services
     getTopServices: async () => {
         try {
-            const response = await fetch(`${API_URL}/api/dashboard/top-services`);
+            const response = await fetch(`${API_URL}/api/dashboard/top-services`, {
+                headers: getAuthHeaders()
+            });
             return await response.json();
         } catch (error) {
             console.error('Error fetching top services:', error);
@@ -37,7 +48,9 @@ export const dashboardService = {
     // Get staff status
     getStaffStatus: async () => {
         try {
-            const response = await fetch(`${API_URL}/api/dashboard/staff-status`);
+            const response = await fetch(`${API_URL}/api/dashboard/staff-status`, {
+                headers: getAuthHeaders()
+            });
             return await response.json();
         } catch (error) {
             console.error('Error fetching staff status:', error);
@@ -52,7 +65,9 @@ export const dashboardService = {
             if (startDate) params.append('startDate', startDate);
             if (endDate) params.append('endDate', endDate);
 
-            const response = await fetch(`${API_URL}/api/dashboard/staff-performance?${params.toString()}`);
+            const response = await fetch(`${API_URL}/api/dashboard/staff-performance?${params.toString()}`, {
+                headers: getAuthHeaders()
+            });
             return await response.json();
         } catch (error) {
             console.error('Error fetching staff performance:', error);

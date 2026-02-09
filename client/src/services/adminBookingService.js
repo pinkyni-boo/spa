@@ -1,6 +1,12 @@
 // ĐỊA CHỈ SERVER (GỐC)
 const API_URL = 'http://localhost:3000';
 
+// Helper for Auth Header
+const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('token')}`
+});
+
 export const adminBookingService = {
   // 1. Lấy danh sách Booking (Có lọc)
   getAllBookings: async (filters = {}) => {
@@ -15,7 +21,11 @@ export const adminBookingService = {
       if (filters.staffId) params.append('staffId', filters.staffId);
       if (filters.paymentStatus) params.append('paymentStatus', filters.paymentStatus);
 
-      const response = await fetch(`${API_URL}/api/bookings?${params.toString()}`);
+      if (filters.paymentStatus) params.append('paymentStatus', filters.paymentStatus);
+
+      const response = await fetch(`${API_URL}/api/bookings?${params.toString()}`, {
+          headers: getAuthHeaders()
+      });
       const data = await response.json();
 
       // [FIX] Prioritize new format { success: true, bookings: [...] }
@@ -38,7 +48,7 @@ export const adminBookingService = {
     try {
       const response = await fetch(`${API_URL}/api/bookings`, { // Fixed URL
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ 
           ...bookingData, 
           source: 'offline'
@@ -54,7 +64,9 @@ export const adminBookingService = {
   // [NEW] SEARCH BOOKINGS (Global)
   searchBookings: async (query) => {
       try {
-          const response = await fetch(`${API_URL}/api/bookings/search?query=${encodeURIComponent(query)}`);
+          const response = await fetch(`${API_URL}/api/bookings/search?query=${encodeURIComponent(query)}`, {
+              headers: getAuthHeaders()
+          });
           return await response.json();
       } catch (error) {
           return { success: false, message: error.message };
@@ -66,7 +78,7 @@ export const adminBookingService = {
     try {
         const response = await fetch(`${API_URL}/api/bookings/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify(data)
         });
         return await response.json();
@@ -79,8 +91,10 @@ export const adminBookingService = {
   cancelBooking: async (id) => {
     try {
         // API Route: DELETE /api/bookings/:id
+        // API Route: DELETE /api/bookings/:id
         const response = await fetch(`${API_URL}/api/bookings/${id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: getAuthHeaders()
         });
         return await response.json();
     } catch (error) {
@@ -92,7 +106,8 @@ export const adminBookingService = {
   approveBooking: async (id) => {
     try {
         const response = await fetch(`${API_URL}/api/bookings/${id}/approve`, {
-            method: 'PUT'
+            method: 'PUT',
+            headers: getAuthHeaders()
         });
         return await response.json();
     } catch (error) {
@@ -104,7 +119,8 @@ export const adminBookingService = {
   completeBooking: async (id) => {
     try {
         const response = await fetch(`${API_URL}/api/bookings/${id}/complete`, {
-            method: 'PUT'
+            method: 'PUT',
+            headers: getAuthHeaders()
         });
         return await response.json();
     } catch (error) {
@@ -116,7 +132,8 @@ export const adminBookingService = {
   checkIn: async (id) => {
       try {
           const response = await fetch(`${API_URL}/api/bookings/${id}/check-in`, {
-              method: 'POST'
+              method: 'POST',
+              headers: getAuthHeaders()
           });
           return await response.json();
       } catch (error) {
@@ -129,7 +146,7 @@ export const adminBookingService = {
       try {
           const response = await fetch(`${API_URL}/api/invoices`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: getAuthHeaders(),
               body: JSON.stringify(invoiceData)
           });
           return await response.json();
@@ -143,7 +160,7 @@ export const adminBookingService = {
       try {
           const response = await fetch(`${API_URL}/api/bookings/${id}/services`, {
               method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
+              headers: getAuthHeaders(),
               body: JSON.stringify(data)
           });
           return await response.json();

@@ -56,9 +56,11 @@ exports.getAllBookings = async (req, res) => {
     // console.log('Request Query:', req.query);
 
     
-    let query = {};
-
-    if (branchId) {
+    let query = { ...req.branchQuery }; // [FIX] Apply Data Isolation
+    
+    // Allow filtering by specific branch if Owner (override empty branchQuery)
+    // But if Admin (branchQuery has value), ignore param to prevent hopping
+    if (branchId && !query.branchId) {
         query.branchId = branchId;
     }
 

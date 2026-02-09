@@ -10,6 +10,7 @@ exports.getStats = async (req, res) => {
 
         // Today's completed bookings
         const todayBookings = await Booking.find({
+            ...req.branchQuery, // [FIX] Isolation
             startTime: { $gte: today.toDate(), $lte: todayEnd.toDate() },
             status: { $in: ['completed', 'processing', 'confirmed'] }
         }).populate('serviceId');
@@ -28,6 +29,7 @@ exports.getStats = async (req, res) => {
 
         // Pending bookings
         const pendingBookings = await Booking.countDocuments({
+            ...req.branchQuery, // [FIX] Isolation
             status: 'pending'
         });
 
@@ -66,6 +68,7 @@ exports.getRevenueChart = async (req, res) => {
         }
 
         const bookings = await Booking.find({
+            ...req.branchQuery, // [FIX] Isolation
             startTime: { $gte: startDate.toDate() },
             status: 'completed'
         }).populate('serviceId');
@@ -115,6 +118,7 @@ exports.getTopServices = async (req, res) => {
         const startOfMonth = dayjs().startOf('month');
         
         const bookings = await Booking.find({
+            ...req.branchQuery, // [FIX] Isolation
             startTime: { $gte: startOfMonth.toDate() },
             status: { $in: ['completed', 'processing', 'confirmed'] }
         }).populate('serviceId');

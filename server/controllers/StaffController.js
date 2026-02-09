@@ -3,7 +3,7 @@ const Staff = require('../models/Staff');
 // 1. Lấy danh sách nhân viên
 exports.getAllStaff = async (req, res) => {
     try {
-        const staff = await Staff.find()
+        const staff = await Staff.find({ isDeleted: { $ne: true } }) // [FIX] Soft Delete Filter
             .populate('branchId', 'name') // [FIX] Populate Branch Name
             .sort({ isActive: -1, name: 1 });
         res.json({ success: true, staff });
@@ -57,5 +57,17 @@ exports.updateStaffDetails = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: 'Lỗi cập nhật nhân viên' });
+    }
+};
+
+// 4. Xóa nhân viên (Soft Delete)
+exports.deleteStaff = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const staff = await Staff.findByIdAndUpdate(id, { isDeleted: true }, { new: true });
+        if (!staff) return res.status(404).json({ success: false, message: 'Không tìm thấy nhân viên' });
+        res.json({ success: true, message: 'Đã xóa nhân viên (Soft Delete)' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi xóa nhân viên' });
     }
 };

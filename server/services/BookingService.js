@@ -65,11 +65,19 @@ const checkAvailability = async (date, serviceId, serviceName, branchId) => {
         isActive: true,
         branchId: branchId
     });
+    
+    // [NEW] Get Branch Working Hours
+    const Branch = require('../models/Branch');
+    const branch = await Branch.findById(branchId);
+    if (!branch) throw { status: 404, message: 'Chi nhánh không tồn tại' };
+    
+    const openStr = branch.workingHours?.open || '09:00';
+    const closeStr = branch.workingHours?.close || '20:00';
 
-    // D. Time Loop (9:00 -> 20:00) with Overtime Buffer
+    // D. Time Loop (Dynamic)
     const availableSlots = [];
-    const openTime = dayjs(`${date} 09:00`);
-    const closeTime = dayjs(`${date} 20:00`);
+    const openTime = dayjs(`${date} ${openStr}`, 'YYYY-MM-DD HH:mm');
+    const closeTime = dayjs(`${date} ${closeStr}`, 'YYYY-MM-DD HH:mm');
     const ALLOWED_OVERTIME = 30;
     const hardStop = closeTime.add(ALLOWED_OVERTIME, 'minute');
     

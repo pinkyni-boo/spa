@@ -36,6 +36,17 @@ exports.createInvoice = async (req, res) => {
                 if (promotion.isFlashSale && promotion.flashSaleStock !== null) {
                     await Promotion.findByIdAndUpdate(promotionId, { $inc: { flashSaleStock: -1 } });
                 }
+
+                // [LOGIC] 3. Coupon Conflict Check (Double Dipping)
+                if (pointsUsed && pointsUsed > 0) {
+                     // Only block if explicitly set to FALSE (Legacy docs default to undefined -> Allow)
+                     if (promotion.allowCombine === false) {
+                         return res.status(400).json({ 
+                             success: false, 
+                             message: `Mã ${promotion.code} không áp dụng cùng lúc với Điểm tích lũy!` 
+                         });
+                     }
+                }
             }
         }
 

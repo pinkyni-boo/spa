@@ -27,14 +27,14 @@ const branchSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Staff' // [CHANGED] from 'User' to 'Staff' - Admin is a staff member with role='admin'
     },
-    operatingHours: {
+    workingHours: { // [CHANGED] for consistency with previous discussion
         open: {
             type: String,
-            default: '08:00'
+            default: '09:00'
         },
         close: {
             type: String,
-            default: '22:00'
+            default: '20:00' // [CHANGED] Standard Spa time as per User request
         }
     }
 }, {

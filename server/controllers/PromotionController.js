@@ -256,7 +256,8 @@ exports.validateCode = async (req, res) => {
                 name: promotion.name,
                 type: promotion.type,
                 value: promotion.value,
-                isFlashSale: promotion.isFlashSale
+                isFlashSale: promotion.isFlashSale,
+                allowCombine: promotion.allowCombine // [NEW] Return conflict flag
             },
             discountAmount,
             finalPrice: orderValue - discountAmount
