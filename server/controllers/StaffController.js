@@ -1,4 +1,5 @@
 const Staff = require('../models/Staff');
+const ActionLogController = require('./ActionLogController');
 
 // 1. Lấy danh sách nhân viên
 exports.getAllStaff = async (req, res) => {
@@ -27,7 +28,7 @@ exports.createStaff = async (req, res) => {
         });
         
         await newStaff.save();
-        
+        ActionLogController.createLog(req, req.user, 'STAFF_CREATE', 'Staff', newStaff._id, newStaff.name);
         res.json({ success: true, message: 'Tạo nhân viên thành công', staff: newStaff });
     } catch (error) {
         console.error(error);
@@ -52,7 +53,7 @@ exports.updateStaffDetails = async (req, res) => {
         );
 
         if (!staff) return res.status(404).json({ message: 'Không tìm thấy nhân viên' });
-
+        ActionLogController.createLog(req, req.user, 'STAFF_UPDATE', 'Staff', staff._id, staff.name);
         res.json({ success: true, message: 'Cập nhật nhân viên thành công', staff });
     } catch (error) {
         console.error(error);
@@ -66,6 +67,7 @@ exports.deleteStaff = async (req, res) => {
         const { id } = req.params;
         const staff = await Staff.findByIdAndUpdate(id, { isDeleted: true }, { new: true });
         if (!staff) return res.status(404).json({ success: false, message: 'Không tìm thấy nhân viên' });
+        ActionLogController.createLog(req, req.user, 'STAFF_DELETE', 'Staff', id, staff.name);
         res.json({ success: true, message: 'Đã xóa nhân viên (Soft Delete)' });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Lỗi xóa nhân viên' });

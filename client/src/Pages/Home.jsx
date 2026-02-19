@@ -1,14 +1,50 @@
-import React from 'react';
-import { Typography, Button, Row, Col, Carousel, Card, Input, Form, Divider, Image } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Typography, Button, Row, Col, Carousel, Card, Input, Form, Divider, Image, message, Select } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { CaretRightOutlined } from '@ant-design/icons';
+import { CaretRightOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import royalLuxuryTheme from '../theme';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
+const { Option } = Select;
 
 const Home = () => {
   const navigate = useNavigate();
+  const [consultForm] = Form.useForm();
+  const [consultLoading, setConsultLoading] = useState(false);
+  const [consultDone, setConsultDone] = useState(false);
+  const [branches, setBranches] = useState([]);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/branches`)
+      .then(r => r.json())
+      .then(d => { if (d.success) setBranches(d.branches || []); })
+      .catch(() => {});
+  }, []);
+
+  const handleConsultSubmit = async (values) => {
+    setConsultLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/consultations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...values, source: 'website' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setConsultDone(true);
+        consultForm.resetFields();
+      } else {
+        message.error(data.message || 'Gửi thất bại. Vui lòng thử lại.');
+      }
+    } catch (e) {
+      message.error('Có lỗi xảy ra. Vui lòng thử lại.');
+    } finally {
+      setConsultLoading(false);
+    }
+  };
 
   const styles = {
     container: {
@@ -293,26 +329,72 @@ const Home = () => {
 
       {/* 5. CONSULTATION FORM */}
       <div style={styles.formSection}>
-        <div style={styles.formContainer}>
-          <Title level={3} style={{ textAlign: 'center', fontFamily: royalLuxuryTheme.fonts.heading, color: royalLuxuryTheme.colors.primary[600], marginBottom: '30px' }}>
+        <div style={styles.formContainer} className="light-form">
+          <Title level={3} style={{ textAlign: 'center', fontFamily: royalLuxuryTheme.fonts.heading, color: royalLuxuryTheme.colors.primary[600], marginBottom: '8px' }}>
             Đăng Ký Tư Vấn
           </Title>
-          <Form layout="vertical" size="large">
-            <Form.Item name="name">
-              <Input placeholder="Họ và tên của bạn" />
-            </Form.Item>
-            <Form.Item name="phone">
-               <Input placeholder="Số điện thoại liên hệ" />
-            </Form.Item>
-            <Form.Item name="message">
-              <TextArea rows={4} placeholder="Nhu cầu cần tư vấn..." />
-            </Form.Item>
-            <Form.Item style={{ marginBottom: 0 }}>
-              <Button type="primary" htmlType="submit" block style={{ backgroundColor: royalLuxuryTheme.colors.text.main, borderColor: royalLuxuryTheme.colors.text.main, height: '45px', textTransform: 'uppercase' }}>
-                Gửi Yêu Cầu
-              </Button>
-            </Form.Item>
-          </Form>
+          <p style={{ textAlign: 'center', color: royalLuxuryTheme.colors.text.secondary, marginBottom: '28px', fontSize: 15 }}>
+            Để lại thông tin — chuyên viên sẽ liên hệ tư vấn miễn phí
+          </p>
+
+          {consultDone ? (
+            <div style={{ textAlign: 'center', padding: '24px 0' }}>
+              <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a', marginBottom: 12 }} />
+              <Title level={4} style={{ color: '#52c41a' }}>Đã gửi thành công!</Title>
+              <p style={{ color: royalLuxuryTheme.colors.text.secondary }}>Chúng tôi sẽ liên hệ với bạn trong thời gian sớm nhất.</p>
+              <Button onClick={() => setConsultDone(false)} style={{ marginTop: 8 }}>Gửi yêu cầu khác</Button>
+            </div>
+          ) : (
+            <Form form={consultForm} layout="vertical" size="large" onFinish={handleConsultSubmit}>
+              <Form.Item
+                name="customerName"
+                label={<span style={{ fontWeight: 600 }}>Họ và tên <span style={{ color: 'red' }}>*</span></span>}
+                rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}
+              >
+                <Input />
+              </Form.Item>
+              <Form.Item
+                name="phone"
+                label={<span style={{ fontWeight: 600 }}>Số điện thoại <span style={{ color: 'red' }}>*</span></span>}
+                rules={[
+                  { required: true, message: 'Vui lòng nhập số điện thoại' },
+                  { pattern: /^[0-9]{9,11}$/, message: 'Số điện thoại không hợp lệ' },
+                ]}
+              >
+                <Input />
+              </Form.Item>
+              <Form.Item
+                name="concern"
+                label={<span style={{ fontWeight: 600 }}>Nội dung cần tư vấn <span style={{ color: 'red' }}>*</span></span>}
+                rules={[{ required: true, message: 'Vui lòng mô tả nhu cầu' }]}
+              >
+                <TextArea rows={4} />
+              </Form.Item>
+              {branches.length > 0 && (
+                <Form.Item
+                  name="preferredBranch"
+                  label={<span style={{ fontWeight: 600 }}>Chi nhánh</span>}
+                >
+                  <Select allowClear placeholder="Chọn chi nhánh gần nhất">
+                    {branches.map(b => (
+                      <Option key={b._id} value={b._id}>{b.name}</Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              )}
+              <Form.Item style={{ marginBottom: 0 }}>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  block
+                  loading={consultLoading}
+                  style={{ backgroundColor: royalLuxuryTheme.colors.text.main, borderColor: royalLuxuryTheme.colors.text.main, height: '45px', textTransform: 'uppercase', fontWeight: 600 }}
+                >
+                  Gửi Yêu Cầu Tư Vấn
+                </Button>
+              </Form.Item>
+            </Form>
+          )}
         </div>
       </div>
 

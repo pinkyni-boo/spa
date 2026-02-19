@@ -31,6 +31,9 @@ import ProductManager from './Pages/Admin/Services/ProductManager.jsx';
 import CustomerManager from './Pages/Admin/CustomerManager/CustomerManager.jsx';
 import ReportManager from './Pages/Admin/ReportManager/ReportManager.jsx';
 import AccountManager from './Pages/Admin/AccountManager/AccountManager.jsx';
+import SystemLogs from './Pages/Admin/SystemLogs/SystemLogs.jsx';
+import ConsultationManager from './Pages/Admin/ConsultationManager/ConsultationManager.jsx';
+import ConsultationForm from './Pages/ConsultationForm/ConsultationForm.jsx';
 import AdminSidebar from './Pages/Admin/Global/AdminSidebar.jsx';
 
 const { Content, Header } = Layout;
@@ -43,7 +46,8 @@ import LoginPage from './Pages/Admin/Login/LoginPage.jsx';
 const MainContent = () => {
     const location = useLocation();
     const isAdmin = location.pathname.startsWith('/admin');
-    const isLogin = location.pathname === '/login'; // Matches backend definition or just client route
+    const isLogin = location.pathname === '/login';
+    const isConsultationForm = location.pathname === '/tu-van';
     const [collapsed, setCollapsed] = useState(false);
 
     // Robust Auth Check
@@ -66,6 +70,10 @@ const MainContent = () => {
 
     if (isLogin) {
          return <Routes><Route path="/login" element={<LoginPage />} /></Routes>;
+    }
+
+    if (isConsultationForm) {
+        return <Routes><Route path="/tu-van" element={<ConsultationForm />} /></Routes>;
     }
 
     if (isAdmin) {
@@ -95,6 +103,8 @@ const MainContent = () => {
                             <Route path="/admin/reports" element={<ReportManager />} />
                             <Route path="/admin/reports" element={<ReportManager />} />
                             <Route path="/admin/products" element={<ProductManager />} />
+                            <Route path="/admin/system-logs" element={<SystemLogs />} />
+                            <Route path="/admin/consultations" element={<ConsultationManager />} />
                         </Routes>
                     </Content>
                 </Layout>

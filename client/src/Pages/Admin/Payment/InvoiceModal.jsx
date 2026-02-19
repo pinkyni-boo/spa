@@ -3,7 +3,8 @@ import { Modal, Descriptions, Table, Button, Typography, InputNumber, Select, Di
 import dayjs from 'dayjs';
 
 import { adminBookingService } from '../../../services/adminBookingService';
-import { promotionService } from '../../../services/promotionService'; // [NEW]
+import { promotionService } from '../../../services/promotionService';
+import { resourceService } from '../../../services/resourceService';
 
 const { Title, Text } = Typography;
 
@@ -25,6 +26,10 @@ const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
 
     const [taxRate, setTaxRate] = useState(0);
     const [paymentMethod, setPaymentMethod] = useState('cash');
+    const [tipAmount, setTipAmount] = useState(0);
+    const [surchargeFee, setSurchargeFee] = useState(0);
+    const [tipStaffName, setTipStaffName] = useState('');
+    const [staffList, setStaffList] = useState([]);
 
     // RETAIL MODE STATE
     const [availableProducts, setAvailableProducts] = useState([]); // [NEW] Fetch from API
@@ -41,6 +46,13 @@ const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
             setUsePoints(false);
             setPointsToRedeem(0);
             setCustomerPoints(0);
+            setTipStaffName(booking?.staffId?.name || '');
+
+            // Fetch staff list
+            resourceService.getAllStaff().then(data => {
+                const list = Array.isArray(data) ? data : (data.staff || []);
+                setStaffList(list.filter(s => s.isActive !== false));
+            }).catch(() => {});
 
             // Fetch Products for Retail Mode
             if (!invoice) {
@@ -72,6 +84,9 @@ const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
                 })));
                 setDiscount(invoice.discount);
                 setPaymentMethod(invoice.paymentMethod);
+                setTipAmount(invoice.tipAmount || 0);
+                setSurchargeFee(invoice.surchargeFee || 0);
+                setTipStaffName(invoice.tipStaffName || '');
             } else if (booking) {
                 // CREATE MODE (Load from Booking)
                 const mainService = {
@@ -96,6 +111,9 @@ const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
                 setItems([mainService, ...upsellItems]);
                 setDiscount(0);
                 setPaymentMethod('cash');
+                setTipAmount(0);
+                setSurchargeFee(0);
+                setTipStaffName(booking?.staffId?.name || '');
 
                 // [NEW] Fetch Customer Points
                 if (booking.phone) {
@@ -164,7 +182,10 @@ const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
     const totalDiscount = discount + promotionDiscount + pointsDiscount; // Combine Manual + Coupon + Points
     
     const taxAmount = Math.round(subTotal * (taxRate / 100));
-    const finalTotal = Math.max(0, subTotal + taxAmount - totalDiscount); // Prevent negative total
+    // customerTotal = tiền khách thực sự trả (không có tip)
+    const customerTotal = Math.max(0, subTotal + taxAmount - totalDiscount + (surchargeFee || 0));
+    // finalTotal = tổng thu nội bộ (gồm cả tip)
+    const finalTotal = customerTotal + (tipAmount || 0);
 
     // LOGIC: Select Promotion
     const handleSelectPromotion = (promoId) => {
@@ -202,12 +223,13 @@ const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
     const bankId = 'MB'; 
     const accountNo = '0359498968';
     const qrContent = `THANH TOAN DON ${booking ? booking._id.slice(-6).toUpperCase() : 'RETAIL'}`;
-    const qrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact.png?amount=${finalTotal}&addInfo=${qrContent}`;
+    // QR hiển thị số tiền khách trả (không tip)
+    const qrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact.png?amount=${customerTotal}&addInfo=${qrContent}`;
 
 
     const handlePayment = () => {
         const invoiceData = {
-            bookingId: booking?._id || null, // Handle null if pure retail (future)
+            bookingId: booking?._id || null,
             customerName: booking?.customerName || 'Khách lẻ',
             phone: booking?.phone || '',
             items: items.map(i => ({
@@ -219,12 +241,14 @@ const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
                 subtotal: i.total
             })),
             subTotal,
-            discount: totalDiscount, // Total consolidated discount
+            discount: totalDiscount,
             tax: taxAmount,
+            tipAmount: tipAmount || 0,
+            tipStaffName: tipStaffName || '',
+            surchargeFee: surchargeFee || 0,
             finalTotal,
             paymentMethod,
             cashierName: 'Admin',
-            // [NEW] Pass Promotion & Points Data
             promotionId: selectedPromotionId,
             pointsUsed: usePoints ? pointsToRedeem : 0
         };
@@ -247,61 +271,98 @@ const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
     ];
 
     const handlePrint = () => {
-        // ... (Keep existing print logic logic but adapt to new state if needed, assuming generic Table data is enough)
-        // For brevity, using same print logic as previous, referencing 'items' state
-         const printWindow = window.open('', '_blank');
+        const custName = booking?.customerName || invoice?.customerName || 'Khách lẻ';
+        const custPhone = booking?.phone || invoice?.phone || '';
+        const staffName = booking?.staffId?.name || invoice?.cashierName || '---';
+        const invoiceNo = invoice?._id ? invoice._id.slice(-6).toUpperCase() : ('HD' + Date.now().toString().slice(-6));
+        const orderNo = invoice?.orderNo || '---';
+        const printTime = dayjs(invoice?.createdAt || undefined).format('HH:mm DD/MM/YYYY');
+        const printItems = invoice ? invoice.items : items;
+        const printSubTotal = invoice ? invoice.subTotal : subTotal;
+        const printDiscount = invoice ? invoice.discount : totalDiscount;
+        const printTip = invoice ? (invoice.tipAmount || 0) : tipAmount;
+        const printTotal = invoice ? invoice.finalTotal : finalTotal;
+        const printCustomerTotal = printTotal - printTip; // số khách thực trả
+        const printSurcharge = invoice ? (invoice.surchargeFee || 0) : surchargeFee;
+        const printMethod = invoice ? invoice.paymentMethod : paymentMethod;
+        const methodLabel = { cash: 'Tiền mặt', banking: 'Chuyển khoản', card: 'Quẹt thẻ' }[printMethod] || printMethod;
+
+        const printWindow = window.open('', '_blank');
         printWindow.document.write(`
             <html>
-                <head>
-                    <title>Hóa Đơn - ${booking?.customerName || invoice?.customerName}</title>
-                    <style>
-                        body { font-family: 'Courier New', monospace; padding: 20px; }
-                        h2 { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px; }
-                        .info { margin-bottom: 20px; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                        th, td { text-align: left; padding: 8px; border-bottom: 1px dotted #ccc; }
-                        .total { text-align: right; font-size: 18px; font-weight: bold; margin-top: 20px; }
-                        .footer { margin-top: 40px; text-align: center; font-style: italic; font-size: 12px; }
-                    </style>
-                </head>
-                <body>
-                    <h2>MIU SPA INC.</h2>
-                    <div class="info">
-                        KH: ${booking?.customerName || invoice?.customerName}<br/>
-                        SĐT: ${booking?.phone || invoice?.phone}<br/>
-                        Ngày: ${dayjs().format('HH:mm DD/MM/YYYY')}
-                    </div>
-                    <table>
-                        <thead>
+            <head>
+                <title>Hóa Đơn - MIU SPA</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { font-family: 'Courier New', monospace; font-size: 13px; width: 300px; margin: 0 auto; padding: 12px 8px; }
+                    .center { text-align: center; }
+                    .bold { font-weight: bold; }
+                    .big { font-size: 16px; }
+                    .divider-dash { border: none; border-top: 1px dashed #000; margin: 6px 0; }
+                    .divider-solid { border: none; border-top: 1px solid #000; margin: 6px 0; }
+                    table { width: 100%; border-collapse: collapse; }
+                    th { font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000; padding: 3px 2px; }
+                    td { font-size: 12px; padding: 3px 2px; vertical-align: top; }
+                    td.num { text-align: right; white-space: nowrap; }
+                    .staff-row td { font-style: italic; font-size: 11px; color: #444; padding-top: 0; padding-bottom: 6px; }
+                    .summary-row { display: flex; justify-content: space-between; padding: 2px 0; }
+                    .footer { text-align: center; font-style: italic; font-size: 12px; margin-top: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="center">
+                    <div class="bold big">Miu Spa</div>
+                    <div>30/41 Nguyễn Cửu Vân, Bình Thạnh, HCM</div>
+                    <div>Hotline: 0904519414</div>
+                </div>
+                <hr class="divider-solid" />
+                <div class="center bold big">HOÁ ĐƠN</div>
+                <div class="center">HD${invoiceNo}</div>
+                <hr class="divider-dash" />
+                <div>Khách hàng: <b>${custName}</b></div>
+                <div>Điện thoại: ${custPhone}</div>
+                <div>Thời gian: ${printTime}</div>
+                ${orderNo !== '---' ? `<div>Thứ tự hóa đơn: ${orderNo}</div>` : ''}
+                <hr class="divider-dash" />
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Dịch vụ</th>
+                            <th style="text-align:center;width:28px">SL</th>
+                            <th style="text-align:right;width:80px">Đ.Giá</th>
+                            <th style="text-align:right;width:80px">TT</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${printItems.map((item, idx) => `
                             <tr>
-                                <th>Dịch vụ/SP</th>
-                                <th>SL</th>
-                                <th>Đ.Giá</th>
-                                <th>Thành tiền</th>
+                                <td>${item.name}</td>
+                                <td style="text-align:center">${item.qty}</td>
+                                <td class="num">${item.price === 0 ? '0' : (item.price || 0).toLocaleString('vi-VN')}</td>
+                                <td class="num">${((item.subtotal || item.total || 0)).toLocaleString('vi-VN')}</td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            ${items.map(item => `
-                                <tr>
-                                    <td>${item.name}</td>
-                                    <td>${item.qty}</td>
-                                    <td>${item.price?.toLocaleString()}</td>
-                                    <td>${item.total?.toLocaleString()}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                    <div class="total">
-                        TỔNG: ${finalTotal.toLocaleString()} VND
-                    </div>
-                    <div class="footer">
-                        Cảm ơn quý khách và hẹn gặp lại!<br/>
-                        Hotline: 0909.123.456
-                    </div>
-                    <script>
-                        window.onload = function() { window.print(); window.close(); }
-                    </script>
-                </body>
+                            <tr class="staff-row">
+                                <td colspan="4">Nhân viên: ${idx === 0 ? staffName : '---'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <hr class="divider-dash" />
+                ${printDiscount > 0 ? `<div class="summary-row"><span>Giảm giá:</span><span>-${printDiscount.toLocaleString('vi-VN')}</span></div>` : ''}
+                ${printSurcharge > 0 ? `<div class="summary-row"><span>Phí cà thẻ:</span><span>${printSurcharge.toLocaleString('vi-VN')}</span></div>` : ''}
+                <hr class="divider-dash" />
+                <div class="summary-row bold"><span>Cần thanh toán:</span><span>${printCustomerTotal.toLocaleString('vi-VN')}</span></div>
+                <div class="summary-row bold"><span>Đã thanh toán:</span><span>${printCustomerTotal.toLocaleString('vi-VN')}</span></div>
+                <hr class="divider-dash" />
+                <div class="summary-row"><span>Phương thức thanh toán:</span></div>
+                <div class="summary-row"><span>${methodLabel}</span><span>${printCustomerTotal.toLocaleString('vi-VN')}</span></div>
+                <hr class="divider-solid" />
+                <div class="footer">
+                    Cảm ơn quý khách và hẹn gặp lại!<br/>
+                    Powered by MiuSpa.vn
+                </div>
+                <script>window.onload = function() { window.print(); window.close(); }</script>
+            </body>
             </html>
         `);
         printWindow.document.close();
@@ -321,7 +382,7 @@ const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
             ] : [
                 <Button key="cancel" onClick={onClose}>Hủy</Button>,
                 <Button key="submit" type="primary" size="large" onClick={handlePayment} style={{ background: '#52c41a', borderColor: '#52c41a' }}>
-                    Xác Nhận Thu {finalTotal.toLocaleString()} đ
+                    Xác Nhận Thu {customerTotal.toLocaleString()} đ{tipAmount > 0 ? ` + Tip ${tipAmount.toLocaleString()}` : ''}
                 </Button>
             ]}
         >
@@ -526,6 +587,47 @@ const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
                             formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                         />
                     </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6, padding: '8px 10px' }}>
+                        <Text strong style={{ color: '#389e0d', fontSize: 12 }}> Tip</Text>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <InputNumber
+                                min={0}
+                                value={tipAmount}
+                                onChange={setTipAmount}
+                                style={{ flex: 1 }}
+                                disabled={!!invoice}
+                                placeholder="0"
+                                addonBefore="₫"
+                                formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                            />
+                        </div>
+                        <Select
+                            placeholder="Nhân viên nhận tip..."
+                            style={{ width: '100%' }}
+                            value={tipStaffName || undefined}
+                            onChange={setTipStaffName}
+                            disabled={!!invoice}
+                            allowClear
+                        >
+                            {staffList.map(s => (
+                                <Select.Option key={s._id} value={s.name}>{s.name}</Select.Option>
+                            ))}
+                        </Select>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <Text style={{ color: '#faad14' }}>Phí cà thẻ:</Text>
+                        <InputNumber
+                            min={0}
+                            value={surchargeFee}
+                            onChange={setSurchargeFee}
+                            style={{ width: 110 }}
+                            disabled={!!invoice}
+                            placeholder="0"
+                            formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                        />
+                    </div>
                     
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <Text>Thuế (%):</Text>
@@ -533,12 +635,26 @@ const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
                     </div>
 
                     <Divider style={{ margin: '12px 0' }} />
-                    
-                    <div style={{ fontSize: 20 }}>
-                        <Text strong>TỔNG CỘNG</Text><br/>
-                        <Tag color="red" style={{ fontSize: 24, padding: '4px 12px', margin: 0, marginTop: 5 }}>
-                            {finalTotal.toLocaleString()}
-                        </Tag>
+
+                    {/* Tổng khách trả */}
+                    <div style={{ width: '100%', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                            <Text type="secondary">Khách trả:</Text>
+                            <Text strong style={{ fontSize: 16 }}>{customerTotal.toLocaleString()} ₫</Text>
+                        </div>
+                        {tipAmount > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#389e0d' }}>
+                                <Text style={{ color: '#389e0d' }}>❤️ Tip{tipStaffName ? ` → ${tipStaffName}` : ''}:</Text>
+                                <Text strong style={{ color: '#389e0d' }}>+ {tipAmount.toLocaleString()} ₫</Text>
+                            </div>
+                        )}
+                        <Divider style={{ margin: '6px 0' }} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Text strong>Tổng thu nội bộ:</Text>
+                            <Tag color="red" style={{ fontSize: 20, padding: '4px 12px', margin: 0 }}>
+                                {finalTotal.toLocaleString()}
+                            </Tag>
+                        </div>
                     </div>
                 </div>
             </div>

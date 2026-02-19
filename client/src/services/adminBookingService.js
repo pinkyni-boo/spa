@@ -176,7 +176,9 @@ export const adminBookingService = {
           if (filters.date) params.append('date', filters.date);
           if (filters.bookingId) params.append('bookingId', filters.bookingId);
 
-          const response = await fetch(`${API_URL}/api/invoices?${params.toString()}`);
+          const response = await fetch(`${API_URL}/api/invoices?${params.toString()}`, {
+              headers: getAuthHeaders()
+          });
           return await response.json();
       } catch (error) {
           return { success: false, message: 'Lỗi lấy hóa đơn' };

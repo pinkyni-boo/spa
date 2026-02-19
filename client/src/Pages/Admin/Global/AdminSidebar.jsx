@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Typography, Avatar, Space, Divider } from 'antd';
+import React, { useState, useEffect, useRef } from 'react';
+import { Layout, Menu, Button, Typography, Avatar, Space, Divider, Badge, notification } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     DashboardOutlined,
@@ -22,8 +22,13 @@ import {
     ControlOutlined, // [NEW] For System group
     TeamOutlined, // [NEW] For Customers
     ShoppingOutlined, // [NEW] For Products
-    BarChartOutlined // [NEW] For Reports
+    BarChartOutlined, // [NEW] For Reports
+    FileTextOutlined, // [NEW] For System Logs
+    CommentOutlined,  // [NEW] For Consultations
+    BellOutlined      // [NEW] For notification
 } from '@ant-design/icons';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const { Sider } = Layout;
 const { Title } = Typography;
@@ -32,17 +37,50 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const [currentUser, setCurrentUser] = useState(null);
+    const [pendingCount, setPendingCount] = useState(0);
+    const prevCountRef = useRef(null);
+    const [notifApi, notifHolder] = notification.useNotification();
 
     useEffect(() => {
-        // Load user from localStorage
         const userStr = localStorage.getItem('user');
         if (userStr) {
-            try {
-                setCurrentUser(JSON.parse(userStr));
-            } catch (e) {
-                console.error('Failed to parse user data', e);
-            }
+            try { setCurrentUser(JSON.parse(userStr)); } catch (e) {}
         }
+    }, []);
+
+    // Poll pending consultations every 30s
+    useEffect(() => {
+        const fetchPending = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            try {
+                const res = await fetch(`${API_URL}/api/consultations?status=pending&limit=1`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const count = data.total || 0;
+                    // Notify if count increased
+                    if (prevCountRef.current !== null && count > prevCountRef.current) {
+                        const diff = count - prevCountRef.current;
+                        notifApi.info({
+                            message: 'Tư vấn mới!',
+                            description: `Có ${diff} yêu cầu tư vấn mới cần xử lý.`,
+                            icon: <BellOutlined style={{ color: '#D4AF37' }} />,
+                            placement: 'topRight',
+                            duration: 6,
+                            onClick: () => navigate('/admin/consultations'),
+                        });
+                    }
+                    prevCountRef.current = count;
+                    setPendingCount(count);
+                }
+            } catch (_) {}
+        };
+
+        fetchPending();
+        const interval = setInterval(fetchPending, 30000);
+        return () => clearInterval(interval);
     }, []);
 
     const menuItems = [
@@ -89,6 +127,18 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
                     label: 'Sản Phẩm',
                 },
                 {
+                    key: '/admin/consultations',
+                    icon: <Badge count={pendingCount} size="small" offset={[4, -2]}><CommentOutlined /></Badge>,
+                    label: (
+                        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            Tư Vấn
+                            {pendingCount > 0 && (
+                                <Badge count={pendingCount} size="small" style={{ backgroundColor: '#faad14' }} />
+                            )}
+                        </span>
+                    ),
+                },
+                {
                     key: '/admin/promotions',
                     icon: <GiftOutlined />,
                     label: 'Khuyến Mãi',
@@ -121,6 +171,11 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
                     icon: <MessageOutlined />,
                     label: 'Phản Hồi',
                 },
+                {
+                    key: '/admin/system-logs',
+                    icon: <FileTextOutlined />,
+                    label: 'Nhật Ký',
+                },
             ]
         },
     ];
@@ -150,6 +205,8 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
     };
 
     return (
+        <>
+        {notifHolder}
         <Sider
             trigger={null}
             collapsible
@@ -275,6 +332,7 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
                 </div>
             </div>
         </Sider>
+        </>
     );
 };
 

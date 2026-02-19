@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const ActionLogController = require('./ActionLogController');
 
 // Get all users
 exports.getAllUsers = async (req, res) => {
@@ -39,7 +40,7 @@ exports.createUser = async (req, res) => {
         });
 
         await newUser.save();
-
+        ActionLogController.createLog(req, req.user, 'USER_CREATE', 'User', newUser._id, newUser.username);
         res.json({ success: true, user: newUser });
     } catch (error) {
         console.error('Error creating user:', error);
@@ -71,7 +72,7 @@ exports.updateUser = async (req, res) => {
         if (!updatedUser) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
-
+        ActionLogController.createLog(req, req.user, 'USER_UPDATE', 'User', updatedUser._id, updatedUser.username);
         res.json({ success: true, user: updatedUser });
     } catch (error) {
         console.error('Error updating user:', error);
@@ -83,7 +84,8 @@ exports.updateUser = async (req, res) => {
 exports.deleteUser = async (req, res) => {
     try {
         const { id } = req.params;
-        await User.findByIdAndDelete(id);
+        const user = await User.findByIdAndDelete(id);
+        ActionLogController.createLog(req, req.user, 'USER_DELETE', 'User', id, user?.username || id);
         res.json({ success: true, message: 'User deleted' });
     } catch (error) {
         console.error('Error deleting user:', error);

@@ -1,18 +1,24 @@
 import React from 'react';
-import { Drawer, Button, Typography, Descriptions, Tag, Avatar, Space, Divider, Select, InputNumber, message } from 'antd';
-import { HistoryOutlined } from '@ant-design/icons'; // [NEW] Icon
+import { Drawer, Button, Typography, Descriptions, Tag, Avatar, Space, Divider, Select, InputNumber, message, DatePicker, TimePicker } from 'antd';
+import { HistoryOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import theme from '../../../theme';
-import CustomerHistoryModal from './CustomerHistoryModal'; // [NEW] Modal
+import CustomerHistoryModal from './CustomerHistoryModal';
+import { resourceService } from '../../../services/resourceService';
 
 const { Title, Text } = Typography;
 
-const BookingDrawer = ({ open, onClose, booking, onAction }) => {
-    if (!booking) return null;
-
+const BookingDrawer = ({ open, onClose, booking, onAction, services = [] }) => {
     // --- [NEW] STATE FOR UPSELL ---
     const [isEditing, setIsEditing] = React.useState(false);
     const [selectedServiceToAdd, setSelectedServiceToAdd] = React.useState(null);
+
+    // --- STATE FOR RESCHEDULE ---
+    const [isRescheduling, setIsRescheduling] = React.useState(false);
+    const [editDate, setEditDate] = React.useState(null);
+    const [editTime, setEditTime] = React.useState(null);
+    const [editBedId, setEditBedId] = React.useState(null);
+    const [availableBeds, setAvailableBeds] = React.useState([]);
 
     // --- [NEW] STATE FOR HISTORY (CRM) ---
     const [historyVisible, setHistoryVisible] = React.useState(false);
@@ -21,6 +27,8 @@ const BookingDrawer = ({ open, onClose, booking, onAction }) => {
     const [timeLeft, setTimeLeft] = React.useState('');
     
     React.useEffect(() => {
+        if (!booking) return; // Guard inside effect
+
         const updateTimer = () => {
              if (booking.status === 'processing') {
                 const now = dayjs();
@@ -43,11 +51,43 @@ const BookingDrawer = ({ open, onClose, booking, onAction }) => {
         return () => clearInterval(timer);
     }, [booking]);
 
+    if (!booking) return null;
+
+    const openReschedule = async () => {
+        setEditDate(dayjs(booking.startTime));
+        setEditTime(dayjs(booking.startTime));
+        setEditBedId(booking.bedId?._id || (typeof booking.bedId === 'string' ? booking.bedId : null));
+        setAvailableBeds([]);
+        if (booking.roomId?._id || booking.roomId) {
+            const roomId = booking.roomId?._id || booking.roomId;
+            try {
+                const res = await resourceService.getAllBeds({ roomId });
+                if (res.success) setAvailableBeds(res.beds || []);
+            } catch (_) {}
+        }
+        setIsRescheduling(true);
+    };
+
+    const handleSaveReschedule = () => {
+        if (!editDate && !editTime && editBedId === null) { message.warning('Chưa thay đổi gì'); return; }
+        const base = editDate || dayjs(booking.startTime);
+        const time = editTime || dayjs(booking.startTime);
+        const newStart = base.hour(time.hour()).minute(time.minute()).second(0);
+        const duration = booking.serviceId?.duration || 60;
+        const newEnd = newStart.add(duration, 'minute');
+        const payload = { startTime: newStart.toISOString(), endTime: newEnd.toISOString() };
+        if (editBedId !== undefined && editBedId !== null) payload.bedId = editBedId;
+        onAction('update', booking._id, payload);
+        setIsRescheduling(false);
+    };
+
     const handleAddService = () => {
         // Mock Add Logic for UI Demo
         if (!selectedServiceToAdd) return;
         
-        onAction('upsell_save', { 
+        console.log('>>> [DEBUG] Click Add Service:', selectedServiceToAdd); // [DEBUG]
+        
+        onAction('upsell_save', booking._id, { 
             booking,
             addedService: selectedServiceToAdd 
         });
@@ -78,7 +118,32 @@ const BookingDrawer = ({ open, onClose, booking, onAction }) => {
             width={450} // Valid valid override
             onClose={onClose}
             open={open} // Correct prop usage
-            styles={{ body: { paddingBottom: 80 } }}
+            styles={{ body: { paddingBottom: 16 } }}
+            footer={
+                <div style={{ display: 'flex', gap: 5 }}>
+                    {booking && booking.status !== 'cancelled' && booking.status !== 'completed' && (
+                        <Button danger size="small" style={{ flex: 1, fontSize: 12 }} onClick={() => onAction('cancel', booking._id)}>Hủy</Button>
+                    )}
+                    {booking && booking.status === 'pending' && (
+                        <Button type="primary" size="small" style={{ flex: 1, fontSize: 12 }} onClick={() => onAction('approve', booking._id)}>Duyệt</Button>
+                    )}
+                    {booking && booking.status === 'confirmed' && (
+                        <Button type="primary" size="small" style={{ flex: 1, fontSize: 12, background: theme.colors.primary[500] }} onClick={() => onAction('checkIn', booking._id)}>Check-in</Button>
+                    )}
+                    {booking && booking.status === 'processing' && (
+                        <Button type="primary" size="small" style={{ flex: 1, fontSize: 12, background: '#52c41a', borderColor: '#52c41a' }} onClick={() => onAction('complete', booking._id)}>Thanh Toán</Button>
+                    )}
+                    {booking && booking.status === 'completed' && (
+                        <Button size="small" style={{ flex: 1, fontSize: 12 }} onClick={() => onAction('view_invoice', booking)}>Hóa Đơn</Button>
+                    )}
+                    {booking && ['pending', 'confirmed'].includes(booking.status) && (
+                        <Button size="small" style={{ flex: 1, fontSize: 12 }} onClick={openReschedule} disabled={isRescheduling}>Sửa giờ</Button>
+                    )}
+                    {booking && ['pending', 'confirmed', 'processing'].includes(booking.status) && (
+                        <Button size="small" style={{ flex: 1, fontSize: 12 }} onClick={() => setIsEditing(true)} disabled={isEditing}>+ DV</Button>
+                    )}
+                </div>
+            }
             extra={
                 <Tag color={statusColor} style={{ fontSize: '14px', padding: '4px 10px' }}>
                     {(booking.status || '').toUpperCase()}
@@ -117,14 +182,15 @@ const BookingDrawer = ({ open, onClose, booking, onAction }) => {
                 <Descriptions.Item label="Thời lượng">
                      {booking.serviceId?.duration || 60} phút
                 </Descriptions.Item>
-                <Descriptions.Item label="Phòng">
+                <Descriptions.Item label="Phòng / Giường">
                      {booking.roomId?.name || 'Chưa xếp'}
+                     {booking.bedId?.name && <span style={{ color: '#52c41a', marginLeft: 6 }}>— {booking.bedId.name}</span>}
                 </Descriptions.Item>
                 <Descriptions.Item label="Nhân viên">
                      {booking.staffId?.name || 'Chưa xếp'}
                 </Descriptions.Item>
                 <Descriptions.Item label="Nguồn">
-                     {booking.source === 'offline' ? 'Tại quầy' : 'Website'}
+                     {booking.source === 'manual' ? '🖥️ Tạo thủ công' : booking.source === 'offline' ? '🏪 Tại quầy' : '🌐 Website'}
                 </Descriptions.Item>
                 
                 {/* [NEW] Show Upsell Items */}
@@ -144,25 +210,81 @@ const BookingDrawer = ({ open, onClose, booking, onAction }) => {
                 </div>
             </div>
             
-            {/* [NEW] UPSELL FORM */}
-            {isEditing && (
+            {/* RESCHEDULE FORM */}
+            {isRescheduling && (
+                <div style={{ marginTop: 20, border: '1px dashed #52c41a', padding: 16, borderRadius: 8, background: '#f6ffed' }}>
+                    <Typography.Text strong style={{ color: '#52c41a' }}>Sửa giờ / Đổi giường</Typography.Text>
+                    <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <DatePicker
+                                value={editDate}
+                                onChange={setEditDate}
+                                format="DD/MM/YYYY"
+                                style={{ flex: 1 }}
+                                placeholder="Ngày"
+                            />
+                            <TimePicker
+                                value={editTime}
+                                onChange={setEditTime}
+                                format="HH:mm"
+                                minuteStep={5}
+                                style={{ flex: 1 }}
+                                placeholder="Giờ"
+                            />
+                        </div>
+                        {availableBeds.length > 1 && (
+                            <Select
+                                value={editBedId}
+                                onChange={setEditBedId}
+                                placeholder="Chọn giường khác (tùy chọn)"
+                                style={{ width: '100%' }}
+                                allowClear
+                            >
+                                {availableBeds.map(bed => (
+                                    <Select.Option key={bed._id} value={bed._id}>
+                                        {bed.name}{bed._id === (booking.bedId?._id || booking.bedId) ? ' ★ hiện tại' : ''}
+                                    </Select.Option>
+                                ))}
+                            </Select>
+                        )}
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                            Dịch vụ: {booking.serviceId?.name} — {booking.serviceId?.duration || 60} phút. Hệ thống sẽ kiểm tra xung đột trước khi lưu.
+                        </Typography.Text>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <Button type="primary" onClick={handleSaveReschedule} style={{ flex: 1 }}>Lưu thay đổi</Button>
+                            <Button onClick={() => setIsRescheduling(false)}>Hủy</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* [NEW] UPSELL & EDIT FORM - ALLOWED FOR ALL ACTIVE STATES */}
+            {isEditing && ['pending', 'confirmed', 'processing'].includes(booking.status) && (
                 <div style={{ marginTop: 20, border: '1px dashed #1890ff', padding: 16, borderRadius: 8, background: '#e6f7ff' }}>
-                    <Text strong style={{ color: '#1890ff' }}>⚡ Thêm Dịch Vụ Nhanh</Text>
+                    <Text strong style={{ color: '#1890ff' }}>✏️ Chỉnh Sửa Đơn Hàng</Text>
                     
                     <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        
+                        {/* 2. ADD SERVICE (Renamed to clear intent) */}
+                        <Text strong>⚡ Thêm Dịch Vụ / Phụ Thu:</Text>
                         <Select 
                             placeholder="Chọn dịch vụ thêm..." 
                             style={{ width: '100%' }}
+                            showSearch
+                            optionFilterProp="children"
                             onChange={(val) => {
                                 // Mock data parsing
                                 const [name, price] = val.split('|');
                                 setSelectedServiceToAdd({ name, price: parseInt(price), qty: 1 });
                             }}
                         >
-                            <Select.Option value="Mặt nạ vàng 24k|200000">Mặt nạ vàng 24k (200k)</Select.Option>
-                            <Select.Option value="Gội thảo dược|150000">Gội thảo dược (150k)</Select.Option>
-                            <Select.Option value="Massage chân|300000">Massage chân (300k)</Select.Option>
-                            <Select.Option value="Combo Gội + Massage|400000">Combo Gội + Massage (400k)</Select.Option>
+                            {(services && services.length > 0) ? services.filter(s => s.type !== 'product').map(s => (
+                                <Select.Option key={s._id} value={`${s.name}|${s.price || 0}`}>
+                                    {s.name} ({(s.price || 0).toLocaleString()}đ)
+                                </Select.Option>
+                            )) : (
+                                <Select.Option disabled>Đang tải dịch vụ...</Select.Option>
+                            )}
                         </Select>
 
                         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -178,84 +300,7 @@ const BookingDrawer = ({ open, onClose, booking, onAction }) => {
                 </div>
             )}
 
-            {/* 3. Actions (Sticky Bottom) */}
-            <div style={{
-                position: 'absolute',
-                bottom: 0,
-                right: 0,
-                left: 0,
-                padding: '16px 24px',
-                background: '#fff',
-                borderTop: '1px solid #f0f0f0',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: 12
-            }}>
-                {/* GENERAL ACTIONS */}
-                {booking.status !== 'cancelled' && booking.status !== 'completed' && (
-                     <Button danger onClick={() => onAction('cancel', booking._id)}>Hủy Đơn</Button>
-                )}
 
-                {/* FLOW ACTIONS */}
-                
-                {/* A. PENDING -> CONFIRM */}
-                {booking.status === 'pending' && (
-                    <Button type="primary" onClick={() => onAction('approve', booking._id)}>
-                        Duyệt Ngay
-                    </Button>
-                )}
-
-                {/* B. CONFIRMED -> CHECK-IN (START) */}
-                {booking.status === 'confirmed' && (
-                    <Button type="primary" style={{ background: theme.colors.primary[500] }} onClick={() => onAction('checkIn', booking._id)}>
-                        ▶ CHECK-IN (Bắt đầu)
-                    </Button>
-                )}
-
-                {/* C. PROCESSING -> UPSPELL OR CHECKOUT */}
-                {booking.status === 'processing' && (
-                    <>
-                        <Button 
-                            onClick={() => {
-                                // [NEW] Check if near closing time (18:00) before allowing service addition
-                                const now = dayjs();
-                                const closingTime = dayjs().hour(20).minute(0).second(0); // [FIX] 20:00 closing time
-                                const minutesToClose = closingTime.diff(now, 'minute');
-                                
-                                console.log('[ADD SERVICE DEBUG] Now:', now.format('HH:mm'));
-                                console.log('[ADD SERVICE DEBUG] Closing time:', closingTime.format('HH:mm'));
-                                console.log('[ADD SERVICE DEBUG] Minutes to close:', minutesToClose);
-                                
-                                // Warning if less than 30 minutes to closing time
-                                if (minutesToClose < 30) {
-                                    console.log('[ADD SERVICE DEBUG] BLOCKING - Too close to closing time!');
-                                    message.warning({
-                                        content: '⚠️ Sắp đến giờ đóng cửa (20:00)! Không nên thêm dịch vụ để đảm bảo chất lượng phục vụ.',
-                                        duration: 4
-                                    });
-                                    return;
-                                }
-                                
-                                console.log('[ADD SERVICE DEBUG] ALLOWING - Enough time before closing');
-                                setIsEditing(true);
-                            }}
-                            disabled={isEditing}
-                        >
-                            🔓 Thêm Dịch vụ
-                        </Button>
-                        <Button type="primary" style={{ background: '#52c41a', borderColor: '#52c41a' }} onClick={() => onAction('complete', booking._id)}>
-                            💰 THANH TOÁN
-                        </Button>
-                    </>
-                )}
-
-                {/* D. COMPLETED -> VIEW INVOICE */}
-                {booking.status === 'completed' && (
-                    <Button onClick={() => onAction('view_invoice', booking)}>
-                        📜 Xem Hóa Đơn
-                    </Button>
-                )}
-            </div>
             {/* [NEW] HISTORY MODAL */}
             <CustomerHistoryModal
                 visible={historyVisible}

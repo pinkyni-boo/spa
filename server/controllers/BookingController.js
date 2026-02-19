@@ -3,7 +3,8 @@ const Service = require('../models/Service');
 const Staff = require('../models/Staff');
 const Room = require('../models/Room');
 const Waitlist = require('../models/Waitlist');
-const BookingService = require('../services/BookingService'); // [NEW] Service Layer
+const BookingService = require('../services/BookingService'); 
+const ActionLogController = require('./ActionLogController'); // [NEW] Audit Log
 const dayjs = require('dayjs');
 const isBetween = require('dayjs/plugin/isBetween');
 const customParseFormat = require('dayjs/plugin/customParseFormat');
@@ -34,7 +35,18 @@ exports.checkAvailability = async (req, res) => {
 // ---------------------------------------------------------
 exports.createBooking = async (req, res) => {
     try {
-        const result = await BookingService.createBooking(req.body);
+        // Nếu admin/staff/owner tạo thủ công → auto confirm, đánh dấu source manual
+        const isStaff = req.user && ['admin', 'owner', 'staff'].includes(req.user.role);
+        const bodyWithDefaults = isStaff
+            ? { ...req.body, source: 'manual', status: 'confirmed' }
+            : req.body;
+        const result = await BookingService.createBooking(bodyWithDefaults);
+        
+        // [AUDIT]
+        if (result.success && result.booking) {
+             ActionLogController.createLog(req, req.user, 'BOOKING_CREATE', 'Booking', result.booking._id, result.booking.customerName);
+        }
+
         res.json(result);
         
     } catch (error) {
@@ -97,9 +109,10 @@ exports.getAllBookings = async (req, res) => {
 
     const bookings = await Booking.find(query)
       .populate('serviceId', 'name price duration') 
-      .populate('staffId', 'name') // New
-      .populate('roomId', 'name')  // New
-      .sort({ createdAt: -1 }); // Xếp theo mới tạo nhất (để Admin dễ thấy đơn vừa đặt)
+      .populate('staffId', 'name')
+      .populate('roomId', 'name')
+      .populate('bedId', 'name sortOrder')  // [MULTI-BED]
+      .sort({ createdAt: -1 });
 
     console.log('Final Query:', JSON.stringify(query, null, 2));
     console.log('Found Bookings:', bookings.length);
@@ -114,10 +127,51 @@ exports.getAllBookings = async (req, res) => {
 };
 
 exports.updateBooking = async (req, res) => {
-    // Note: Update logic should also check availability if time changes
-    // For now, keep simple update
     try {
-        const updatedBooking = await Booking.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const bookingId = req.params.id;
+        const { startTime, endTime, bedId, ...rest } = req.body;
+
+        // Nếu đổi giờ hoặc giường → kiểm tra xung đột
+        if (startTime || bedId !== undefined) {
+            const current = await Booking.findById(bookingId);
+            if (!current) return res.status(404).json({ success: false, message: 'Không tìm thấy đơn' });
+
+            const newStart = startTime ? new Date(startTime) : current.startTime;
+            const newEnd   = endTime   ? new Date(endTime)   : current.endTime;
+            const targetBed = bedId !== undefined ? bedId : (current.bedId ? current.bedId.toString() : null);
+
+            if (targetBed) {
+                const conflict = await Booking.findOne({
+                    _id: { $ne: bookingId },
+                    bedId: targetBed,
+                    status: { $nin: ['cancelled'] },
+                    startTime: { $lt: newEnd },
+                    endTime:   { $gt: newStart }
+                });
+                if (conflict) {
+                    return res.status(409).json({
+                        success: false,
+                        message: `Giường đã có lịch ${dayjs(conflict.startTime).format('HH:mm')}–${dayjs(conflict.endTime).format('HH:mm')} (${conflict.customerName})`
+                    });
+                }
+            }
+        }
+
+        const updateData = { ...rest };
+        if (startTime)          updateData.startTime = startTime;
+        if (endTime)            updateData.endTime   = endTime;
+        if (bedId !== undefined) updateData.bedId    = bedId;
+
+        const updatedBooking = await Booking.findByIdAndUpdate(bookingId, updateData, { new: true })
+            .populate('serviceId', 'name duration price')
+            .populate('staffId',   'name')
+            .populate('roomId',    'name')
+            .populate('bedId',     'name sortOrder');
+
+        if (updatedBooking) {
+            ActionLogController.createLog(req, req.user, 'BOOKING_UPDATE', 'Booking', updatedBooking._id, updatedBooking.customerName, req.body);
+        }
+
         res.json({ success: true, booking: updatedBooking });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -127,6 +181,10 @@ exports.updateBooking = async (req, res) => {
 exports.cancelBooking = async (req, res) => {
     try {
         await Booking.findByIdAndUpdate(req.params.id, { status: 'cancelled' });
+        
+        // [AUDIT]
+        ActionLogController.createLog(req, req.user, 'BOOKING_CANCEL', 'Booking', req.params.id);
+
         res.json({ success: true, message: 'Đã hủy đơn' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -144,6 +202,10 @@ exports.approveBooking = async (req, res) => {
         if (!booking) {
             return res.status(404).json({ success: false, message: 'Không tìm thấy đơn' });
         }
+        
+        // [AUDIT]
+        ActionLogController.createLog(req, req.user, 'BOOKING_APPROVE', 'Booking', booking._id, booking.customerName);
+
         res.json({ success: true, booking, message: 'Đã duyệt đơn' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -192,6 +254,9 @@ exports.checkIn = async (req, res) => {
         
         await booking.save();
 
+        // [AUDIT]
+        ActionLogController.createLog(req, req.user, 'BOOKING_CHECKIN', 'Booking', booking._id, booking.customerName);
+
         res.json({ success: true, message: 'Check-in thành công! Đã chuyển lịch về giờ hiện tại.', booking });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Lỗi Check-in' });
@@ -231,13 +296,41 @@ exports.searchBookings = async (req, res) => {
 };
 
 exports.updateBookingServices = async (req, res) => {
-    // ... (Mutex logic remains check file content if needed, but here we just replace searchBookings and getCustomerHistory surrounding areas or just target blocks)
-    // Since this tool replaces blocks, I will target the specific functions.
-    // Wait, updateBookingServices is between search and getHistory.
-    // I'll do two chunks or one large block if they are close?
-    // They are separated by updateBookingServices.
-    // I will use multi_replace for safety.
-    return; // Pseudo-code, using actual tool below
+    try {
+        const { items } = req.body; // Expect items array: [{ name, price, quantity }]
+        const { id } = req.params;
+
+        if (!items || !Array.isArray(items)) {
+            return res.status(400).json({ success: false, message: 'Dữ liệu dịch vụ không hợp lệ' });
+        }
+
+        const booking = await Booking.findById(id);
+        if (!booking) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
+        }
+
+        // Initialize if empty
+        if (!booking.servicesDone) booking.servicesDone = [];
+
+        // Append new items
+        items.forEach(item => {
+            booking.servicesDone.push({
+                name: item.name,
+                price: item.price,
+                qty: item.quantity || 1
+            });
+        });
+        
+        // Recalculate Total? (If total field exists)
+        // booking.totalPrice = ... (If we track it) - usually computed on frontend or separate field
+        
+        await booking.save();
+
+        res.json({ success: true, booking, message: 'Đã thêm dịch vụ thành công' });
+    } catch (error) {
+        console.error('Error updating services:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
 };
 
 // ...

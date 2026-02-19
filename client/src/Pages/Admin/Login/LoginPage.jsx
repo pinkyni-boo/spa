@@ -95,14 +95,14 @@ const LoginPage = () => {
                         name="username"
                         rules={[{ required: true, message: 'Vui lòng nhập tên đăng nhập!' }]}
                     >
-                        <Input prefix={<UserOutlined />} placeholder="Tên đăng nhập" />
+                        <Input prefix={<UserOutlined />} />
                     </Form.Item>
 
                     <Form.Item
                         name="password"
                         rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
                     >
-                        <Input.Password prefix={<LockOutlined />} placeholder="Mật khẩu" />
+                        <Input.Password prefix={<LockOutlined />} />
                     </Form.Item>
 
                     <Form.Item>

@@ -1,4 +1,5 @@
 const Feedback = require('../models/Feedback');
+const ActionLogController = require('./ActionLogController');
 
 // Get all feedbacks (admin)
 exports.getAllFeedbacks = async (req, res) => {
@@ -68,7 +69,7 @@ exports.approveFeedback = async (req, res) => {
         if (!feedback) {
             return res.status(404).json({ success: false, message: 'Feedback not found' });
         }
-        
+        ActionLogController.createLog(req, req.user, 'FEEDBACK_APPROVE', 'Feedback', feedback._id, feedback.customerName || feedback._id);
         res.json({
             success: true,
             message: 'Feedback approved',
@@ -95,7 +96,7 @@ exports.rejectFeedback = async (req, res) => {
         if (!feedback) {
             return res.status(404).json({ success: false, message: 'Feedback not found' });
         }
-        
+        ActionLogController.createLog(req, req.user, 'FEEDBACK_REJECT', 'Feedback', feedback._id, feedback.customerName || feedback._id);
         res.json({
             success: true,
             message: 'Feedback rejected',
@@ -115,7 +116,7 @@ exports.deleteFeedback = async (req, res) => {
         if (!feedback) {
             return res.status(404).json({ success: false, message: 'Feedback not found' });
         }
-        
+        ActionLogController.createLog(req, req.user, 'FEEDBACK_DELETE', 'Feedback', req.params.id, feedback.customerName || req.params.id);
         res.json({
             success: true,
             message: 'Feedback deleted'

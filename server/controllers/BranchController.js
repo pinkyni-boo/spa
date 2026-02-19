@@ -1,4 +1,5 @@
 const Branch = require('../models/Branch');
+const ActionLogController = require('./ActionLogController');
 
 // Get all branches
 exports.getAllBranches = async (req, res) => {
@@ -50,7 +51,7 @@ exports.createBranch = async (req, res) => {
         });
 
         await branch.save();
-
+        ActionLogController.createLog(req, req.user, 'BRANCH_CREATE', 'Branch', branch._id, branch.name);
         res.json({
             success: true,
             message: 'Branch created successfully',
@@ -76,7 +77,7 @@ exports.updateBranch = async (req, res) => {
         if (!branch) {
             return res.status(404).json({ success: false, message: 'Branch not found' });
         }
-
+        ActionLogController.createLog(req, req.user, 'BRANCH_UPDATE', 'Branch', branch._id, branch.name);
         res.json({
             success: true,
             message: 'Branch updated successfully',
@@ -100,7 +101,7 @@ exports.deleteBranch = async (req, res) => {
         if (!branch) {
             return res.status(404).json({ success: false, message: 'Branch not found' });
         }
-
+        ActionLogController.createLog(req, req.user, 'BRANCH_DELETE', 'Branch', branch._id, branch.name);
         res.json({
             success: true,
             message: 'Branch deactivated successfully',

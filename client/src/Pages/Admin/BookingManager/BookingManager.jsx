@@ -17,6 +17,11 @@ import DnDCalendarView from './DnDCalendarView';
 import InvoiceModal from '../Payment/InvoiceModal'; // [MOVED]
 import WaitlistSidebar from './WaitlistSidebar';
 import CustomerInfoSidebar from './CustomerInfoSidebar'; // [NEW]
+import BookingToolbar from './BookingToolbar';
+import BookingCreateModal from './BookingCreateModal';
+import BookingCalendarView from './BookingCalendarView';
+import { useBookingData } from './hooks/useBookingData';
+import { useBookingActions } from './hooks/useBookingActions';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -35,666 +40,194 @@ const BookingManager = () => {
     const [viewingCustomer, setViewingCustomer] = useState(null);
     const [customerHistory, setCustomerHistory] = useState([]);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // [NEW] Collapsible sidebar
-    // STATE -- (Original state declarations follow below)
-    const [bookings, setBookings] = useState([]);
-    const [rooms, setRooms] = useState([]);
-    const [loading, setLoading] = useState(false);
-    
+    // [HOOK] Data Logic
+    const { 
+        bookings, rooms, staffs, services, loading, 
+        filterBranch, setFilterBranch, 
+        filterStaff, setFilterStaff, 
+        filterPayment, setFilterPayment, 
+        currentDate, setCurrentDate, 
+        userRole, managedBranches, 
+        fetchData 
+    } = useBookingData();
+
+    // [UI STATE]
+    const [isModalVisible, setIsModalVisible] = useState(false); 
+    const [drawerVisible, setDrawerVisible] = useState(false); 
+    const [waitlist, setWaitlist] = useState([]); 
+    const [highlightBookingId, setHighlightBookingId] = useState(null); 
+    const [refreshWaitlist, setRefreshWaitlist] = useState(0);
+    const [draggedWaitlistItem, setDraggedWaitlistItem] = useState(null); 
+    const [selectedBooking, setSelectedBooking] = useState(null); 
+    const [isEditing, setIsEditing] = useState(false);
+    const [highlightRoomType, setHighlightRoomType] = useState(null); // [NEW] Highlight matching calendar columns
+    const [highlightTime, setHighlightTime] = useState(null); // [NEW] Highlight preferred time slot
+
     // Derived State
     const pendingCount = bookings.filter(b => b.status === 'pending').length;
     
-    // FILTER STATE
-    const [currentDate, setCurrentDate] = useState(dayjs());
-    const [filterStaff, setFilterStaff] = useState(null); 
-    const [filterPayment, setFilterPayment] = useState(null);
-    const [filterBranch, setFilterBranch] = useState(null); // [NEW] Link to Branch
-    const [userRole, setUserRole] = useState(null);
-    const [managedBranches, setManagedBranches] = useState([]);
-    
-    const [staffs, setStaffs] = useState([]);
-    const [searchResults, setSearchResults] = useState([]); // [FIX] Add missing state for search autocomplete
-    const [isModalVisible, setIsModalVisible] = useState(false); // [FIX] Add missing modal state
-    const [drawerVisible, setDrawerVisible] = useState(false); // [FIX] Add missing drawer state
-    const [waitlist, setWaitlist] = useState([]); // [FIX] Add missing waitlist state
-    const [highlightBookingId, setHighlightBookingId] = useState(null); // [FIX] Add missing highlight state
-    const [refreshWaitlist, setRefreshWaitlist] = useState(0); // [FIX] Add missing trigger for waitlist refresh
-    const [draggedWaitlistItem, setDraggedWaitlistItem] = useState(null); // [FIX] Add missing drag state
-    const [selectedBooking, setSelectedBooking] = useState(null); // [FIX] Add missing selected booking state
-    
-    // [FIX] Add Form instance
+    // [FORMS & MODALS]
     const [form] = Form.useForm();
-    
-    // [FIX] Add customer options for autocomplete
-    const [customerOptions, setCustomerOptions] = useState([]);
-    
-    // [FIX] Add invoice modal states
     const [isInvoiceVisible, setIsInvoiceVisible] = useState(false);
     const [viewingInvoice, setViewingInvoice] = useState(null);
 
-    const [isInitialized, setIsInitialized] = useState(false); // [FIX] Block fetch until init
-
-    useEffect(() => {
-        // [AUTH] Load User Role & Branches
-        const raw = localStorage.getItem('user');
-        if (raw) {
-            try {
-                const u = JSON.parse(raw);
-                setUserRole(u.role);
-                
-                if (u.role === 'owner') {
-                    // Owner sees all branches -> Fetch from API
-                    branchService.getAllBranches().then(res => {
-                        if (res.success) {
-                            setManagedBranches(res.branches || []);
-                            // Owner defaults to null (All) or first branch
-                            // If you want default View to be All, leave null.
-                            setIsInitialized(true); // Ready!
-                        }
-                    });
-                } else {
-                    // Admin sees assigned branches
-                    setManagedBranches(u.managedBranches || []);
-                    
-                     // [AUTO-MAPPING] If Admin manages only 1 branch, force lock it
-                    if (u.role === 'admin' && u.managedBranches?.length === 1) {
-                        setFilterBranch(u.managedBranches[0]._id || u.managedBranches[0]);
-                    } else if (u.role === 'admin' && u.managedBranches?.length > 1) {
-                         setFilterBranch(u.managedBranches[0]._id || u.managedBranches[0]); // Default to first
-                    }
-                    setIsInitialized(true); // Ready!
-                }
-            } catch (e) { 
-                console.error("Parse user error", e); 
-                setIsInitialized(true); // Fallback ready
-            }
-        } else {
-            setIsInitialized(true); // No user, ready (will likely redirect or show empty)
-        }
-    }, []);
-
-    // [POLLING] Check for new bookings every 10 seconds
-    const [lastBookingCount, setLastBookingCount] = React.useState(0);
-    
-    useEffect(() => {
-        if (!isInitialized) return;
-        
-        const pollInterval = setInterval(async () => {
-            try {
-                // Quick count check (lightweight API call)
-                const params = {
-                    branchId: filterBranch,
-                    staffId: filterStaff,
-                    paymentStatus: filterPayment
-                };
-                
-                const result = await adminBookingService.getAllBookings(params);
-                
-                if (result.success) {
-                    const currentCount = result.bookings?.length || 0;
-                    
-                    // If count increased → New booking!
-                    if (lastBookingCount > 0 && currentCount > lastBookingCount) {
-                        console.log('🔔 New booking detected via polling!');
-                        
-                        // Play notification sound (optional)
-                        try {
-                            const audio = new Audio('/notification.mp3');
-                            audio.play().catch(e => console.log('Audio play blocked:', e));
-                        } catch (e) {
-                            console.log('Audio not available');
-                        }
-                        
-                        // Show toast notification
-                        notification.success({
-                            message: '🔔 Đơn Đặt Lịch Mới!',
-                            description: `Có ${currentCount - lastBookingCount} đơn mới!`,
-                            duration: 8,
-                            placement: 'topRight'
-                        });
-                        
-                        // Auto-refresh booking list
-                        fetchData();
-                    }
-                    
-                    setLastBookingCount(currentCount);
-                }
-            } catch (error) {
-                console.error('Polling error:', error);
-            }
-        }, 10000); // Poll every 10 seconds
-        
-        return () => clearInterval(pollInterval);
-    }, [isInitialized, lastBookingCount, filterBranch, filterStaff, filterPayment]);
-
-    // [FIX] Add missing fetchData function
-    const fetchData = async () => {
-        setLoading(true);
-        try {
-            // 1. Fetch Resources (Rooms & Staff) FIRST
-            const [roomsRes, staffRes] = await Promise.all([
-                resourceService.getAllRooms(),
-                resourceService.getAllStaff()
-            ]);
-
-            // Handle Staff
-            if (staffRes.success) {
-                setStaffs(staffRes.staff || []);
-            }
-
-            // Handle Rooms and Build Resources + Lookup Map
-            let transformedResources = [];
-            let multiBedRoomMap = {}; // Map<roomId, boolean>
-
-            if (roomsRes.success || Array.isArray(roomsRes.rooms) || Array.isArray(roomsRes)) {
-                let allRooms = roomsRes.rooms || roomsRes;
-                if (!Array.isArray(allRooms)) allRooms = [];
-
-                console.log('🏠 Loaded', allRooms.length, 'rooms');
-
-                // Filter by branch
-                if (filterBranch) {
-                    allRooms = allRooms.filter(r => {
-                        const rBranchId = r.branchId?._id || r.branchId;
-                        return rBranchId === filterBranch;
-                    });
-                }
-
-                allRooms.forEach(room => {
-                    const capacity = room.capacity || 1;
-                    if (capacity > 1) {
-                        multiBedRoomMap[room._id] = true;
-                        for (let i = 1; i <= capacity; i++) {
-                            transformedResources.push({
-                                ...room,
-                                id: `${room._id}_bed_${i}`,
-                                title: `${room.name} - Giường ${i}`,
-                                parentRoomId: room._id,
-                                isBed: true
-                            });
-                        }
-                    } else {
-                        transformedResources.push({
-                            ...room,
-                            id: room._id,
-                            title: room.name
-                        });
-                    }
-                });
-
-                // Add Unassigned Resource
-                const unassignedRoom = {
-                    id: 'unassigned',
-                    title: '❓ Chưa Phân Phòng',
-                    type: 'unassigned',
-                    _id: 'unassigned'
-                };
-                
-                setRooms([unassignedRoom, ...transformedResources]);
-            }
-
-            // 2. Security Check for Bookings
-            let shouldFetchBookings = true;
-            if (userRole === 'admin' && !filterBranch) {
-                shouldFetchBookings = false;
-            }
-
-            // 3. Fetch Bookings if allowed
-            if (shouldFetchBookings) {
-                const params = {
-                    branchId: filterBranch,
-                    staffId: filterStaff,
-                    paymentStatus: filterPayment
-                };
-                
-                const result = await adminBookingService.getAllBookings(params);
-
-                if (result.success) {
-                    // Transform bookings
-                    const transformedBookings = (result.bookings || []).map((booking) => {
-                        try {
-                            let resourceId = null;
-                            if (booking.roomId) {
-                                resourceId = typeof booking.roomId === 'object' ? booking.roomId._id : booking.roomId;
-                                
-                                // [CRITICAL FIX] Map to Bed 1 for multi-bed rooms
-                                if (resourceId && multiBedRoomMap[resourceId]) {
-                                    resourceId = `${resourceId}_bed_1`;
-                                }
-                            }
-
-                            return {
-                                ...booking,
-                                start: new Date(booking.startTime),
-                                end: new Date(booking.endTime),
-                                title: booking.customerName || 'Khách',
-                                resourceId: resourceId || 'unassigned'
-                            };
-                        } catch (err) {
-                            return null;
-                        }
-                    }).filter(b => b !== null);
-                    
-                    setBookings(transformedBookings);
-                    console.log(`📅 Loaded ${transformedBookings.length} bookings`);
-
-                    // [NEW] Smart Calendar Date: Auto-focus logic
-                    // Only switch if current view has NO bookings
-                    if (transformedBookings.length > 0) {
-                         const currentViewStr = currentDate.format('YYYY-MM-DD');
-                         const hasBookingOnCurrentDate = transformedBookings.some(b => dayjs(b.start).format('YYYY-MM-DD') === currentViewStr);
-                         
-                         if (!hasBookingOnCurrentDate) {
-                             const dateCounts = {};
-                             transformedBookings.forEach(b => {
-                                 const d = dayjs(b.start).format('YYYY-MM-DD');
-                                 dateCounts[d] = (dateCounts[d] || 0) + 1;
-                             });
-                             
-                             const sortedDates = Object.entries(dateCounts).sort((a,b) => b[1] - a[1]);
-                             if (sortedDates.length > 0) {
-                                 const bestDate = dayjs(sortedDates[0][0]);
-                                 // console.log(`🎯 Smart Date: Switching to ${bestDate.format('YYYY-MM-DD')}`);
-                                 setCurrentDate(bestDate);
-                             }
-                         }
-                    }
-                }
-            }
-
-        } catch (error) {
-            console.error('FETCH ERROR:', error);
-            message.error('Không thể tải dữ liệu');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-
-    // [FIX] Add missing openCreateModal function
+    // [HANDLERS]
     const openCreateModal = () => {
         setIsModalVisible(true);
     };
 
-    // Fetch data when filters change
-    useEffect(() => {
-        if (!isInitialized) return; // [FIX] Block until auth loaded
+    // [HOOK] Actions
+    const {
+        handleCreateSubmit,
+        handleSearchSelect,
+        handleApprove,
+        handleInvoiceSubmit,
+        handleAction,
+        handleEventDrop,
+        handleEventResize,
+        handleWaitlistDrop
+    } = useBookingActions({
+        // Data
+        bookings, rooms, services, 
+        // State Values
+        filterBranch, draggedWaitlistItem,
+        // Actions
+        fetchData,
+        // Setters
+        setIsModalVisible, setDrawerVisible, setSelectedBooking, setIsEditing, setDraggedWaitlistItem, setRefreshWaitlist
+    });
 
-        // Both Admin and Owner can view all branches (filterBranch can be null)
-        fetchData();
-    }, [currentDate, filterBranch, filterStaff, filterPayment, isInitialized]);
+    const handleViewChange = (mode) => setViewMode(mode);
 
-    const handleCreateSubmit = async (values) => {
-        // Logic create giống cũ
-         const data = {
-             customerName: values.customerName,
-             phone: values.phone,
-             serviceName: values.serviceName,
-             date: values.date.format('YYYY-MM-DD'),
-             time: values.time,
-             branchId: filterBranch // [NEW] Pass selected branch
-         };
-         
-         if (!filterBranch) {
-             message.error("Vui lòng chọn chi nhánh trước khi tạo đơn!");
-             return;
-         }
-
-         await adminBookingService.createBooking(data);
-         message.success("Tạo đơn thành công");
-         setIsModalVisible(false);
-         fetchData();
+    // [NEW] Highlight calendar columns matching service type
+    const handleHighlightRoom = (waitlistItem) => {
+        const svc = (waitlistItem.serviceName || '').toLowerCase();
+        const headKw = ['gội', 'hair', 'tóc', 'head', 'dưỡng sinh', 'shampoo'];
+        const nailKw = ['nail', 'móng', 'sơn', 'gel', 'đắp', 'gắn', 'tháo'];
+        let roomType = 'BODY_SPA';
+        if (headKw.some(k => svc.includes(k))) roomType = 'HEAD_SPA';
+        else if (nailKw.some(k => svc.includes(k))) roomType = 'NAIL_SPA';
+        setHighlightRoomType(roomType);
+        // Extract preferred time (e.g. "14:00")
+        setHighlightTime(waitlistItem.preferredTime || null);
+        // Auto clear after 6 seconds
+        setTimeout(() => { setHighlightRoomType(null); setHighlightTime(null); }, 6000);
     };
 
-    // [FIX] Add missing search select handler
-    const handleSearchSelect = (value, option) => {
-        // When user selects a search result, open the booking in edit mode
-        const booking = option.booking;
-        if (booking) {
-            setSelectedBooking(booking);
-            setIsEditing(true);
-        }
-    };
-
-    // [FIX] Add missing view change handler
-    const handleViewChange = (mode) => {
-        setViewMode(mode);
-    };
-
-    // [FIX] Add missing approve handler
-    const handleApprove = async (bookingId) => {
-        try {
-            const result = await adminBookingService.approveBooking(bookingId);
-            if (result.success) {
-                message.success('Đã duyệt đơn');
-                await fetchData(); // Refresh to show updated booking
-            } else {
-                message.error(result.message || 'Không thể duyệt đơn');
-            }
-        } catch (error) {
-            message.error('Không thể duyệt đơn');
-        }
-    };
-
-    // [FIX] Add missing action handler
-    const handleAction = async (action, bookingId, data) => {
-        try {
-            let result;
-            switch(action) {
-                case 'checkIn':
-                    result = await adminBookingService.checkIn(bookingId);
-                    if (result.success) message.success('Check-in thành công');
-                    break;
-                case 'complete':
-                    result = await adminBookingService.completeBooking(bookingId);
-                    if (result.success) message.success('Hoàn thành');
-                    break;
-                case 'cancel':
-                    result = await adminBookingService.cancelBooking(bookingId);
-                    if (result.success) message.success('Đã hủy');
-                    break;
-                case 'update':
-                    result = await adminBookingService.updateBooking(bookingId, data);
-                    if (result.success) message.success('Đã cập nhật');
-                    break;
-                default:
-                    break;
-            }
-            
-            // Only refresh if action was successful
-            if (result && result.success) {
-                setDrawerVisible(false);
-                await fetchData(); // Refresh bookings list
-            } else if (result && !result.success) {
-                message.error(result.message || 'Thao tác thất bại');
-            }
-        } catch (error) {
-            message.error('Thao tác thất bại');
-        }
-    };
-
-    // [FIX] Add missing calendar drag handlers
-    const handleEventDrop = async ({ event, start, end, resourceId }) => {
-        try {
-            // [FIX] Handle Bed Resource ID (e.g. roomId_bed_1)
-            let finalRoomId = resourceId;
-            if (typeof resourceId === 'string' && resourceId.includes('_bed_')) {
-                 finalRoomId = resourceId.split('_bed_')[0];
-            }
-
-            await adminBookingService.updateBooking(event._id, {
-                startTime: start,
-                endTime: end,
-                roomId: finalRoomId
-            });
-            message.success('Đã chuyển lịch');
-            fetchData();
-        } catch (error) {
-            message.error('Không thể chuyển lịch');
-        }
-    };
-
-    const handleEventResize = async ({ event, start, end }) => {
-        try {
-            await adminBookingService.updateBooking(event._id, {
-                startTime: start,
-                endTime: end
-            });
-            message.success('Đã thay đổi thời gian');
-            fetchData();
-        } catch (error) {
-            message.error('Không thể thay đổi thời gian');
-        }
-    };
-
-    const handleWaitlistDrop = async ({ start, resourceId }) => {
-        // [FIX] Use state instead of event arg (which is unreliable from external drop)
-        const waitlistItem = draggedWaitlistItem;
-        
-        if (!waitlistItem) {
-            console.warn('No dragged waitlist item found');
+    // Intercept drawer actions that need invoice modal
+    const handleDrawerAction = async (action, bookingId, data) => {
+        if (action === 'complete') {
+            // Mở modal thanh toán, chưa gọi API
+            setDrawerVisible(false);
+            setIsInvoiceVisible(true);
             return;
         }
-
-        // [FIX] Handle Bed Resource ID (e.g. roomId_bed_1)
-        // If resourceId contains '_bed_', split it to get real roomId
-        let finalRoomId = resourceId;
-        if (typeof resourceId === 'string' && resourceId.includes('_bed_')) {
-             finalRoomId = resourceId.split('_bed_')[0];
-        }
-
-        // [FIX] Resolve Branch ID
-        // If filterBranch is present, use it.
-        // If not (Owner viewing all), find branch from the Target Room
-        let targetBranchId = filterBranch;
-        if (!targetBranchId) {
-            // Find room using finalRoomId or resourceId
-            // Note: rooms state now contains generated resources (flattened)
-            // So we can find by 'id' (resourceId) which matches the one in state
-            const targetResource = rooms.find(r => r.id === resourceId); 
-            
-            if (targetResource) {
-                targetBranchId = targetResource.branchId?._id || targetResource.branchId;
+        if (action === 'view_invoice') {
+            const bookingObj = typeof bookingId === 'object' ? bookingId : bookings.find(b => b._id === bookingId);
+            if (bookingObj) {
+                setSelectedBooking(bookingObj);
+                const result = await adminBookingService.getInvoices({ bookingId: bookingObj._id });
+                const inv = Array.isArray(result) ? result[0] : (result.invoices?.[0] || null);
+                if (!inv) { message.warning('Chưa có hóa đơn cho đơn này'); return; }
+                setViewingInvoice(inv);
+                setIsInvoiceVisible(true);
             }
+            return;
         }
-
-        if (!targetBranchId) {
-             message.error('Không xác định được chi nhánh cho phòng này');
-             return;
-        }
-
-        try {
-            await adminBookingService.createBooking({
-                customerName: waitlistItem.customerName,
-                phone: waitlistItem.phone,
-                serviceName: waitlistItem.serviceName,
-                date: dayjs(start).format('YYYY-MM-DD'),
-                time: dayjs(start).format('HH:mm'),
-                branchId: targetBranchId,
-                roomId: finalRoomId // Use the real Room ID
-            });
-            
-            // Validate and Remove from Waitlist if success
-            await adminBookingService.deleteWaitlist(waitlistItem._id);
-            
-            message.success(`Đã xếp lịch cho ${waitlistItem.customerName}`);
-            setDraggedWaitlistItem(null); // Clear state
-            
-            fetchData();
-            // Trigger refresh waitlist sidebar
-            setRefreshWaitlist(prev => prev + 1);
-        } catch (error) {
-            console.error('Drop Error:', error);
-            message.error('Không thể tạo booking');
-        }
+        // Các action khác gọi bình thường
+        handleAction(action, bookingId, data);
     };
-
-    // [FIX] Add missing invoice submit handler
-    const handleInvoiceSubmit = async (invoiceData) => {
-        try {
-            // Process payment and complete booking
-            await adminBookingService.createInvoice(invoiceData);
-            message.success('Thanh toán thành công');
-            setSelectedBooking(null);
-            fetchData();
-        } catch (error) {
-            message.error('Thanh toán thất bại');
-        }
-    };
-
-
-    // ... (rest of handlers)
 
     return (
         <ConfigProvider theme={{ token: { fontFamily: theme.fonts.body, colorPrimary: theme.colors.primary[500] } }}>
-            <div style={{ padding: '16px', height: '100vh', background: '#f0f2f5', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <style>{`
+                /* Mobile responsive */
+                @media (max-width: 768px) {
+                    .booking-manager-container {
+                        padding: 8px !important;
+                    }
+                    .booking-manager-container h3 {
+                        font-size: 18px !important;
+                    }
+                }
+                @media (max-width: 480px) {
+                    .booking-manager-container {
+                        padding: 4px !important;
+                    }
+                    .booking-manager-container h3 {
+                        font-size: 16px !important;
+                    }
+                }
+                
+                /* Zoom-aware responsive (detects small viewport from zoom) */
+                @media (max-width: 1400px) {
+                    .booking-manager-container {
+                        padding: 12px !important;
+                    }
+                }
+                @media (max-width: 1000px) {
+                    .booking-manager-container {
+                        padding: 8px !important;
+                    }
+                }
+                
+                /* Mobile header fixes */
+                @media (max-width: 768px) {
+                    .booking-header-section {
+                        flex-direction: column !important;
+                        align-items: flex-start !important;
+                        gap: 12px !important;
+                    }
+                    .booking-header-title {
+                        width: 100%;
+                    }
+                    .booking-sidebar-container {
+                        display: none !important; /* Hide sidebar on mobile */
+                    }
+                }
+                @media (max-width: 480px) {
+                    .booking-header-section {
+                        margin-bottom: 8px !important;
+                    }
+                }
+            `}</style>
+            <div className="booking-manager-container" style={{ padding: '16px', minHeight: '100vh', background: '#f0f2f5', overflow: 'auto', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                 
                 {/* HEADER - TRANSPARENT & CLEAN */}
-                <div style={{ 
+                <div className="booking-header-section" style={{ 
                     marginTop: 8,
                     marginBottom: 16,
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     alignItems: 'center', 
-                    flexShrink: 0
+                    flexShrink: 0,
+                    gap: 16,
+                    flexWrap: 'wrap'
                 }}>
-                    <div>
+                    <div className="booking-header-title" style={{ minWidth: 'fit-content' }}>
                          {/* Title */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <Title level={3} style={{ margin: 0, fontFamily: theme.fonts.heading, color: '#1f1f1f' }}>Quản Lý Đặt Lịch</Title>
-                            <Tag color="cyan" style={{ borderRadius: 12 }}>Admin Portal</Tag>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                            <Title level={3} style={{ margin: 0, fontFamily: theme.fonts.heading, color: '#1f1f1f', whiteSpace: 'nowrap', minWidth: 'max-content', fontSize: 'clamp(18px, 5vw, 24px)' }}>Quản Lý Đặt Lịch</Title>
+                            <Tag color="cyan" style={{ borderRadius: 12, whiteSpace: 'nowrap' }}>Admin Portal</Tag>
                         </div>
                     </div>
                     
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                         
-                         {/* [NEW] BRANCH SELECTOR */}
-                         {(userRole === 'owner' || (userRole === 'admin' && managedBranches.length > 1)) && (
-                             <Select
-                                placeholder="🏢 Chọn Chi Nhánh"
-                                style={{ width: 220, border: '1px solid #D4Af37', borderRadius: 8 }}
-                                value={filterBranch}
-                                onChange={setFilterBranch}
-                                // [FIX] Only Owner can clear (to see all branches), Admin cannot clear
-                                allowClear={userRole === 'owner'}
-                                options={[
-                                    // [FIX] Add 'All Branches' option for Owner
-                                    ...(userRole === 'owner' ? [{ value: null, label: 'Tất cả chi nhánh' }] : []),
-                                    ...managedBranches.map(b => ({ 
-                                        value: b._id || b, 
-                                        label: b.name || `Chi nhánh ${b._id || b}` 
-                                    }))
-                                ]}
-                            />
-                         )}
-
-                         {/* [NEW] ADVANCED FILTERS */}
-                         <Select
-                            placeholder="👤 Lọc Nhân Viên"
-                            allowClear
-                            style={{ width: 160 }}
-                            onChange={setFilterStaff}
-                            options={staffs.map(s => ({ value: s._id, label: s.name }))}
-                        />
-
-                        {/* [REMOVED Payment Filter as per user request] */}
-
-                         <AutoComplete
-                            style={{ width: 280, background: 'white', borderRadius: 8 }}
-                            allowClear
-                            filterOption={false} // [FIX] Disable local filter (server-side search)
-                            placeholder="🔍 Tìm nhanh..."
-                            options={searchResults.map(b => ({
-                                // [FIX] Value MUST be unique. Appending time prevents duplicates & React Crash.
-                                value: `${b.customerName} - ${dayjs(b.startTime).format('DD/MM HH:mm')}`, 
-                                label: (
-                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <strong>{b.customerName}</strong>
-                                        <span style={{ fontSize: 12, color: '#888' }}>{dayjs(b.startTime).format('DD/MM HH:mm')}</span>
-                                    </div>
-                                ),
-                                booking: b 
-                            }))}
-                            onSelect={handleSearchSelect}
-                            onSearch={(val) => {
-                                // Add search logic that was missing
-                                if (val.length >= 1) { // [FIX] Search immediately from 1 char
-                                    adminBookingService.searchBookings(val).then(res => {
-                                        if (res && (res.success || Array.isArray(res))) {
-                                            // Handle both API response structures
-                                            const results = Array.isArray(res) ? res : (res.bookings || res.data); // [FIX] Access correct property
-                                            setSearchResults(results || []);
-                                        }
-                                    });
-                                }
-                            }}
-                        />
-
-                        {/* CUSTOM GOLD TOGGLE - MATCHING SCREENSHOT */}
-                        <div style={{ 
-                            display: 'flex', 
-                            background: 'white', 
-                            borderRadius: 8, 
-                            border: '1px solid #d9d9d9', 
-                            // overflow: 'hidden', // REMOVED to allow badge overlap
-                            height: 40,
-                            position: 'relative' // Ensure stacking context
-                        }}>
-                            <div 
-                                onClick={() => handleViewChange('calendar')}
-                                style={{ 
-                                    width: 60, 
-                                    display: 'flex', 
-                                    justifyContent: 'center', 
-                                    alignItems: 'center', 
-                                    cursor: 'pointer',
-                                    background: viewMode === 'calendar' ? '#D4Af37' : 'white', 
-                                    color: viewMode === 'calendar' ? 'white' : 'black',
-                                    transition: 'all 0.3s',
-                                    borderTopLeftRadius: 7,
-                                    borderBottomLeftRadius: 7
-                                }}
-                            >
-                                <AppstoreOutlined style={{ fontSize: 20 }} />
-                            </div>
-                            <div style={{ width: 1, background: '#f0f0f0' }}></div>
-                            <div 
-                                onClick={() => handleViewChange('list')}
-                                style={{ 
-                                    width: 60, 
-                                    display: 'flex', 
-                                    justifyContent: 'center', 
-                                    alignItems: 'center', 
-                                    cursor: 'pointer',
-                                    background: viewMode === 'list' ? '#D4Af37' : 'white',
-                                    color: viewMode === 'list' ? 'white' : 'black',
-                                    position: 'relative',
-                                    transition: 'all 0.3s',
-                                    borderTopRightRadius: 7,
-                                    borderBottomRightRadius: 7
-                                }}
-                            >
-                                <BarsOutlined style={{ fontSize: 20 }} />
-                                {pendingCount > 0 && (
-                                    <div style={{
-                                        position: 'absolute',
-                                        top: -10, // Moved up
-                                        right: -10, // Moved right outside
-                                        background: '#ff4d4f',
-                                        color: 'white',
-                                        fontSize: 11,
-                                        fontWeight: 'bold',
-                                        height: 20,
-                                        minWidth: 20,
-                                        borderRadius: 10,
-                                        display: 'flex', 
-                                        justifyContent: 'center', 
-                                        alignItems: 'center',
-                                        padding: '0 4px',
-                                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                                        zIndex: 100
-                                    }}>
-                                        {pendingCount}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <Button 
-                            type="primary" 
-                            icon={<PlusOutlined />} 
-                            onClick={openCreateModal}
-                            style={{ 
-                                height: 40, 
-                                background: '#D4Af37', // Gold 
-                                borderColor: '#D4Af37',
-                                width: 100,
-                                fontSize: 15,
-                                fontWeight: 500
-                            }}
-                        >
-                            Tạo Đơn
-                        </Button>
-                    </div>
+                    <BookingToolbar 
+                        userRole={userRole}
+                        managedBranches={managedBranches}
+                        filterBranch={filterBranch}
+                        setFilterBranch={setFilterBranch}
+                        staffs={staffs}
+                        filterStaff={filterStaff}
+                        setFilterStaff={setFilterStaff}
+                        currentDate={currentDate}
+                        setCurrentDate={setCurrentDate}
+                        viewMode={viewMode}
+                        setViewMode={(mode) => handleViewChange(mode)}
+                        pendingCount={pendingCount}
+                        onNewBooking={openCreateModal}
+                        onSearchSelect={handleSearchSelect}
+                    />
                 </div>
 
                 {/* STATS HEADER */}
@@ -703,54 +236,42 @@ const BookingManager = () => {
                 </div>
 
                 {/* MAIN CONTENT AREA - FULL HEIGHT & WIDTH */}
-                <div style={{ flex: 1, display: 'flex', gap: 16, minHeight: 0 }}>
+                <div style={{ display: 'flex', gap: 16 }}>
                     
-                    {/* LEFT: CALENDAR (Flexible, Full Width) */}
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
-                        {viewMode === 'calendar' ? (
-                            <div style={{ flex: 1, height: '100%', overflow: 'hidden' }}>
-                                <DnDCalendarView 
-                                    events={bookings} 
-                                    resources={rooms}
-                                    date={currentDate.toDate()}
-                                    onNavigate={(d) => setCurrentDate(dayjs(d))}
-                                    onEventDrop={handleEventDrop}
-                                    onEventResize={handleEventResize}
-                                    highlightBookingId={highlightBookingId} 
-                                    onSelectEvent={(event) => {
-                                        setSelectedBooking(event);
-                                        setDrawerVisible(true);
-                                    }}
-                                    onSelectSlot={(slotInfo) => {
-                                         // Quick create on click logic if needed
-                                    }}
-                                    onDropFromOutside={handleWaitlistDrop} // [NEW]
-                                />
-                            </div>
-                        ) : (
-                            <div style={{ flex: 1, overflowY: 'auto' }}>
-                                <BookingListView 
-                                    bookings={bookings}
-                                    loading={loading}
-                                    filterDate={currentDate}
-                                    setFilterDate={setCurrentDate}
-                                    onCreate={openCreateModal}
-                                    onApprove={handleApprove}
-                                    onEdit={(record) => {
-                                        setSelectedBooking(record);
-                                        setDrawerVisible(true); 
-                                    }}
-                                />
-                            </div>
-                        )}
-                    </div>
+                    {/* LEFT: CALENDAR/LIST VIEW */}
+                    <BookingCalendarView 
+                        viewMode={viewMode}
+                        bookings={bookings}
+                        rooms={rooms}
+                        loading={loading}
+                        currentDate={currentDate}
+                        setCurrentDate={setCurrentDate}
+                        highlightBookingId={highlightBookingId}
+                        onEventDrop={handleEventDrop}
+                        onEventResize={handleEventResize}
+                        onWaitlistDrop={handleWaitlistDrop}
+                        draggedWaitlistItem={draggedWaitlistItem}
+                        highlightRoomType={highlightRoomType}
+                        highlightTime={highlightTime}
+                        onSelectEvent={(event) => {
+                            setSelectedBooking(event);
+                            setDrawerVisible(true);
+                        }}
+                        onSelectSlot={(slotInfo) => {
+                            // Quick create on click logic if needed
+                        }}
+                        openCreateModal={openCreateModal}
+                        handleApprove={handleApprove}
+                    />
 
                     {/* RIGHT: DYNAMIC SIDEBAR (Collapsible) - Always visible */}
-                    <div style={{ 
+                    <div className="booking-sidebar-container" style={{ 
                         position: 'relative',
-                        width: sidebarCollapsed ? 60 : 270, // [FIX] Force layout shift
+                        width: sidebarCollapsed ? 60 : Math.min(270, window.innerWidth * 0.25),
+                        minWidth: sidebarCollapsed ? 60 : 200,
+                        maxWidth: sidebarCollapsed ? 60 : 300,
                         transition: 'width 0.3s ease-in-out',
-                        flexShrink: 0 // Prevent sidebar form shrinking
+                        flexShrink: 1
                     }}>
                         {/* Floating Badge (outside sidebar) */}
                         {sidebarCollapsed && waitlist.length > 0 && (
@@ -800,14 +321,16 @@ const BookingManager = () => {
                             // Expanded: Show full sidebar
                             <div 
                                 style={{ 
-                                    width: 260,
+                                    width: '100%',
+                                    minWidth: 200,
+                                    maxWidth: 300,
                                     background: 'white', 
                                     borderRadius: 12, 
                                     boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
                                     display: 'flex', 
                                     flexDirection: 'column',
                                     height: '100%',
-                                    flexShrink: 0,
+                                    flexShrink: 1,
                                     border: '1px solid #f0f0f0',
                                     position: 'relative',
                                     transition: 'all 0.3s ease-in-out',
@@ -821,6 +344,7 @@ const BookingManager = () => {
                                        refreshTrigger={refreshWaitlist}
                                        onDragStart={(item) => setDraggedWaitlistItem(item)}
                                        onCollapse={() => setSidebarCollapsed(true)}
+                                       onHighlightRoom={handleHighlightRoom}
                                     />
                                 ) : (
                                     <CustomerInfoSidebar 
@@ -840,83 +364,32 @@ const BookingManager = () => {
                 </div>
                 {/* DRAWER (DETAILS) */}
                 <BookingDrawer 
-                    open={drawerVisible} // visible is deprecated too, use open
-                    width={720} // width is fine in newer antd if not using 'size', but 'visible' -> 'open' is crucial
+                    open={drawerVisible}
                     onClose={() => setDrawerVisible(false)}
                     booking={selectedBooking}
-                    onAction={handleAction}
+                    onAction={handleDrawerAction}
+                    services={services}
                 />
 
                 {/* MODAL (CREATE ONLY) */}
-                <Modal 
-                    title="Tạo Đơn Mới" 
-                    open={isModalVisible} 
+                {/* [NEW] STYLE FOR MODAL */}
+                <style>{`
+                    .booking-create-modal .ant-input, 
+                    .booking-create-modal .ant-select-selection-item,
+                    .booking-create-modal .ant-select-selector,
+                    .booking-create-modal input {
+                        color: #000000 !important; /* Force Black Text */
+                        background-color: #ffffff !important;
+                    }
+                    .booking-create-modal .ant-select-arrow {
+                        color: #000000 !important;
+                    }
+                `}</style>
+                <BookingCreateModal 
+                    visible={isModalVisible} 
                     onCancel={() => setIsModalVisible(false)}
-                    footer={null}
-                    wrapClassName="booking-create-modal"
-                >
-                    {/* Brute Force CSS Injection to fix invisible text */}
-                    <style>{`
-                        .booking-create-modal .ant-input, 
-                        .booking-create-modal .ant-select-selection-item,
-                        .booking-create-modal .ant-select-selector,
-                        .booking-create-modal input {
-                            color: #000000 !important; /* Force Black Text */
-                            background-color: #ffffff !important;
-                        }
-                        .booking-create-modal .ant-select-arrow {
-                            color: #000000 !important;
-                        }
-                    `}</style>
-                    
-                     <Form form={form} onFinish={handleCreateSubmit} layout="vertical">
-                        {/* CUSTOMER SEARCH (CRM) */}
-                        <Form.Item label="SĐT" name="phone" rules={[{ required: true, message: 'Nhập SĐT' }]}>
-                            <AutoComplete
-                                placeholder="Nhập SĐT để tìm khách quen..."
-                                onSearch={async (value) => {
-                                    if (value.length > 2) {
-                                        const res = await adminBookingService.searchCustomers(value);
-                                        if (res.success) {
-                                            setCustomerOptions(res.customers.map(c => ({
-                                                value: c.phone,
-                                                label: (
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                        <span>
-                                                            <strong>{c.name}</strong> 
-                                                            {c.totalVisits > 5 && <Tag color="gold" style={{marginLeft: 5}}>VIP</Tag>}
-                                                        </span>
-                                                        <span style={{ color: '#888' }}>{c.phone}</span>
-                                                    </div>
-                                                ),
-                                                customer: c // Keep full obj
-                                            })));
-                                        }
-                                    }
-                                }}
-                                onSelect={(value, option) => {
-                                    // Autofill
-                                    form.setFieldsValue({ customerName: option.customer.name });
-                                    message.success(`Đã chọn: ${option.customer.name} (${option.customer.totalVisits} lần ghé)`);
-                                }}
-                                options={customerOptions}
-                            />
-                        </Form.Item>
-
-                        <Form.Item label="Tên" name="customerName" rules={[{ required: true }]}>
-                            <Input /> 
-                        </Form.Item>
-                        
-                        <Form.Item label="Dịch vụ" name="serviceName" rules={[{ required: true }]}>
-                             <Select>{SERVICES_LIST.map(s=><Option key={s} value={s}>{s}</Option>)}</Select>
-                        </Form.Item>
-                        <Form.Item label="Ngày" name="date" rules={[{ required: true }]}><DatePicker style={{width:'100%'}}/></Form.Item>
-                        <Form.Item label="Giờ" name="time" rules={[{ required: true }]}>
-                             <Select>{TIME_SLOTS.map(t=><Option key={t} value={t}>{t}</Option>)}</Select>
-                        </Form.Item>
-                        <Button type="primary" htmlType="submit" block>TẠO</Button>
-                     </Form>
-                </Modal>
+                    onCreate={handleCreateSubmit}
+                />
 
                 {/* [NEW] INVOICE MODAL */}
                 <InvoiceModal
@@ -925,9 +398,13 @@ const BookingManager = () => {
                         setIsInvoiceVisible(false);
                         setViewingInvoice(null);
                     }}
-                    booking={selectedBooking}
-                    invoice={viewingInvoice} // Pass viewed invoice
-                    onSubmit={handleInvoiceSubmit}
+                    booking={viewingInvoice ? null : selectedBooking}
+                    invoice={viewingInvoice}
+                    onSubmit={async (invoiceData) => {
+                        await handleInvoiceSubmit(invoiceData);
+                        setIsInvoiceVisible(false);
+                        setViewingInvoice(null);
+                    }}
                 />
 
             </div>

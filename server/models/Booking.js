@@ -21,7 +21,13 @@ const BookingSchema = new mongoose.Schema({
   roomId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Room',
-    default: null // Sẽ thành mandatory khi logic hoàn thiện
+    default: null
+  },
+  // [MULTI-BED] Giường cụ thể trong phòng
+  bedId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Bed',
+    default: null
   },
 
   // Thời gian bắt đầu và kết thúc (Quan trọng để check trùng)

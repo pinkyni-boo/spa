@@ -7,7 +7,7 @@ const PromotionUsage = require('../models/PromotionUsage'); // [NEW] Link Usage
 // 1. Create Invoice (Checkout)
 exports.createInvoice = async (req, res) => {
     try {
-        const { bookingId, customerName, phone, items, subTotal, discount, tax, finalTotal, paymentMethod, cashierName, promotionId, pointsUsed } = req.body;
+        const { bookingId, customerName, phone, items, subTotal, discount, tax, finalTotal, tipAmount, tipStaffName, surchargeFee, paymentMethod, cashierName, promotionId, pointsUsed } = req.body;
 
         // Validation
         if (!finalTotal && finalTotal !== 0) { // Check undefined/null but allow 0
@@ -68,9 +68,13 @@ exports.createInvoice = async (req, res) => {
             subTotal,
             discount,
             tax,
+            tipAmount: tipAmount || 0,
+            tipStaffName: tipStaffName || '',
+            surchargeFee: surchargeFee || 0,
             finalTotal,
             paymentMethod,
             cashierName,
+            branchId: req.user?.branchId || null,
             note: promotionId ? `Used Promotion: ${promotionId}` : (pointsUsed ? `Used ${pointsUsed} pts` : '')
         });
 

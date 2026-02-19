@@ -84,10 +84,18 @@ const ServiceManager = () => {
             width: '20%',
         },
         {
-            title: 'Danh mục',
-            dataIndex: 'category',
-            key: 'category',
-            render: (cat) => <Tag color="blue">{cat}</Tag>
+            title: 'Loại Phòng',
+            dataIndex: 'requiredRoomType',
+            key: 'requiredRoomType',
+            render: (type) => {
+                let color = 'default';
+                let text = 'Mặc định (Body)';
+                if (type === 'BODY_SPA') { color = 'volcano'; text = 'Body Spa'; }
+                else if (type === 'HEAD_SPA') { color = 'blue'; text = 'Gội Đầu'; }
+                else if (type === 'NAIL_SPA') { color = 'purple'; text = 'Nail'; }
+                else if (type === 'OTHER') { color = 'orange'; text = 'Khác'; }
+                return <Tag color={color}>{text}</Tag>;
+            }
         },
         {
             title: 'Giá (VND)',
@@ -189,13 +197,12 @@ const ServiceManager = () => {
                         </Form.Item>
                     </div>
 
-                    <Form.Item name="category" label="Danh mục" rules={[{ required: true }]}>
+                    <Form.Item name="requiredRoomType" label="Loại phòng bắt buộc" rules={[{ required: true }]} initialValue="BODY_SPA" tooltip="Chọn loại phòng để hệ thống tự động xếp vào đúng khu vực khi đặt lịch.">
                         <Select>
-                            <Option value="Body">Massage Body</Option>
-                            <Option value="Face">Chăm sóc Face</Option>
-                            <Option value="Head">Gội đầu (Head)</Option>
-                            <Option value="Combo">Combo</Option>
-                            <Option value="Other">Khác</Option>
+                            <Option value="BODY_SPA">🛁 Khu Body Spa (Mặc định)</Option>
+                            <Option value="HEAD_SPA">💆 Khu Gội Đầu</Option>
+                            <Option value="NAIL_SPA">💅 Khu Nail</Option>
+                            <Option value="OTHER">❓ Khác</Option>
                         </Select>
                     </Form.Item>
 

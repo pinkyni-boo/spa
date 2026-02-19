@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Card, Button, Typography, Tag, List, message, Input, Form, Modal, Select, Tooltip, TimePicker } from 'antd';
-import { UserAddOutlined, DragOutlined, DeleteOutlined, PlusOutlined, ClockCircleOutlined, UserOutlined, LeftOutlined } from '@ant-design/icons';
+import { UserAddOutlined, DragOutlined, DeleteOutlined, PlusOutlined, ClockCircleOutlined, UserOutlined, LeftOutlined, SearchOutlined, AimOutlined } from '@ant-design/icons';
 import { adminBookingService } from '../../../services/adminBookingService';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -11,11 +11,12 @@ dayjs.locale('vi');
 
 const { Title, Text } = Typography;
 
-const WaitlistSidebar = ({ waitlist, setWaitlist, refreshTrigger, onDragStart, onCollapse }) => {
+const WaitlistSidebar = ({ waitlist, setWaitlist, refreshTrigger, onDragStart, onCollapse, onHighlightRoom }) => {
     
     // UI Local State for Modal
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [form] = Form.useForm();
+    const [searchText, setSearchText] = useState('');
     
     // 1. INIT
     const fetchWaitlist = async () => {
@@ -66,9 +67,33 @@ const WaitlistSidebar = ({ waitlist, setWaitlist, refreshTrigger, onDragStart, o
         if(onDragStart) onDragStart(item);
     };
 
+    const filteredWaitlist = useMemo(() => {
+        if (!waitlist) return [];
+        if (!searchText.trim()) return waitlist;
+        const q = searchText.toLowerCase();
+        return waitlist.filter(item =>
+            (item.customerName || '').toLowerCase().includes(q) ||
+            (item.serviceName || '').toLowerCase().includes(q) ||
+            (item.phone || '').includes(q)
+        );
+    }, [waitlist, searchText]);
+
+    // last item = item cuối cùng trong danh sách gốc (mới nhất)
+    const lastItemId = waitlist && waitlist.length > 0 ? waitlist[waitlist.length - 1]._id : null;
+
     return (
         <div style={{ padding: '16px', height: '100%', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <style>{`
+                @keyframes waitlist-pulse {
+                    0%, 100% { border-color: #faad14; box-shadow: 0 0 0 0 rgba(250,173,20,0); }
+                    50% { border-color: #fa8c16; box-shadow: 0 0 0 4px rgba(250,173,20,0.35); }
+                }
+                .waitlist-last-item {
+                    animation: waitlist-pulse 1.6s ease-in-out infinite;
+                }
+            `}</style>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     {onCollapse && (
                         <Button 
@@ -84,36 +109,60 @@ const WaitlistSidebar = ({ waitlist, setWaitlist, refreshTrigger, onDragStart, o
                 <Button size="small" type="primary" onClick={() => setIsModalVisible(true)} icon={<PlusOutlined />}>Thêm</Button>
             </div>
 
-            {/* Custom List Rendering - Replaces deprecated AntD List */}
+            {/* SEARCH BAR */}
+            <Input
+                placeholder="Tìm tên / dịch vụ / SĐT..."
+                prefix={<SearchOutlined style={{ color: '#bbb' }} />}
+                allowClear
+                size="small"
+                value={searchText}
+                onChange={e => setSearchText(e.target.value)}
+                style={{ marginBottom: 12 }}
+            />
+
+            {/* Custom List Rendering */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {waitlist && waitlist.map(item => (
+                {filteredWaitlist.map(item => (
                     <Card
                         key={item._id}
                         size="small"
                         draggable
                         onDragStart={(e) => handleDragStart(e, item)}
-                        style={{ cursor: 'grab', borderColor: '#d9d9d9', userSelect: 'none' }}
+                        className={item._id === lastItemId ? 'waitlist-last-item' : ''}
+                        style={{ cursor: 'grab', borderColor: item._id === lastItemId ? '#faad14' : '#d9d9d9', userSelect: 'none' }}
                         hoverable
                     >
-                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                             <div>
+                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <Text strong><UserOutlined/> {item.customerName}</Text>
                                 <div style={{ fontSize: 12, color: '#888' }}>{item.serviceName} ({item.duration}p)</div>
                                 {item.note && <div style={{ fontSize: 11, color: '#faad14' }}>Note: {item.note}</div>}
                                 <div style={{ fontSize: 11, color: '#aaa' }}><ClockCircleOutlined/> Chờ: {dayjs(item.createdAt).fromNow(true)}</div>
                              </div>
-                             <Button 
-                                type="text" 
-                                danger 
-                                icon={<DeleteOutlined />} 
-                                size="small"
-                                onClick={(e) => handleDelete(item._id, e)}
-                             />
+                             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginLeft: 4 }}>
+                                 <Tooltip title="Tìm phòng phù hợp trên lịch">
+                                     <Button
+                                         type="text"
+                                         icon={<AimOutlined style={{ color: '#1890ff' }} />}
+                                         size="small"
+                                         onClick={(e) => { e.stopPropagation(); if (onHighlightRoom) onHighlightRoom(item); }}
+                                     />
+                                 </Tooltip>
+                                 <Button 
+                                    type="text" 
+                                    danger 
+                                    icon={<DeleteOutlined />} 
+                                    size="small"
+                                    onClick={(e) => handleDelete(item._id, e)}
+                                 />
+                             </div>
                         </div>
                     </Card>
                 ))}
-                {(!waitlist || waitlist.length === 0) && (
-                    <div style={{ textAlign: 'center', color: '#ccc', padding: '20px 0' }}>Chưa có khách chờ</div>
+                {filteredWaitlist.length === 0 && (
+                    <div style={{ textAlign: 'center', color: '#ccc', padding: '20px 0' }}>
+                        {searchText ? 'Không tìm thấy khách phù hợp' : 'Chưa có khách chờ'}
+                    </div>
                 )}
             </div>
 

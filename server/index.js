@@ -61,10 +61,12 @@ const seedData = async () => {
 seedData();
 
 const apiRoutes = require('./routes/api');
+const { authLimiter } = require('./middleware/rateLimiter'); // [NEW] Rate Limiting
+const ActionLogController = require('./controllers/ActionLogController'); // [NEW] Audit Logging
 app.use('/api', apiRoutes);
 
 // --- 6. API ĐĂNG NHẬP ---
-app.post('/login', async (req, res) => {
+app.post('/login', authLimiter, async (req, res) => {
   const { username, password } = req.body;
   console.log("React đang gửi lên:", username, password);
 
@@ -78,12 +80,16 @@ app.post('/login', async (req, res) => {
       const token = jwt.sign(
         { 
             id: user._id, 
+            username: user.username,
             role: user.role, 
-            branchId: user.managedBranches?.[0] // Simple primary branch for now
+            branchId: user.managedBranches?.[0]?._id || null
         }, 
         'miu_spa_secret_2024', 
         { expiresIn: '24h' }
       );
+
+      // [AUDIT] Log login event
+      ActionLogController.createLog(req, user, 'AUTH_LOGIN', 'User', user._id, user.username);
 
       res.json({ 
           success: true, 

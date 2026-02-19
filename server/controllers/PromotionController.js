@@ -1,6 +1,7 @@
 const Promotion = require('../models/Promotion');
 const PromotionUsage = require('../models/PromotionUsage');
 const Booking = require('../models/Booking'); // [NEW] For conflict checking
+const ActionLogController = require('./ActionLogController');
 
 // Get all promotions
 exports.getAllPromotions = async (req, res) => {
@@ -77,7 +78,7 @@ exports.createPromotion = async (req, res) => {
         console.log('[CREATE PROMOTION] Request body:', JSON.stringify(req.body, null, 2)); // [DEBUG] Log request
         const promotion = new Promotion(req.body);
         await promotion.save();
-        
+        ActionLogController.createLog(req, req.user, 'PROMOTION_CREATE', 'Promotion', promotion._id, promotion.name || promotion.code);
         res.json({
             success: true,
             message: 'Promotion created successfully',
@@ -107,7 +108,7 @@ exports.updatePromotion = async (req, res) => {
         if (!promotion) {
             return res.status(404).json({ success: false, message: 'Promotion not found' });
         }
-        
+        ActionLogController.createLog(req, req.user, 'PROMOTION_UPDATE', 'Promotion', promotion._id, promotion.name || promotion.code);
         res.json({
             success: true,
             message: 'Promotion updated successfully',
@@ -131,7 +132,7 @@ exports.deletePromotion = async (req, res) => {
         if (!promotion) {
             return res.status(404).json({ success: false, message: 'Promotion not found' });
         }
-        
+        ActionLogController.createLog(req, req.user, 'PROMOTION_DELETE', 'Promotion', promotion._id, promotion.name || promotion.code);
         res.json({
             success: true,
             message: 'Promotion deactivated successfully',

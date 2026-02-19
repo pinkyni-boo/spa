@@ -5,7 +5,27 @@ html, body, #root {
   padding: 0;
   width: 100vw;
   box-sizing: border-box;
-  overflow-x: hidden; /* Ngăn scroll ngang */
+  overflow-x: hidden;
+}
+
+/* Fix input text màu tối — chỉ áp dụng cho form nền sáng (.light-form) */
+.light-form input,
+.light-form textarea,
+.light-form .ant-input,
+.light-form .ant-input-affix-wrapper input,
+.light-form .ant-input-textarea textarea,
+.light-form .ant-select-selection-item,
+.light-form .ant-select-selection-placeholder,
+.light-form .ant-picker-input input {
+  color: #1C1F1A !important;
+  background-color: #ffffff !important;
+  -webkit-text-fill-color: #1C1F1A !important;
+}
+
+.light-form textarea.ant-input {
+  color: #1C1F1A !important;
+  background-color: #ffffff !important;
+  -webkit-text-fill-color: #1C1F1A !important;
 }
 
 *,

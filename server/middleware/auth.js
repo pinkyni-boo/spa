@@ -29,6 +29,23 @@ exports.verifyToken = (req, res, next) => {
     }
 };
 
+// Middleware: Optional Auth — parses token if present, silently continues if not
+exports.optionalAuth = (req, res, next) => {
+    try {
+        const authHeader = req.headers['authorization'];
+        if (authHeader) {
+            const token = authHeader.split(' ')[1];
+            if (token) {
+                const decoded = jwt.verify(token, JWT_SECRET);
+                req.user = decoded;
+            }
+        }
+    } catch (_) {
+        // Invalid token — just ignore, proceed as unauthenticated
+    }
+    next();
+};
+
 // Middleware: Check Role
 exports.checkRole = (roles) => {
     return (req, res, next) => {

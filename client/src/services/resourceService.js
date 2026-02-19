@@ -17,6 +17,51 @@ export const resourceService = {
       return { success: false, message: 'Network error' };
     }
   },
+
+  // --- BEDS (MULTI-BED) ---
+  getAllBeds: async (params = {}) => {
+    try {
+      const qs = new URLSearchParams(params).toString();
+      const response = await fetch(`${API_URL}/api/beds${qs ? '?' + qs : ''}`, {
+        headers: getAuthHeaders()
+      });
+      return await response.json();
+    } catch (error) {
+      return { success: false, message: 'Network error' };
+    }
+  },
+  createBed: async (data) => {
+    try {
+      const response = await fetch(`${API_URL}/api/beds`, {
+        method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(data)
+      });
+      return await response.json();
+    } catch (error) { return { success: false, message: 'Network error' }; }
+  },
+  updateBed: async (id, data) => {
+    try {
+      const response = await fetch(`${API_URL}/api/beds/${id}`, {
+        method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(data)
+      });
+      return await response.json();
+    } catch (error) { return { success: false, message: 'Network error' }; }
+  },
+  deleteBed: async (id) => {
+    try {
+      const response = await fetch(`${API_URL}/api/beds/${id}`, {
+        method: 'DELETE', headers: getAuthHeaders()
+      });
+      return await response.json();
+    } catch (error) { return { success: false, message: 'Network error' }; }
+  },
+  autoCreateBeds: async (roomId) => {
+    try {
+      const response = await fetch(`${API_URL}/api/rooms/${roomId}/auto-beds`, {
+        method: 'POST', headers: getAuthHeaders()
+      });
+      return await response.json();
+    } catch (error) { return { success: false, message: 'Network error' }; }
+  },
   
   createRoom: async (data) => {
     try {

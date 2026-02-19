@@ -118,6 +118,7 @@ exports.getStats = async (req, res) => {
 exports.getRevenueChart = async (req, res) => {
     try {
         const { period = 'week' } = req.query; // 'week' or 'month'
+        const Invoice = require('../models/Invoice');
 
         let startDate, groupBy, dateFormat;
         
@@ -133,25 +134,22 @@ exports.getRevenueChart = async (req, res) => {
             dateFormat = 'MM/YYYY';
         }
 
-        const bookings = await Booking.find({
-            ...req.branchQuery, // [FIX] Isolation
-            startTime: { $gte: startDate.toDate() },
-            status: 'completed'
-        }).populate('serviceId');
+        const invoices = await Invoice.find({
+            ...(req.branchQuery || {}),
+            createdAt: { $gte: startDate.toDate() },
+        }).lean();
 
         // Group by period
         const revenueMap = {};
         
-        bookings.forEach(booking => {
-            const date = dayjs(booking.startTime);
+        invoices.forEach(inv => {
+            const date = dayjs(inv.createdAt);
             const key = groupBy === 'day' 
                 ? date.format('DD/MM')
                 : date.format('MM/YYYY');
             
-            if (!revenueMap[key]) {
-                revenueMap[key] = 0;
-            }
-            revenueMap[key] += booking.finalPrice || booking.serviceId?.price || 0;
+            if (!revenueMap[key]) revenueMap[key] = 0;
+            revenueMap[key] += inv.finalTotal || 0;
         });
 
         // Generate full date range
@@ -278,27 +276,37 @@ exports.getStaffPerformance = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
 
-        // Default to this month if not provided
         const start = startDate ? dayjs(startDate).startOf('day') : dayjs().startOf('month');
         const end = endDate ? dayjs(endDate).endOf('day') : dayjs().endOf('day');
 
-        console.log(`[REPORT] Staff Performance: ${start.format('DD/MM')} - ${end.format('DD/MM')}`);
-
-        // 1. Get all completed bookings in range
+        // 1. Get completed bookings in range
         const bookings = await Booking.find({
             startTime: { $gte: start.toDate(), $lte: end.toDate() },
             status: 'completed'
         }).populate('staffId', 'name');
 
-        // 2. Aggregate per staff
+        // 2. Get invoices in range to pull real revenue + tip
+        const Invoice = require('../models/Invoice');
+        const invoices = await Invoice.find({
+            createdAt: { $gte: start.toDate(), $lte: end.toDate() }
+        }).lean();
+
+        // Map bookingId -> invoice
+        const invoiceByBooking = {};
+        invoices.forEach(inv => {
+            if (inv.bookingId) invoiceByBooking[inv.bookingId.toString()] = inv;
+        });
+
+        // 3. Aggregate per staff from bookings
         const staffMap = {};
 
         bookings.forEach(booking => {
             if (!booking.staffId) return;
-            
             const staffId = booking.staffId._id.toString();
             const staffName = booking.staffId.name;
-            const revenue = booking.finalPrice || booking.serviceId?.price || 0;
+            const inv = invoiceByBooking[booking._id.toString()];
+            const revenue = inv ? inv.finalTotal - (inv.tipAmount || 0) : (booking.finalPrice || 0);
+            const dateKey = dayjs(booking.startTime).format('YYYY-MM-DD');
 
             if (!staffMap[staffId]) {
                 staffMap[staffId] = {
@@ -306,32 +314,111 @@ exports.getStaffPerformance = async (req, res) => {
                     name: staffName,
                     totalBookings: 0,
                     totalRevenue: 0,
-                    uniqueCustomers: new Set()
+                    uniqueCustomers: new Set(),
+                    workingDays: new Set(),
+                    totalTip: 0,
+                    tipCount: 0,
                 };
             }
 
             staffMap[staffId].totalBookings += 1;
             staffMap[staffId].totalRevenue += revenue;
             staffMap[staffId].uniqueCustomers.add(booking.phone);
+            staffMap[staffId].workingDays.add(dateKey);
         });
 
-        // 3. Convert to array & Sort by Revenue
-        const reportData = Object.values(staffMap).map(staff => ({
-            ...staff,
-            uniqueCustomers: staff.uniqueCustomers.size
+        // 4. Aggregate tip by tipStaffName from invoices
+        invoices.forEach(inv => {
+            if (!inv.tipAmount || inv.tipAmount <= 0 || !inv.tipStaffName) return;
+            // Find staff in map by name
+            const entry = Object.values(staffMap).find(s => s.name === inv.tipStaffName);
+            if (entry) {
+                entry.totalTip += inv.tipAmount;
+                entry.tipCount += 1;
+            } else {
+                // Staff got tip but no booking in range (edge case) — still record
+                const fakeKey = 'tip_' + inv.tipStaffName;
+                if (!staffMap[fakeKey]) {
+                    staffMap[fakeKey] = {
+                        key: fakeKey,
+                        name: inv.tipStaffName,
+                        totalBookings: 0,
+                        totalRevenue: 0,
+                        uniqueCustomers: new Set(),
+                        workingDays: new Set(),
+                        totalTip: 0,
+                        tipCount: 0,
+                    };
+                }
+                staffMap[fakeKey].totalTip += inv.tipAmount;
+                staffMap[fakeKey].tipCount += 1;
+            }
+        });
+
+        // 5. Convert & sort
+        const reportData = Object.values(staffMap).map(s => ({
+            ...s,
+            uniqueCustomers: s.uniqueCustomers.size,
+            workingDays: s.workingDays.size,
         })).sort((a, b) => b.totalRevenue - a.totalRevenue);
 
         res.json({
             success: true,
             data: reportData,
-            period: {
-                start: start.format('YYYY-MM-DD'),
-                end: end.format('YYYY-MM-DD')
-            }
+            period: { start: start.format('YYYY-MM-DD'), end: end.format('YYYY-MM-DD') }
         });
 
     } catch (error) {
         console.error('Error getting staff performance:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+// Báo cáo cuối ngày — giống tờ giấy spa thực tế
+exports.getDailyReport = async (req, res) => {
+    try {
+        const { date } = req.query;
+        const targetDate = date ? dayjs(date) : dayjs();
+        const startOfDay = targetDate.startOf('day').toDate();
+        const endOfDay = targetDate.endOf('day').toDate();
+
+        const bookings = await Booking.find({
+            ...req.branchQuery,
+            startTime: { $gte: startOfDay, $lte: endOfDay },
+            status: { $in: ['completed', 'processing', 'confirmed'] }
+        })
+        .populate('serviceId', 'name price')
+        .populate('staffId', 'name')
+        .sort({ startTime: 1 })
+        .lean();
+
+        const rows = bookings.map((b, idx) => ({
+            stt: idx + 1,
+            customerName: b.customerName || b.phone,
+            phone: b.phone,
+            serviceName: b.serviceId?.name || b.serviceName || '—',
+            staffName: b.staffId?.name || '—',
+            price: b.finalPrice || b.serviceId?.price || 0,
+            tip: b.tip || 0,
+            total: (b.finalPrice || b.serviceId?.price || 0) + (b.tip || 0),
+            paymentMethod: b.paymentMethod || 'cash',
+            startTime: b.startTime,
+            status: b.status,
+            note: b.note || '',
+        }));
+
+        const totalRevenue = rows.reduce((s, r) => s + r.price, 0);
+        const totalTip = rows.reduce((s, r) => s + r.tip, 0);
+        const totalAll = rows.reduce((s, r) => s + r.total, 0);
+
+        res.json({
+            success: true,
+            date: targetDate.format('YYYY-MM-DD'),
+            rows,
+            summary: { totalRevenue, totalTip, totalAll, count: rows.length }
+        });
+    } catch (error) {
+        console.error('getDailyReport error:', error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };

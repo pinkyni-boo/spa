@@ -1,4 +1,5 @@
 const Service = require('../models/Service');
+const ActionLogController = require('./ActionLogController');
 
 exports.getAllServices = async (req, res) => {
     try {
@@ -44,6 +45,7 @@ exports.createService = async (req, res) => {
             type: type || 'service' // [FIX] Save type field
         });
         await newService.save();
+        ActionLogController.createLog(req, req.user, 'SERVICE_CREATE', 'Service', newService._id, newService.name);
         res.json({ success: true, service: newService });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -54,6 +56,7 @@ exports.updateService = async (req, res) => {
     try {
         const { id } = req.params;
         const updatedService = await Service.findByIdAndUpdate(id, req.body, { new: true });
+        ActionLogController.createLog(req, req.user, 'SERVICE_UPDATE', 'Service', updatedService._id, updatedService.name);
         res.json({ success: true, service: updatedService });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -64,7 +67,8 @@ exports.deleteService = async (req, res) => {
     try {
         const { id } = req.params;
         // [FIX] Soft Delete
-        await Service.findByIdAndUpdate(id, { isDeleted: true });
+        const svc = await Service.findByIdAndUpdate(id, { isDeleted: true }, { new: true });
+        ActionLogController.createLog(req, req.user, 'SERVICE_DELETE', 'Service', id, svc?.name || id);
         res.json({ success: true, message: 'Deleted successfully (Soft)' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

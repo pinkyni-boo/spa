@@ -22,11 +22,17 @@ const InvoiceSchema = new mongoose.Schema({
       subtotal: Number
   }],
 
+  // Chi nhánh
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', default: null },
+
   // Tài chính
   subTotal: { type: Number, required: true }, // Trước giảm giá
   discount: { type: Number, default: 0 },
   tax: { type: Number, default: 0 },
-  finalTotal: { type: Number, required: true }, // Khách phải trả
+  tipAmount: { type: Number, default: 0 },
+  tipStaffName: { type: String, default: '' },   // Nhân viên nhận tip
+  surchargeFee: { type: Number, default: 0 },   // Phí cà thẻ / phụ phí
+  finalTotal: { type: Number, required: true }, // Khách phải trả (đã bao gồm tip + phụ phí)
 
   // Phương thức thanh toán
   paymentMethod: {
