@@ -1,10 +1,11 @@
 const express = require('express');
 const cors = require('cors');
-const mongoose = require('mongoose'); // Gọi thư viện Mongoose vừa cài
-const jwt = require('jsonwebtoken'); // [NEW] Auth Support
+const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 
 // Cấu hình để React gọi được API
@@ -15,7 +16,7 @@ app.use('/uploads', express.static('uploads')); // [NEW] Serve uploaded files
 
 // --- 1. KẾT NỐI MONGODB ---
 // Lưu ý: Nếu máy bạn chưa cài MongoDB, bước này sẽ báo lỗi.
-mongoose.connect('mongodb+srv://ngocthao:vuthingocthao%4020041611@cluster0.zunhnrf.mongodb.net/spa_project')
+mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ Đã kết nối thành công với MongoDB Cloud!'))
   .catch(err => console.error('❌ Lỗi kết nối:', err));
 
@@ -84,7 +85,7 @@ app.post('/login', authLimiter, async (req, res) => {
             role: user.role, 
             branchId: user.managedBranches?.[0]?._id || null
         }, 
-        'miu_spa_secret_2024', 
+        process.env.JWT_SECRET || 'miu_spa_secret_2024',
         { expiresIn: '24h' }
       );
 
