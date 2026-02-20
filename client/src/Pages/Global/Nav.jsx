@@ -77,9 +77,18 @@ const TopNavBar = () => {
                         style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
                         onClick={handleLogoClick}
                     >
-                        <span className="material-symbols-outlined" style={{ color: '#D4AF37', fontSize: '26px' }}>
-                            spa
-                        </span>
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            {/* Outer petals */}
+                            <ellipse cx="16" cy="10" rx="3.5" ry="7" fill="#D4AF37" opacity="0.85" />
+                            <ellipse cx="16" cy="10" rx="3.5" ry="7" fill="#D4AF37" opacity="0.85" transform="rotate(60 16 16)" />
+                            <ellipse cx="16" cy="10" rx="3.5" ry="7" fill="#D4AF37" opacity="0.85" transform="rotate(120 16 16)" />
+                            <ellipse cx="16" cy="10" rx="3.5" ry="7" fill="#D4AF37" opacity="0.85" transform="rotate(180 16 16)" />
+                            <ellipse cx="16" cy="10" rx="3.5" ry="7" fill="#D4AF37" opacity="0.85" transform="rotate(240 16 16)" />
+                            <ellipse cx="16" cy="10" rx="3.5" ry="7" fill="#D4AF37" opacity="0.85" transform="rotate(300 16 16)" />
+                            {/* Center */}
+                            <circle cx="16" cy="16" r="4" fill="#D4AF37" />
+                            <circle cx="16" cy="16" r="2" fill="#fff" opacity="0.6" />
+                        </svg>
                         <Title level={4} style={{ margin: 0, fontSize: '17px', fontWeight: 700, letterSpacing: '0.03em', color: '#181611' }}>
                             MIU SPA
                         </Title>
@@ -129,7 +138,16 @@ const TopNavBar = () => {
                 closeIcon={<CloseOutlined />}
                 title={
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span className="material-symbols-outlined" style={{ color: '#D4AF37', fontSize: '20px' }}>spa</span>
+                        <svg width="22" height="22" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <ellipse cx="16" cy="10" rx="3.5" ry="7" fill="#D4AF37" opacity="0.85" />
+                            <ellipse cx="16" cy="10" rx="3.5" ry="7" fill="#D4AF37" opacity="0.85" transform="rotate(60 16 16)" />
+                            <ellipse cx="16" cy="10" rx="3.5" ry="7" fill="#D4AF37" opacity="0.85" transform="rotate(120 16 16)" />
+                            <ellipse cx="16" cy="10" rx="3.5" ry="7" fill="#D4AF37" opacity="0.85" transform="rotate(180 16 16)" />
+                            <ellipse cx="16" cy="10" rx="3.5" ry="7" fill="#D4AF37" opacity="0.85" transform="rotate(240 16 16)" />
+                            <ellipse cx="16" cy="10" rx="3.5" ry="7" fill="#D4AF37" opacity="0.85" transform="rotate(300 16 16)" />
+                            <circle cx="16" cy="16" r="4" fill="#D4AF37" />
+                            <circle cx="16" cy="16" r="2" fill="#fff" opacity="0.6" />
+                        </svg>
                         <span style={{ fontWeight: 700, color: '#181611' }}>MIU SPA</span>
                     </div>
                 }
