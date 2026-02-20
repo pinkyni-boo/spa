@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Typography, Row, Col, Card, List, Tag, Spin, Button } from 'antd';
-import { DollarOutlined, UserOutlined, CalendarOutlined, TeamOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Layout, Typography, Row, Col, Card, List, Tag, Spin } from 'antd';
+import { DollarOutlined, UserOutlined, CalendarOutlined, TeamOutlined } from '@ant-design/icons';
 import StatsCard from './StatsCard';
 import RevenueChart from './RevenueChart';
 import OccupancyChart from './OccupancyChart'; // [NEW] Import
@@ -50,15 +50,8 @@ const Dashboard = () => {
         <Layout style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
             <div style={{ maxWidth: 1400, margin: '0 auto', width: '100%' }}>
                 {/* Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                    <Title level={2} style={{ margin: 0 }}>📊 Dashboard - Tổng Quan</Title>
-                    <Button 
-                        icon={<ReloadOutlined />} 
-                        onClick={fetchData}
-                        loading={loading}
-                    >
-                        Làm mới
-                    </Button>
+                <div style={{ marginBottom: 24 }}>
+                    <Title level={3} style={{ margin: 0 }}>Dashboard - Tổng Quan</Title>
                 </div>
 
                 {loading && !stats ? (
