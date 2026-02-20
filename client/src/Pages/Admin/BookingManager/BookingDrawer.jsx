@@ -85,8 +85,6 @@ const BookingDrawer = ({ open, onClose, booking, onAction, services = [] }) => {
         // Mock Add Logic for UI Demo
         if (!selectedServiceToAdd) return;
         
-        console.log('>>> [DEBUG] Click Add Service:', selectedServiceToAdd); // [DEBUG]
-        
         onAction('upsell_save', booking._id, { 
             booking,
             addedService: selectedServiceToAdd 

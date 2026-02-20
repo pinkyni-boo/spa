@@ -7,19 +7,11 @@ const { Title, Text } = Typography;
 
 const CustomerInfoSidebar = ({ customer, history, onClose, onSelectHistory }) => {
     
-    console.log('[CustomerInfoSidebar] Received data:', { customer, history });
-    
     // Sort history: Upcoming first, then Completed (Desc)
     const now = dayjs();
     const upcoming = history.filter(h => {
         const isAfter = dayjs(h.startTime).isAfter(now);
         const notCancelled = h.status !== 'cancelled';
-        console.log('[FILTER] Upcoming check:', { 
-            startTime: h.startTime, 
-            isAfter, 
-            notCancelled, 
-            status: h.status 
-        });
         return isAfter && notCancelled;
     });
     const past = history.filter(h => dayjs(h.startTime).isBefore(now) && h.status !== 'cancelled');

@@ -102,7 +102,6 @@ const MainContent = () => {
                             <Route path="/admin/feedbacks" element={<FeedbackManager />} />
                             <Route path="/admin/customers" element={<CustomerManager />} />
                             <Route path="/admin/reports" element={<ReportManager />} />
-                            <Route path="/admin/reports" element={<ReportManager />} />
                             <Route path="/admin/products" element={<ProductManager />} />
                             <Route path="/admin/system-logs" element={<SystemLogs />} />
                             <Route path="/admin/consultations" element={<ConsultationManager />} />

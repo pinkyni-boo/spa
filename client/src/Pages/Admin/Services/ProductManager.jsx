@@ -17,9 +17,7 @@ const ProductManager = () => {
         setLoading(true);
         // [FIX] Use resourceService like ServiceManager
         const res = await resourceService.getAllServices('product');
-        console.log('[PRODUCT MANAGER] Fetch response:', res); // [DEBUG]
         if (res && res.success) {
-            console.log('[PRODUCT MANAGER] Products count:', res.services?.length); // [DEBUG]
             setProducts(res.services || []);
         } else {
             message.error("Lỗi tải sản phẩm");

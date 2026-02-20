@@ -20,7 +20,6 @@ const Dashboard = () => {
 
     const fetchData = async () => {
         setLoading(true);
-        console.log('🔄 [DASHBOARD] Fetching data...');
         try {
             const [statsRes, revenueRes, servicesRes, staffRes, occupancyRes] = await Promise.all([
                 dashboardService.getStats(),
@@ -36,7 +35,7 @@ const Dashboard = () => {
             if (staffRes.success) setStaffStatus(staffRes.staff);
             if (occupancyRes.success) setOccupancyData(occupancyRes.data); // [NEW] Set data
         } catch (error) {
-            console.error('❌ [DASHBOARD] Error fetching data:', error);
+            // silently fail — UI stays with previous data
         } finally {
             setLoading(false);
         }

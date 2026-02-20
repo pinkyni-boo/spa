@@ -69,8 +69,8 @@ const ServiceManager = () => {
             } else {
                 message.error('Có lỗi xảy ra: ' + res.message);
             }
-        } catch (info) {
-            console.log('Validate Failed:', info);
+        } catch {
+            // validation error — Ant Design shows field errors automatically
         } finally {
             setLoading(false);
         }

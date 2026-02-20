@@ -18,8 +18,8 @@ const BookingCreateModal = ({ visible, onCancel, onCreate }) => {
             const values = await form.validateFields();
             onCreate(values);
             form.resetFields();
-        } catch (info) {
-            console.log('Validate Failed:', info);
+        } catch {
+            // validation error handled by Ant Design form
         }
     };
 
