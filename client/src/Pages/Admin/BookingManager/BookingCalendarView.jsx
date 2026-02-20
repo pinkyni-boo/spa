@@ -47,7 +47,7 @@ const BookingCalendarView = ({
                     />
                 </div>
             ) : (
-                <div style={{ flex: 1, overflowY: 'auto' }}>
+                <div style={{ flex: 1, overflow: 'auto', minWidth: 0 }}>
                     <BookingListView 
                         bookings={bookings}
                         loading={loading}

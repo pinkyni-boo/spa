@@ -1,31 +1,42 @@
 import React, { useState } from 'react';
+import { PhoneOutlined, MessageOutlined, CloseOutlined } from '@ant-design/icons';
 import theme from '../../theme';
+
+// Zalo SVG icon
+const ZaloIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 48 48" fill="white">
+    <path d="M24 4C12.95 4 4 12.95 4 24c0 5.35 2.1 10.2 5.5 13.85L7 44l6.35-2.45C16.7 43.1 20.25 44 24 44c11.05 0 20-8.95 20-20S35.05 4 24 4zm9.9 26.6c-.4 1.1-2 2.05-3.25 2.3-.85.15-1.95.3-5.7-1.25-4.8-1.95-7.85-6.8-8.1-7.1-.25-.3-2-2.65-2-5.05s1.3-3.6 1.75-4.1c.45-.5 1-.65 1.3-.65h.9c.3 0 .7-.1 1.1.85.4.95 1.4 3.4 1.5 3.65.1.25.2.55.05.85-.15.3-.25.5-.5.8-.25.3-.5.65-.7.85-.25.25-.5.5-.2 1 .3.5 1.3 2.1 2.8 3.4 1.9 1.7 3.55 2.25 4.05 2.5.5.25.8.2 1.1-.1.3-.3 1.3-1.5 1.65-2.05.35-.55.7-.45 1.2-.25.5.2 3.1 1.45 3.65 1.7.55.25.9.4 1.05.6.1.2.1 1.2-.3 2.3z"/>
+  </svg>
+);
 
 const Contact = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   const contactItems = [
     {
-      icon: 'call',
+      icon: <PhoneOutlined style={{ fontSize: 20, color: 'white' }} />,
       label: 'Hotline',
       value: '0987 654 321',
       href: 'tel:+84987654321',
       color: theme.colors.primary[400]
     },
     {
-      icon: 'chat',
+      icon: <ZaloIcon />,
       label: 'Zalo',
       value: 'Miu Spa',
       href: 'https://zalo.me/0987654321',
       color: '#0068FF'
     },
     {
-      icon: 'facebook',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+        </svg>
+      ),
       label: 'Facebook',
       value: 'Miu Spa Center',
       href: 'https://facebook.com/miuspa',
-      color: '#1877F2',
-      isBrand: true
+      color: '#1877F2'
     }
   ];
 
@@ -112,18 +123,7 @@ const Contact = () => {
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                {item.isBrand ? (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                  </svg>
-                ) : (
-                  <span className="material-symbols-outlined" style={{ 
-                    fontSize: 20, 
-                    color: 'white' 
-                  }}>
-                    {item.icon}
-                  </span>
-                )}
+                {item.icon}
               </div>
               
               {/* Text */}
@@ -168,16 +168,19 @@ const Contact = () => {
             position: 'relative'
           }}
         >
-          <span 
-            className="material-symbols-outlined phone-icon" 
-            style={{ 
-              fontSize: 28, 
+          <span
+            className="phone-icon"
+            style={{
+              fontSize: 26,
               color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               transition: 'transform 0.3s ease',
               transform: isOpen ? 'rotate(135deg)' : 'rotate(0deg)'
             }}
           >
-            {isOpen ? 'close' : 'call'}
+            {isOpen ? <CloseOutlined style={{ fontSize: 24 }} /> : <PhoneOutlined style={{ fontSize: 24 }} />}
           </span>
         </button>
       </div>

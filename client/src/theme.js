@@ -38,10 +38,10 @@ export const royalLuxuryTheme = {
   },
 
   fonts: {
-    heading: "'Playfair Display', serif", // Tiêu đề chuẩn Vương quốc Anh
-    subheading: "'Cormorant Garamond', serif", // Tiêu đề phụ thanh mảnh, quý tộc
-    body: "'Montserrat', sans-serif", // Nội dung hiện đại, sạch sẽ, dễ đọc
-    sans: "'Inter', sans-serif"
+    heading: "'Be Vietnam Pro', sans-serif",
+    subheading: "'Be Vietnam Pro', sans-serif",
+    body: "'Be Vietnam Pro', sans-serif",
+    sans: "'Be Vietnam Pro', sans-serif"
   },
 
   shadows: {

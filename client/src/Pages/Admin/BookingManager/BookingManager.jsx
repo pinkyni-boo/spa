@@ -10,7 +10,6 @@ import { resourceService } from '../../../services/resourceService';
 import { branchService } from '../../../services/branchService'; // [NEW]
 
 // Sub Components
-import StatsHeader from './StatsHeader';
 import BookingListView from './BookingListView';
 import BookingDrawer from './BookingDrawer';
 import DnDCalendarView from './DnDCalendarView';
@@ -228,11 +227,6 @@ const BookingManager = () => {
                         onNewBooking={openCreateModal}
                         onSearchSelect={handleSearchSelect}
                     />
-                </div>
-
-                {/* STATS HEADER */}
-                <div style={{ marginBottom: 12, flexShrink: 0 }}>
-                    <StatsHeader bookings={bookings} />
                 </div>
 
                 {/* MAIN CONTENT AREA - FULL HEIGHT & WIDTH */}

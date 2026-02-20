@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Table, Tag, Select, DatePicker, Button, Space, Typography,
-    Card, Row, Col, Tooltip, Badge, Divider, Input
+    Card, Row, Col, Tooltip, Divider, Input
 } from 'antd';
 import {
-    SearchOutlined, ReloadOutlined, FilterOutlined,
+    SearchOutlined, FilterOutlined,
     UserOutlined, ClockCircleOutlined, ApartmentOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -225,13 +225,7 @@ const SystemLogs = () => {
                     <Title level={3} style={{ margin: 0 }}>Nhật Ký Hệ Thống</Title>
                     <Text type="secondary">Theo dõi mọi thao tác của admin &amp; nhân viên</Text>
                 </Col>
-                <Col>
-                    <Badge count={total} overflowCount={9999} style={{ backgroundColor: '#1677ff' }}>
-                        <Button icon={<ReloadOutlined />} onClick={() => fetchLogs(page)} loading={loading}>
-                            Làm mới
-                        </Button>
-                    </Badge>
-                </Col>
+
             </Row>
 
             {/* Filter Bar */}

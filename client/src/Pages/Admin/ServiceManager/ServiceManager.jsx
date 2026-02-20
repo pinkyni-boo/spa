@@ -132,27 +132,7 @@ const ServiceManager = () => {
     return (
         <div style={{ padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                <div style={{display:'flex', gap: 10, alignItems:'center'}}>
-                    <h2>Quản Lý Dịch Vụ (Service Menu)</h2>
-                    <Button onClick={async () => {
-                        if(window.confirm('Xóa hết dịch vụ cũ và tạo mẫu mới?')) {
-                            setLoading(true);
-                            console.log("Sending Seed Request...");
-                            
-                            const res = await resourceService.seedServices();
-                            console.log("Seed Response:", res);
-
-                            if (res.success) {
-                                message.success("Đã tạo lại dữ liệu mẫu!");
-                                await fetchServices();
-                            } else {
-                                message.error("Lỗi tạo mẫu: " + (res.message || 'Unknown'));
-                                console.error(res);
-                            }
-                            setLoading(false);
-                        }
-                    }}>↻ Reset Data</Button>
-                </div>
+                <h2>Quản Lý Dịch Vụ</h2>
                 <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
                     Thêm Dịch Vụ
                 </Button>

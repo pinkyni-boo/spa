@@ -9,7 +9,7 @@ import {
     Tooltip as RTooltip, ResponsiveContainer
 } from 'recharts';
 import {
-    DollarOutlined, UserOutlined, FileTextOutlined, ReloadOutlined,
+    DollarOutlined, UserOutlined, FileTextOutlined,
     PlusOutlined, DeleteOutlined, ArrowUpOutlined, ArrowDownOutlined,
     TrophyOutlined, TeamOutlined, CalendarOutlined, WalletOutlined
 } from '@ant-design/icons';
@@ -100,7 +100,6 @@ const TabRevenue = () => {
                             <Option value="week">7 ngày qua</Option>
                             <Option value="month">6 tháng qua</Option>
                         </Select>
-                        <Button icon={<ReloadOutlined />} onClick={load} loading={loading} />
                     </Space>
                 }
                 style={{ marginBottom: 16 }}
@@ -194,7 +193,7 @@ const TabDailyReport = () => {
                     <Col><Text strong>Ngày: </Text>
                         <DatePicker value={date} onChange={d => setDate(d || dayjs())} format="DD/MM/YYYY" allowClear={false} />
                     </Col>
-                    <Col><Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Tải lại</Button></Col>
+
                 </Row>
             </Card>
 
@@ -360,7 +359,6 @@ const TabCashflow = () => {
                     <Col>
                         <RangePicker value={dateRange} onChange={r => r && setDateRange(r)} format="DD/MM/YYYY" allowClear={false} />
                     </Col>
-                    <Col><Button icon={<ReloadOutlined />} onClick={refresh} loading={loading} /></Col>
                     <Col flex="auto" style={{ textAlign: 'right' }}>
                         <Tooltip title="Thu từ dịch vụ tự động vào đây khi thanh toán. Dùng nút này để ghi chi phí thủ công.">
                             <Button danger icon={<ArrowDownOutlined />} onClick={() => openAdd()}>
@@ -510,7 +508,6 @@ const TabStaff = () => {
                 extra={
                     <Space>
                         <RangePicker value={dateRange} onChange={r => r && setDateRange(r)} format="DD/MM/YYYY" allowClear={false} />
-                        <Button icon={<ReloadOutlined />} onClick={load} loading={loading} />
                     </Space>
                 }
             >

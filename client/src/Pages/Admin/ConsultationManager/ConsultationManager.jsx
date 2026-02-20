@@ -6,7 +6,7 @@ import {
 import {
     PhoneOutlined, UserOutlined, MessageOutlined,
     CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined,
-    EyeOutlined, DeleteOutlined, EditOutlined, ReloadOutlined
+    EyeOutlined, DeleteOutlined, EditOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
@@ -297,11 +297,7 @@ const ConsultationManager = () => {
                             style={{ maxWidth: 320 }}
                         />
                     </Col>
-                    <Col>
-                        <Button icon={<ReloadOutlined />} onClick={fetchConsultations}>
-                            Làm mới
-                        </Button>
-                    </Col>
+
                 </Row>
             </Card>
 

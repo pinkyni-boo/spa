@@ -82,7 +82,7 @@ const LoginPage = () => {
         }}>
             <Card style={{ width: 400, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', borderRadius: 8 }}>
                 <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                    <Title level={2} style={{ color: '#D4Af37', fontFamily: "'Playfair Display', serif" }}>MIU SPA</Title>
+                    <Title level={2} style={{ color: '#D4Af37', fontFamily: "'Be Vietnam Pro', sans-serif", fontWeight: 700 }}>MIU SPA</Title>
                     <Typography.Text type="secondary">Đăng nhập quản trị viên</Typography.Text>
                 </div>
                 

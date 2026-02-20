@@ -25,7 +25,8 @@ import {
     BarChartOutlined, // [NEW] For Reports
     FileTextOutlined, // [NEW] For System Logs
     CommentOutlined,  // [NEW] For Consultations
-    BellOutlined      // [NEW] For notification
+    BellOutlined,     // [NEW] For notification
+    DollarCircleOutlined // [NEW] For Invoices
 } from '@ant-design/icons';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -172,6 +173,11 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
                     label: 'Phản Hồi',
                 },
                 {
+                    key: '/admin/invoices',
+                    icon: <DollarCircleOutlined />,
+                    label: 'Hóa Đơn',
+                },
+                {
                     key: '/admin/system-logs',
                     icon: <FileTextOutlined />,
                     label: 'Nhật Ký',
@@ -248,7 +254,7 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
                         />
                     ) : (
                         <>
-                            <Title level={4} style={{ margin: 0, color: '#D4Af37', fontFamily: "'Playfair Display', serif" }}>
+                            <Title level={4} style={{ margin: 0, color: '#D4Af37', fontFamily: "'Be Vietnam Pro', sans-serif", fontWeight: 700 }}>
                                 MIU SPA
                             </Title>
                             <Button 

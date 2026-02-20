@@ -260,16 +260,7 @@ const ComboHeader = ({ activeTab, setActiveTab }) => (
           gap: 24,
         }}
       >
-        <span
-          className="material-symbols-outlined"
-          style={{
-            fontSize: 40,
-            color: theme.colors.primary[400],
-            opacity: 0.8,
-          }}
-        >
-          self_improvement
-        </span>
+       
         <p
           style={{
             color: theme.colors.text.secondary,

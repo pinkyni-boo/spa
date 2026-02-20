@@ -292,14 +292,7 @@ const Incentives = () => {
           flexDirection: 'column',
           alignItems: 'center'
         }}>
-          <span className="material-symbols-outlined" style={{
-            fontSize: 40,
-            color: theme.colors.primary[400],
-            marginBottom: 16,
-            opacity: 0.8
-          }}>
-            card_giftcard
-          </span>
+          
           <span style={{
             color: theme.colors.primary[500],
             fontWeight: '600',

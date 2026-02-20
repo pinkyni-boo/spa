@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layout, Card, Tabs, Typography, Button } from 'antd';
+import { Layout, Card, Tabs, Typography, Button, ConfigProvider } from 'antd';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { MenuUnfoldOutlined, MenuFoldOutlined } from '@ant-design/icons';
 
@@ -32,6 +32,7 @@ import CustomerManager from './Pages/Admin/CustomerManager/CustomerManager.jsx';
 import ReportManager from './Pages/Admin/ReportManager/ReportManager.jsx';
 import AccountManager from './Pages/Admin/AccountManager/AccountManager.jsx';
 import SystemLogs from './Pages/Admin/SystemLogs/SystemLogs.jsx';
+import InvoiceManager from './Pages/Admin/InvoiceManager/InvoiceManager.jsx';
 import ConsultationManager from './Pages/Admin/ConsultationManager/ConsultationManager.jsx';
 import ConsultationForm from './Pages/ConsultationForm/ConsultationForm.jsx';
 import AdminSidebar from './Pages/Admin/Global/AdminSidebar.jsx';
@@ -105,6 +106,7 @@ const MainContent = () => {
                             <Route path="/admin/products" element={<ProductManager />} />
                             <Route path="/admin/system-logs" element={<SystemLogs />} />
                             <Route path="/admin/consultations" element={<ConsultationManager />} />
+                            <Route path="/admin/invoices" element={<InvoiceManager />} />
                         </Routes>
                     </Content>
                 </Layout>
@@ -142,12 +144,14 @@ const MainContent = () => {
 };
 
 const App = () => (
-  <BookingProvider>
-    <BrowserRouter>
-      <ScrollToTop />
-      <MainContent />
-    </BrowserRouter>
-  </BookingProvider>
+  <ConfigProvider theme={{ token: { fontFamily: "'Be Vietnam Pro', sans-serif" } }}>
+    <BookingProvider>
+      <BrowserRouter>
+        <ScrollToTop />
+        <MainContent />
+      </BrowserRouter>
+    </BookingProvider>
+  </ConfigProvider>
 );
 
 export default App;
