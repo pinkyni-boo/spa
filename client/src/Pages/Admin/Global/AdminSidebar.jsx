@@ -49,7 +49,7 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
         }
     }, []);
 
-    // Poll pending consultations every 30s
+    // Poll pending consultations every 10s
     useEffect(() => {
         const fetchPending = async () => {
             const token = localStorage.getItem('token');
@@ -80,8 +80,15 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
         };
 
         fetchPending();
-        const interval = setInterval(fetchPending, 30000);
-        return () => clearInterval(interval);
+        const interval = setInterval(fetchPending, 5000);
+
+        // Listen for immediate refresh triggered by ConsultationManager
+        window.addEventListener('consultation-updated', fetchPending);
+
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('consultation-updated', fetchPending);
+        };
     }, []);
 
     const menuItems = [

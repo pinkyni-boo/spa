@@ -15,18 +15,19 @@ exports.branchCheck = (req, res, next) => {
             return next();
         }
 
-        // 2. BRANCH ADMIN / STAFF -> See ONLY their Branch
-        // Note: Token has branchId: user.managedBranches?.[0]
+        // 2. ADMIN with multiple managed branches -> filter by $in
+        if (user.managedBranches && user.managedBranches.length > 0) {
+            req.branchQuery = { branchId: { $in: user.managedBranches } };
+            return next();
+        }
+
+        // 3. Fallback: single branchId (backward compat with old tokens)
         if (user.branchId) {
             req.branchQuery = { branchId: user.branchId };
             return next();
         }
 
-        // 3. Fallback: If role is admin but no branch assigned?
-        // For safety, return empty result or 403?
-        // Let's allow but they will see nothing if we filter by a non-existent branch,
-        // OR strict mode: 403.
-        // Current logic: strict.
+        // 4. No branch assigned -> strict deny
         return res.status(403).json({ 
             success: false, 
             message: 'Access Denied: No branch assigned to this account.' 

@@ -92,6 +92,7 @@ const ConsultationManager = () => {
                 message.success('Đã cập nhật!');
                 setEditModalOpen(false);
                 fetchConsultations();
+                window.dispatchEvent(new Event('consultation-updated'));
             } else {
                 message.error(data.message);
             }
@@ -112,6 +113,7 @@ const ConsultationManager = () => {
             if (data.success) {
                 message.success('Đã xóa');
                 fetchConsultations();
+                window.dispatchEvent(new Event('consultation-updated'));
             } else {
                 message.error(data.message);
             }

@@ -4,7 +4,7 @@ const Staff = require('../models/Staff');
 const Room = require('../models/Room');
 const Waitlist = require('../models/Waitlist');
 const BookingService = require('../services/BookingService'); 
-const ActionLogController = require('./ActionLogController'); // [NEW] Audit Log
+const ActionLogController = require('./ActionLogController');
 const dayjs = require('dayjs');
 const isBetween = require('dayjs/plugin/isBetween');
 const customParseFormat = require('dayjs/plugin/customParseFormat');
@@ -42,7 +42,6 @@ exports.createBooking = async (req, res) => {
             : req.body;
         const result = await BookingService.createBooking(bodyWithDefaults);
         
-        // [AUDIT]
         if (result.success && result.booking) {
              ActionLogController.createLog(req, req.user, 'BOOKING_CREATE', 'Booking', result.booking._id, result.booking.customerName);
         }
@@ -62,13 +61,9 @@ exports.createBooking = async (req, res) => {
 // ---------------------------------------------------------
 exports.getAllBookings = async (req, res) => {
   try {
-    const { date, phone, staffId, paymentStatus, branchId } = req.query; // [UPDATED] Added branchId
-    
-    // console.log('\n========== GET ALL BOOKINGS DEBUG ==========');
-    // console.log('Request Query:', req.query);
+    const { date, phone, staffId, paymentStatus, branchId, page, limit } = req.query;
 
-    
-    let query = { ...req.branchQuery }; // [FIX] Apply Data Isolation
+    let query = { ...req.branchQuery };
     
     // Allow filtering by specific branch if Owner (override empty branchQuery)
     // But if Admin (branchQuery has value), ignore param to prevent hopping
@@ -87,7 +82,6 @@ exports.getAllBookings = async (req, res) => {
         delete query.startTime; // If searching history, ignore date
     }
 
-    // [NEW] ADVANCED FILTERS
     if (staffId) {
         query.staffId = staffId;
     }
@@ -107,19 +101,26 @@ exports.getAllBookings = async (req, res) => {
          query.paymentStatus = paymentStatus;
     }
 
-    const bookings = await Booking.find(query)
+    const safePage  = page  ? parseInt(page)  : null;
+    const safeLimit = limit ? parseInt(limit) : null;
+
+    const total = safePage ? await Booking.countDocuments(query) : null;
+
+    const bookingsQuery = Booking.find(query)
       .populate('serviceId', 'name price duration') 
       .populate('staffId', 'name')
       .populate('roomId', 'name')
-      .populate('bedId', 'name sortOrder')  // [MULTI-BED]
+      .populate('bedId', 'name sortOrder')
       .sort({ createdAt: -1 });
 
-    console.log('Final Query:', JSON.stringify(query, null, 2));
-    console.log('Found Bookings:', bookings.length);
-    console.log('==========================================\n');
+    if (safePage && safeLimit) {
+      bookingsQuery.skip((safePage - 1) * safeLimit).limit(safeLimit);
+    }
 
-    // [FIX] Return consistent format { success: true, bookings: [...] }
-    res.json({ success: true, bookings });
+    const bookings = await bookingsQuery;
+    const resp = { success: true, bookings };
+    if (safePage) { resp.total = total; resp.page = safePage; resp.limit = safeLimit; }
+    res.json(resp);
   } catch (error) {
     console.error('Error in getAllBookings:', error);
     res.status(500).json({ success: false, message: error.message });
@@ -182,7 +183,6 @@ exports.cancelBooking = async (req, res) => {
     try {
         await Booking.findByIdAndUpdate(req.params.id, { status: 'cancelled' });
         
-        // [AUDIT]
         ActionLogController.createLog(req, req.user, 'BOOKING_CANCEL', 'Booking', req.params.id);
 
         res.json({ success: true, message: 'Đã hủy đơn' });
@@ -191,7 +191,6 @@ exports.cancelBooking = async (req, res) => {
     }
 };
 
-// [FIX] Add approve booking endpoint
 exports.approveBooking = async (req, res) => {
     try {
         const booking = await Booking.findByIdAndUpdate(
@@ -203,7 +202,6 @@ exports.approveBooking = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Không tìm thấy đơn' });
         }
         
-        // [AUDIT]
         ActionLogController.createLog(req, req.user, 'BOOKING_APPROVE', 'Booking', booking._id, booking.customerName);
 
         res.json({ success: true, booking, message: 'Đã duyệt đơn' });
@@ -212,7 +210,6 @@ exports.approveBooking = async (req, res) => {
     }
 };
 
-// [FIX] Add complete booking endpoint
 exports.completeBooking = async (req, res) => {
     try {
         const booking = await Booking.findByIdAndUpdate(
@@ -230,7 +227,7 @@ exports.completeBooking = async (req, res) => {
 };
 
 // ---------------------------------------------------------
-// 4. SMART OPERATIONS (PHASE 4)
+// 4. SMART OPERATIONS
 // ---------------------------------------------------------
 
 // A. CHECK-IN (Khách đến)
@@ -242,7 +239,7 @@ exports.checkIn = async (req, res) => {
         if (!booking) return res.status(404).json({ message: 'Không tìm thấy đơn' });
         if (booking.status !== 'confirmed') return res.status(400).json({ message: 'Chỉ đơn đã xác nhận mới được Check-in' });
 
-        // [LOGIC MOI] Shift Booking to NOW
+        // Shift booking time to now
         const now = new Date();
         const duration = booking.endTime - booking.startTime; // Ms
         
@@ -254,7 +251,6 @@ exports.checkIn = async (req, res) => {
         
         await booking.save();
 
-        // [AUDIT]
         ActionLogController.createLog(req, req.user, 'BOOKING_CHECKIN', 'Booking', booking._id, booking.customerName);
 
         res.json({ success: true, message: 'Check-in thành công! Đã chuyển lịch về giờ hiện tại.', booking });
@@ -336,7 +332,7 @@ exports.updateBookingServices = async (req, res) => {
 // ...
 
 // ---------------------------------------------------------
-// [NEW] CRM - GET CUSTOMER HISTORY
+// CRM - GET CUSTOMER HISTORY
 // ---------------------------------------------------------
 exports.getCustomerHistory = async (req, res) => {
     try {
@@ -350,7 +346,7 @@ exports.getCustomerHistory = async (req, res) => {
         const bookings = await Booking.find({ phone })
             .populate('serviceId', 'name price duration')
             .populate('staffId', 'name')
-            .populate('branchId', 'name address') // [NEW] Show branch info
+            .populate('branchId', 'name address')
             .populate('roomId', 'name')
             .sort({ startTime: -1 }) // Newest first
             .lean();
@@ -361,7 +357,7 @@ exports.getCustomerHistory = async (req, res) => {
             serviceName: b.serviceId?.name || 'N/A',
             staffName: b.staffId?.name || 'N/A',
             roomName: b.roomId?.name || 'N/A',
-            branchName: b.branchId?.name || 'Chi nhánh khác' // [NEW]
+            branchName: b.branchId?.name || 'Chi nhánh khác'
         }));
 
         res.json({ success: true, bookings: mappedBookings });
@@ -372,7 +368,7 @@ exports.getCustomerHistory = async (req, res) => {
 };
 
 // ---------------------------------------------------------
-// [UTILITY] BULK COMPLETE PAST BOOKINGS
+// BULK COMPLETE PAST BOOKINGS
 // ---------------------------------------------------------
 exports.completePastBookings = async (req, res) => {
     try {
@@ -401,7 +397,7 @@ exports.completePastBookings = async (req, res) => {
 };
 
 // ---------------------------------------------------------
-// [UTILITY] FIX FUTURE COMPLETED BOOKINGS
+// FIX FUTURE COMPLETED BOOKINGS
 // ---------------------------------------------------------
 exports.fixFutureBookings = async (req, res) => {
     try {

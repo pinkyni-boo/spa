@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, InputNumber, Select, message, Upload, Tag } from 'antd';
-import { PlusOutlined, DeleteOutlined, EditOutlined, ShoppingCartOutlined, UploadOutlined } from '@ant-design/icons';
+import { Table, Button, Modal, Form, Input, InputNumber, Select, message, Tag, Tooltip } from 'antd';
+import { PlusOutlined, DeleteOutlined, EditOutlined, ShoppingCartOutlined, WarningOutlined } from '@ant-design/icons';
 import theme from '../../../theme';
-import { resourceService } from '../../../services/resourceService'; // [FIX] Use resourceService like ServiceManager
+import { resourceService } from '../../../services/resourceService';
 
 const { Option } = Select;
 
@@ -105,7 +105,23 @@ const ProductManager = () => {
             key: 'category',
             render: (cat) => <Tag color="blue">{cat || 'Other'}</Tag>
         },
-        // { title: 'Tồn kho', dataIndex: 'stock', key: 'stock' }, // Future Phase
+        {
+            title: 'Tồn Kho',
+            dataIndex: 'stock',
+            key: 'stock',
+            align: 'center',
+            render: (stock, record) => {
+                if (stock === null || stock === undefined) return <Tag>Không quản lý</Tag>;
+                const low = stock <= (record.lowStockAlert ?? 5);
+                return (
+                    <Tooltip title={low ? 'Sắc cảnh báo tồn kho thấp!' : ''}>
+                        <Tag color={low ? 'red' : 'green'} icon={low ? <WarningOutlined /> : null}>
+                            {stock} {record.stockUnit || 'cái'}
+                        </Tag>
+                    </Tooltip>
+                );
+            }
+        },
         {
             title: 'Hành động',
             key: 'action',
@@ -163,8 +179,25 @@ const ProductManager = () => {
 
                     <Form.Item label="Mô tả" name="description"><Input.TextArea rows={2} /></Form.Item>
                     
-                    {/* Image Upload Placeholder */}
                     <Form.Item label="Hình ảnh (URL)" name="image"><Input placeholder="https://..." /></Form.Item>
+
+                    <div style={{ display: 'flex', gap: 16 }}>
+                        <Form.Item label="Tồn kho hiện tại" name="stock" tooltip="Để trống nếu không quản lý tồn" style={{ flex: 1 }}>
+                            <InputNumber style={{ width: '100%' }} min={0} placeholder="Không quản lý" />
+                        </Form.Item>
+                        <Form.Item label="Đơn vị" name="stockUnit" style={{ flex: 1 }}>
+                            <Select defaultValue="cái">
+                                <Option value="cái">cái</Option>
+                                <Option value="chai">chai</Option>
+                                <Option value="hộp">hộp</Option>
+                                <Option value="tuúp">tuúp</Option>
+                                <Option value="gói">gói</Option>
+                            </Select>
+                        </Form.Item>
+                        <Form.Item label="Cảnh báo khi ≤" name="lowStockAlert" tooltip="Cảnh báo khi số lượng tồn bằng hoặc nhỏ hơn mức này" style={{ flex: 1 }}>
+                            <InputNumber style={{ width: '100%' }} min={0} defaultValue={5} />
+                        </Form.Item>
+                    </div>
 
                     <Button type="primary" htmlType="submit" block>
                         {editingProduct ? "Cập nhật" : "Tạo Mới"}

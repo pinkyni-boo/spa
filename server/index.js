@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 const app = express();
@@ -9,13 +10,26 @@ const PORT = process.env.PORT || 3000;
 
 
 // Cấu hình để React gọi được API
-app.use(cors());
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+  process.env.CLIENT_URL,
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Cho phép request không có origin (Postman, server-to-server)
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
 app.use(express.json());
-app.use('/uploads', express.static('uploads')); // [NEW] Serve uploaded files
+app.use('/uploads', express.static('uploads'));
 
 
-// --- 1. KẾT NỐI MONGODB ---
-// Lưu ý: Nếu máy bạn chưa cài MongoDB, bước này sẽ báo lỗi.
+// --- KẾT NỐI MONGODB ---
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ Đã kết nối thành công với MongoDB Cloud!'))
   .catch(err => console.error('❌ Lỗi kết nối:', err));
@@ -37,7 +51,8 @@ const seedData = async () => {
     // 1. Tạo User Admin
     const userCount = await User.countDocuments();
     if (userCount === 0) {
-      await User.create({ username: 'admin', password: '123' });
+      const hashedPassword = await bcrypt.hash('123', 10);
+      await User.create({ username: 'admin', password: hashedPassword });
       console.log('⚠️ Đã tạo User: admin / 123');
     }
 
@@ -62,40 +77,38 @@ const seedData = async () => {
 seedData();
 
 const apiRoutes = require('./routes/api');
-const { authLimiter } = require('./middleware/rateLimiter'); // [NEW] Rate Limiting
-const ActionLogController = require('./controllers/ActionLogController'); // [NEW] Audit Logging
+const { authLimiter } = require('./middleware/rateLimiter');
+const ActionLogController = require('./controllers/ActionLogController');
 app.use('/api', apiRoutes);
 
 // --- 6. API ĐĂNG NHẬP ---
 app.post('/login', authLimiter, async (req, res) => {
   const { username, password } = req.body;
-  console.log("React đang gửi lên:", username, password);
 
   try {
-    // [UPDATED] Populate basic info
-    const user = await User.findOne({ username, password }).populate('managedBranches', 'name');
-    if (user) {
+    const user = await User.findOne({ username }).populate('managedBranches', 'name');
+    const passwordMatch = user && (await bcrypt.compare(password, user.password));
+    if (user && passwordMatch) {
       if (!user.isActive) return res.status(403).json({ success: false, message: 'Tài khoản đã bị khóa!' });
-      
-      // [NEW] Generate Token
+
       const token = jwt.sign(
         { 
             id: user._id, 
             username: user.username,
             role: user.role, 
-            branchId: user.managedBranches?.[0]?._id || null
+            branchId: user.managedBranches?.[0]?._id || null,
+            managedBranches: user.managedBranches?.map(b => b._id.toString()) || []
         }, 
         process.env.JWT_SECRET || 'miu_spa_secret_2024',
         { expiresIn: '24h' }
       );
 
-      // [AUDIT] Log login event
       ActionLogController.createLog(req, user, 'AUTH_LOGIN', 'User', user._id, user.username);
 
       res.json({ 
           success: true, 
           message: 'Đăng nhập thành công!',
-          token, // [NEW] Send token
+          token,
           user: {
               id: user._id,
               name: user.name,
@@ -116,7 +129,6 @@ app.post('/login', authLimiter, async (req, res) => {
 // --- KHỞI ĐỘNG SERVER ---
 app.listen(PORT, () => {
   console.log(`✅ Server Spa đang chạy tại http://localhost:${PORT}`);
-  seedData();
 });
 
 // --- API ĐĂNG KÝ TÀI KHOẢN MỚI ---
@@ -131,7 +143,8 @@ app.post('/register', async (req, res) => {
     }
 
     // 2. Lưu user mới vào Database
-    const newUser = new User({ username, password });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new User({ username, password: hashedPassword });
     await newUser.save();
 
     res.json({ success: true, message: 'Đăng ký tài khoản thành công!' });

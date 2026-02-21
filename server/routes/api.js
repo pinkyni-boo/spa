@@ -10,30 +10,34 @@ const BranchController = require('../controllers/BranchController');
 const PromotionController = require('../controllers/PromotionController');
 const FeedbackController = require('../controllers/FeedbackController');
 const UserController = require('../controllers/UserController');
-const SeedController = require('../controllers/SeedController'); // [NEW]
-const ActionLogController = require('../controllers/ActionLogController'); // [NEW]
-const { verifyToken, checkRole, optionalAuth } = require('../middleware/auth'); // [NEW] Auth Middleware
-const { branchCheck } = require('../middleware/branchCheck'); // [NEW] Isolation Middleware
-const { bookingLimiter, apiLimiter, destructiveLimiter } = require('../middleware/rateLimiter'); // [NEW] Rate Limiting
+const SeedController = require('../controllers/SeedController');
+const ActionLogController = require('../controllers/ActionLogController');
+const { verifyToken, checkRole, optionalAuth } = require('../middleware/auth');
+const { branchCheck } = require('../middleware/branchCheck');
+const { bookingLimiter, apiLimiter, destructiveLimiter } = require('../middleware/rateLimiter');
+const validate = require('../middleware/validate');
+const { createBookingSchema } = require('../validations/booking.validation');
+const { createUserSchema, updateUserSchema } = require('../validations/user.validation');
+const { createPromotionSchema, updatePromotionSchema } = require('../validations/promotion.validation');
+const { createExpenseSchema } = require('../validations/expense.validation');
+const { createConsultationSchema } = require('../validations/consultation.validation');
 
-// [SECURITY] Apply global API rate limiter
 router.use(apiLimiter);
 
 // --- DASHBOARD ROUTES ---
-router.post('/seed-data', destructiveLimiter, SeedController.seedGalleryAndFeedback); // [NEW] Seed Route
+router.post('/seed-data', verifyToken, checkRole(['owner']), destructiveLimiter, SeedController.seedGalleryAndFeedback);
 router.get('/dashboard/stats', verifyToken, branchCheck, DashboardController.getStats);
 router.get('/dashboard/revenue-chart', verifyToken, checkRole(['admin', 'owner']), branchCheck, DashboardController.getRevenueChart);
 router.get('/dashboard/top-services', verifyToken, branchCheck, DashboardController.getTopServices);
 router.get('/dashboard/staff-status', verifyToken, branchCheck, DashboardController.getStaffStatus);
 router.get('/dashboard/staff-performance', verifyToken, checkRole(['admin', 'owner']), branchCheck, DashboardController.getStaffPerformance);
-router.get('/dashboard/occupancy-rate', verifyToken, branchCheck, DashboardController.getOccupancyRate); // [NEW] Occupancy Route
+router.get('/dashboard/occupancy-rate', verifyToken, branchCheck, DashboardController.getOccupancyRate);
 
 // --- USER MANAGEMENT ROUTES ---
 router.get('/users', verifyToken, checkRole(['admin', 'owner']), UserController.getAllUsers);
-router.post('/users', verifyToken, checkRole(['admin', 'owner']), UserController.createUser);
-router.put('/users/:id', verifyToken, checkRole(['admin', 'owner']), UserController.updateUser);
+router.post('/users', verifyToken, checkRole(['admin', 'owner']), validate(createUserSchema), UserController.createUser);
+router.put('/users/:id', verifyToken, checkRole(['admin', 'owner']), validate(updateUserSchema), UserController.updateUser);
 router.delete('/users/:id', verifyToken, checkRole(['admin', 'owner']), UserController.deleteUser);
- // [NEW]
 
 // --- BRANCH ROUTES ---
 router.get('/branches', BranchController.getAllBranches); // Public — dùng cho form public
@@ -46,8 +50,8 @@ router.get('/branches/:id/stats', verifyToken, checkRole(['admin', 'owner']), Br
 // --- PROMOTION ROUTES ---
 router.get('/promotions', verifyToken, PromotionController.getAllPromotions);
 router.get('/promotions/active', PromotionController.getActivePromotions); // Public
-router.post('/promotions', verifyToken, checkRole(['admin', 'owner']), PromotionController.createPromotion);
-router.put('/promotions/:id', verifyToken, checkRole(['admin', 'owner']), PromotionController.updatePromotion);
+router.post('/promotions', verifyToken, checkRole(['admin', 'owner']), validate(createPromotionSchema), PromotionController.createPromotion);
+router.put('/promotions/:id', verifyToken, checkRole(['admin', 'owner']), validate(updatePromotionSchema), PromotionController.updatePromotion);
 router.delete('/promotions/:id', verifyToken, checkRole(['admin', 'owner']), PromotionController.deletePromotion);
 router.post('/promotions/validate', PromotionController.validateCode);
 router.post('/promotions/apply', PromotionController.applyPromotion);
@@ -62,8 +66,8 @@ router.delete('/feedbacks/:id', verifyToken, checkRole(['admin', 'owner']), Feed
 
 // --- CUSTOMER HISTORY ROUTES (PHASE 4) ---
 const CustomerController = require('../controllers/CustomerController');
-router.get('/customers/search', CustomerController.searchCustomers);
-router.get('/customers/:phone/history', CustomerController.getCustomerHistory);
+router.get('/customers/search', verifyToken, checkRole(['admin', 'owner']), CustomerController.searchCustomers);
+router.get('/customers/:phone/history', verifyToken, checkRole(['admin', 'owner']), CustomerController.getCustomerHistory);
 
 // --- SERVICE ROUTES (NEW PHASE 6) ---
 router.get('/services', ServiceController.getAllServices); // Public
@@ -75,7 +79,7 @@ router.delete('/services/:id', verifyToken, checkRole(['admin', 'owner']), Servi
 // --- BOOKING ROUTES ---
 // --- BOOKING ROUTES ---
 router.post('/bookings/check-slot', bookingLimiter, BookingController.checkAvailability); // Public
-router.post('/bookings', bookingLimiter, optionalAuth, BookingController.createBooking); // Public (Customers) — optionalAuth for audit log
+router.post('/bookings', bookingLimiter, optionalAuth, validate(createBookingSchema), BookingController.createBooking); // Public (Customers) — optionalAuth for audit log
 router.get('/bookings/search', verifyToken, branchCheck, BookingController.searchBookings); // Admin
 router.get('/bookings/history/:phone', verifyToken, BookingController.getCustomerHistory); // Admin
 router.get('/bookings', verifyToken, branchCheck, BookingController.getAllBookings); // Admin
@@ -84,19 +88,18 @@ router.put('/bookings/:id/approve', verifyToken, checkRole(['admin', 'owner']), 
 router.put('/bookings/:id/complete', verifyToken, checkRole(['admin', 'owner']), BookingController.completeBooking);
 router.delete('/bookings/:id', verifyToken, checkRole(['admin', 'owner']), BookingController.cancelBooking);
 
-// [PHASE 4] Smart Operations Routes
 router.post('/bookings/:id/check-in', verifyToken, BookingController.checkIn);
 router.put('/bookings/:id/services', verifyToken, BookingController.updateBookingServices);
 router.post('/bookings/complete-past', verifyToken, checkRole(['admin', 'owner']), BookingController.completePastBookings);
-router.get('/bookings/complete-past', verifyToken, checkRole(['admin', 'owner']), BookingController.completePastBookings);
-router.get('/bookings/fix-future', verifyToken, checkRole(['admin', 'owner']), BookingController.fixFutureBookings);
+router.post('/bookings/fix-future', verifyToken, checkRole(['admin', 'owner']), BookingController.fixFutureBookings);
 router.post('/bookings/find-waitlist-match', verifyToken, BookingController.findMatchingWaitlist);
 
 // --- INVOICE ROUTES (NEW PHASE 4) ---
 const InvoiceController = require('../controllers/InvoiceController'); 
-router.post('/invoices', InvoiceController.createInvoice);
-router.get('/invoices', InvoiceController.getAllInvoices);
-router.post('/invoices/:id/void', InvoiceController.voidInvoice);
+router.post('/invoices/retail', verifyToken, checkRole(['admin', 'owner']), InvoiceController.createRetailInvoice);
+router.post('/invoices', verifyToken, checkRole(['admin', 'owner']), InvoiceController.createInvoice);
+router.get('/invoices', verifyToken, branchCheck, InvoiceController.getAllInvoices);
+router.post('/invoices/:id/void', verifyToken, checkRole(['owner']), InvoiceController.voidInvoice);
 
 // --- ROOM ROUTES (NEW PHASE 1) ---
 router.get('/rooms', RoomController.getAllRooms);
@@ -115,11 +118,11 @@ router.post('/rooms/:roomId/auto-beds', verifyToken, checkRole(['admin', 'owner'
 router.get('/staff', verifyToken, StaffController.getAllStaff);
 router.post('/staff', verifyToken, checkRole(['admin', 'owner']), StaffController.createStaff);
 router.put('/staff/:id', verifyToken, checkRole(['admin', 'owner']), StaffController.updateStaffDetails);
-router.delete('/staff/:id', verifyToken, checkRole(['admin', 'owner']), StaffController.deleteStaff); // [NEW] Soft Delete
+router.delete('/staff/:id', verifyToken, checkRole(['admin', 'owner']), StaffController.deleteStaff);
 
 // --- GALLERY ROUTES (NEW) ---
 const GalleryController = require('../controllers/GalleryController');
-const upload = require('../middleware/upload'); // [NEW]
+const upload = require('../middleware/upload');
 
 const galleryUpload = upload.fields([
     { name: 'beforeImage', maxCount: 1 },
@@ -128,22 +131,26 @@ const galleryUpload = upload.fields([
 ]);
 
 router.get('/gallery', GalleryController.getAllGalleryItems);
-router.post('/gallery', galleryUpload, GalleryController.createGalleryItem);
-router.put('/gallery/:id', galleryUpload, GalleryController.updateGalleryItem);
-router.delete('/gallery/:id', GalleryController.deleteGalleryItem);
+router.post('/gallery', verifyToken, checkRole(['admin', 'owner']), galleryUpload, GalleryController.createGalleryItem);
+router.put('/gallery/:id', verifyToken, checkRole(['admin', 'owner']), galleryUpload, GalleryController.updateGalleryItem);
+router.delete('/gallery/:id', verifyToken, checkRole(['admin', 'owner']), GalleryController.deleteGalleryItem);
 
 // --- WAITLIST ROUTES (NEW) ---
 const WaitlistController = require('../controllers/WaitlistController');
-router.post('/waitlist', WaitlistController.addToWaitlist);
-router.get('/waitlist', WaitlistController.getWaitlist);
-router.delete('/waitlist/:id', WaitlistController.deleteWaitlist);
+router.post('/waitlist', WaitlistController.addToWaitlist); // Public — customer form
+router.get('/waitlist', verifyToken, checkRole(['admin', 'owner']), WaitlistController.getWaitlist);
+router.delete('/waitlist/:id', verifyToken, checkRole(['admin', 'owner']), WaitlistController.deleteWaitlist);
 
 // --- EXPENSE (PHIẼU CHI) ROUTES ---
 const ExpenseController = require('../controllers/ExpenseController');
 router.get('/expenses', verifyToken, checkRole(['admin', 'owner']), ExpenseController.getExpenses);
-router.post('/expenses', verifyToken, checkRole(['admin', 'owner']), ExpenseController.createExpense);
+router.post('/expenses', verifyToken, checkRole(['admin', 'owner']), validate(createExpenseSchema), ExpenseController.createExpense);
 router.delete('/expenses/:id', verifyToken, checkRole(['admin', 'owner']), ExpenseController.deleteExpense);
-
+// --- TRANSACTION (SỔ QUỸ) ROUTES ---
+const TransactionController = require('../controllers/TransactionController');
+router.get('/transactions', verifyToken, checkRole(['admin', 'owner']), TransactionController.getTransactions);
+router.post('/transactions', verifyToken, checkRole(['admin', 'owner']), TransactionController.createTransaction);
+router.delete('/transactions/:id', verifyToken, checkRole(['owner']), TransactionController.deleteTransaction);
 // --- REPORTS ---
 const ReportController = require('../controllers/ReportController');
 router.get('/reports/daily', verifyToken, branchCheck, ReportController.getDailyReport);
@@ -151,7 +158,7 @@ router.get('/reports/cashflow', verifyToken, checkRole(['admin', 'owner']), Repo
 
 // --- CONSULTATION ROUTES ---
 const ConsultationController = require('../controllers/ConsultationController');
-router.post('/consultations', ConsultationController.createConsultation); // Public
+router.post('/consultations', validate(createConsultationSchema), ConsultationController.createConsultation); // Public
 router.get('/consultations', verifyToken, checkRole(['admin', 'owner']), ConsultationController.getAllConsultations);
 router.put('/consultations/:id', verifyToken, checkRole(['admin', 'owner']), ConsultationController.updateConsultation);
 router.delete('/consultations/:id', verifyToken, checkRole(['admin', 'owner']), ConsultationController.deleteConsultation);

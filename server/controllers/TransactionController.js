@@ -31,9 +31,13 @@ exports.getTransactions = async (req, res) => {
         const { date, startDate, endDate, type, page = 1, limit = 50 } = req.query;
         const query = {};
 
-        // Branch isolation
-        if (req.user?.role === 'admin' && req.user?.branchId) {
-            query.branchId = req.user.branchId;
+        // Branch isolation (admin thấy tất cả chi nhánh mình quản lý)
+        if (req.user?.role === 'admin') {
+            if (req.user.managedBranches?.length > 0) {
+                query.branchId = { $in: req.user.managedBranches };
+            } else if (req.user.branchId) {
+                query.branchId = req.user.branchId;
+            }
         }
 
         if (type) query.type = type;

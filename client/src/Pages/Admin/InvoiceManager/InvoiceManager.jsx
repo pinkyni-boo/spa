@@ -2,17 +2,20 @@ import React, { useState, useEffect } from 'react';
 import {
     Table, Tag, Button, Typography, Card, DatePicker,
     Row, Col, Statistic, Drawer, Descriptions, Divider,
-    Space, Input, Modal, message, Tooltip, Empty
+    Space, Input, Modal, message, Tooltip, Empty,
+    Form, InputNumber, Select
 } from 'antd';
 import {
     FileTextOutlined, SearchOutlined, EyeOutlined,
-    StopOutlined, DollarOutlined, UserOutlined, CreditCardOutlined
+    StopOutlined, DollarOutlined, UserOutlined, CreditCardOutlined,
+    ShoppingCartOutlined, PlusOutlined, DeleteOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { adminBookingService } from '../../../services/adminBookingService';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
+const { Option } = Select;
 
 const fmt = (v) => new Intl.NumberFormat('vi-VN').format(v || 0) + ' ₫';
 
@@ -33,6 +36,13 @@ const InvoiceManager = () => {
     const [voidReason, setVoidReason] = useState('');
     const [voidingId, setVoidingId] = useState(null);
 
+    // Retail invoice state
+    const [retailModal, setRetailModal] = useState(false);
+    const [retailForm] = Form.useForm();
+    const [products, setProducts] = useState([]);
+    const [retailItems, setRetailItems] = useState([{ key: 0, itemId: null, name: '', qty: 1, price: 0, subtotal: 0 }]);
+    const [retailSubmitting, setRetailSubmitting] = useState(false);
+
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
     const fetchInvoices = async () => {
@@ -47,7 +57,17 @@ const InvoiceManager = () => {
         }
     };
 
-    useEffect(() => { fetchInvoices(); }, []);
+    const fetchProducts = async () => {
+        try {
+            const res = await fetch(`${API_URL}/api/services?type=product`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            });
+            const data = await res.json();
+            setProducts(data.services || data.data || []);
+        } catch { setProducts([]); }
+    };
+
+    useEffect(() => { fetchInvoices(); fetchProducts(); }, []);
 
     // Filter
     const filtered = invoices.filter(inv => {
@@ -84,6 +104,80 @@ const InvoiceManager = () => {
                 fetchInvoices();
             }
         } catch { message.error('Lỗi hủy hóa đơn'); }
+    };
+
+    // --- Retail invoice helpers ---
+    const retailSubTotal = retailItems.reduce((s, i) => s + (i.subtotal || 0), 0);
+    const retailDiscount = Form.useWatch('discount', retailForm) || 0;
+    const retailFinalTotal = Math.max(0, retailSubTotal - retailDiscount);
+
+    const updateRetailItem = (key, field, value) => {
+        setRetailItems(prev => prev.map(item => {
+            if (item.key !== key) return item;
+            const updated = { ...item, [field]: value };
+            if (field === 'itemId') {
+                const prod = products.find(p => p._id === value);
+                updated.name = prod?.name || '';
+                updated.price = prod?.price || 0;
+                updated.subtotal = updated.price * (updated.qty || 1);
+            }
+            if (field === 'qty') updated.subtotal = updated.price * (value || 0);
+            return updated;
+        }));
+    };
+
+    const handleRetailSubmit = async () => {
+        try {
+            const values = await retailForm.validateFields();
+            if (retailItems.some(i => !i.itemId)) {
+                message.warning('Vui lòng chọn sản phẩm cho tất cả dòng');
+                return;
+            }
+            if (retailItems.length === 0) {
+                message.warning('Chưa có sản phẩm nào');
+                return;
+            }
+            setRetailSubmitting(true);
+            const payload = {
+                customerName: values.customerName,
+                phone: values.phone || '',
+                items: retailItems.map(i => ({
+                    itemId: i.itemId,
+                    name: i.name,
+                    type: 'product',
+                    qty: i.qty,
+                    price: i.price,
+                    subtotal: i.subtotal,
+                })),
+                subTotal: retailSubTotal,
+                discount: values.discount || 0,
+                finalTotal: retailFinalTotal,
+                paymentMethod: values.paymentMethod || 'cash',
+                cashierName: JSON.parse(localStorage.getItem('user') || '{}')?.name || 'Admin',
+                note: values.note || '',
+            };
+            const res = await fetch(`${API_URL}/api/invoices/retail`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (data.success) {
+                message.success('Đã tạo đơn bán lẻ thành công!');
+                setRetailModal(false);
+                retailForm.resetFields();
+                setRetailItems([{ key: 0, itemId: null, name: '', qty: 1, price: 0, subtotal: 0 }]);
+                fetchInvoices();
+                fetchProducts(); // refresh stock
+            } else {
+                message.error(data.message || 'Lỗi tạo đơn bán lẻ');
+            }
+        } catch (err) {
+            if (err?.errorFields) return; // validation error
+            message.error('Lỗi kết nối');
+        } finally {
+            setRetailSubmitting(false);
+        }
     };
 
     const columns = [
@@ -220,6 +314,16 @@ const InvoiceManager = () => {
                             style={{ maxWidth: 280 }}
                         />
                     </Col>
+                    <Col>
+                        <Button
+                            type="primary"
+                            icon={<ShoppingCartOutlined />}
+                            onClick={() => setRetailModal(true)}
+                            style={{ background: '#722ed1', borderColor: '#722ed1' }}
+                        >
+                            Tạo Đơn Bán Lẻ
+                        </Button>
+                    </Col>
                 </Row>
             </Card>
 
@@ -338,6 +442,110 @@ const InvoiceManager = () => {
                     onChange={e => setVoidReason(e.target.value)}
                     placeholder="VD: Khách yêu cầu hoàn tiền, nhập sai dịch vụ..."
                 />
+            </Modal>
+
+            {/* Retail Invoice Modal */}
+            <Modal
+                title={<Space><ShoppingCartOutlined style={{ color: '#722ed1' }} /><span>Tạo Đơn Bán Lẻ</span></Space>}
+                open={retailModal}
+                onCancel={() => { setRetailModal(false); retailForm.resetFields(); setRetailItems([{ key: 0, itemId: null, name: '', qty: 1, price: 0, subtotal: 0 }]); }}
+                onOk={handleRetailSubmit}
+                okText="Xác Nhận Thanh Toán"
+                okButtonProps={{ style: { background: '#722ed1', borderColor: '#722ed1' }, loading: retailSubmitting }}
+                width={680}
+                destroyOnClose
+            >
+                <Form form={retailForm} layout="vertical">
+                    <Row gutter={12}>
+                        <Col span={12}>
+                            <Form.Item label="Tên khách" name="customerName" rules={[{ required: true, message: 'Nhập tên khách' }]}>
+                                <Input placeholder="Khách vãng lai" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item label="Số điện thoại" name="phone">
+                                <Input placeholder="0901234567" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+
+                    <Divider orientation="left" plain style={{ fontSize: 13, marginBottom: 8 }}>Sản phẩm</Divider>
+
+                    {retailItems.map((item, idx) => (
+                        <Row key={item.key} gutter={8} style={{ marginBottom: 8 }} align="middle">
+                            <Col span={10}>
+                                <Select
+                                    style={{ width: '100%' }}
+                                    placeholder="Chọn sản phẩm"
+                                    value={item.itemId}
+                                    onChange={v => updateRetailItem(item.key, 'itemId', v)}
+                                    showSearch
+                                    optionFilterProp="label"
+                                    options={products.map(p => ({
+                                        value: p._id,
+                                        label: `${p.name} — ${new Intl.NumberFormat('vi-VN').format(p.price)}đ`,
+                                    }))}
+                                />
+                            </Col>
+                            <Col span={4}>
+                                <InputNumber
+                                    min={1} value={item.qty} style={{ width: '100%' }}
+                                    onChange={v => updateRetailItem(item.key, 'qty', v || 1)}
+                                    addonBefore="SL"
+                                />
+                            </Col>
+                            <Col span={6}>
+                                <Text strong style={{ color: '#52c41a' }}>
+                                    {new Intl.NumberFormat('vi-VN').format(item.subtotal)}đ
+                                </Text>
+                            </Col>
+                            <Col span={4} style={{ textAlign: 'right' }}>
+                                {retailItems.length > 1 && (
+                                    <Button danger size="small" icon={<DeleteOutlined />}
+                                        onClick={() => setRetailItems(prev => prev.filter(i => i.key !== item.key))} />
+                                )}
+                            </Col>
+                        </Row>
+                    ))}
+
+                    <Button
+                        type="dashed" icon={<PlusOutlined />} block
+                        style={{ marginBottom: 16 }}
+                        onClick={() => setRetailItems(prev => [...prev, { key: Date.now(), itemId: null, name: '', qty: 1, price: 0, subtotal: 0 }])}
+                    >
+                        Thêm sản phẩm
+                    </Button>
+
+                    <Row gutter={12}>
+                        <Col span={8}>
+                            <Form.Item label="Giảm giá (đ)" name="discount" initialValue={0}>
+                                <InputNumber style={{ width: '100%' }} min={0}
+                                    formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
+                            </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                            <Form.Item label="Thanh toán" name="paymentMethod" initialValue="cash">
+                                <Select>
+                                    <Option value="cash">Tiền mặt</Option>
+                                    <Option value="banking">Chuyển khoản</Option>
+                                    <Option value="card">Quẹt thẻ</Option>
+                                </Select>
+                            </Form.Item>
+                        </Col>
+                        <Col span={8} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', paddingBottom: 24 }}>
+                            <div style={{ textAlign: 'right' }}>
+                                <div style={{ fontSize: 12, color: '#888' }}>Tạm tính: {new Intl.NumberFormat('vi-VN').format(retailSubTotal)}đ</div>
+                                <div style={{ fontSize: 16, fontWeight: 700, color: '#722ed1' }}>
+                                    Thực thu: {new Intl.NumberFormat('vi-VN').format(retailFinalTotal)}đ
+                                </div>
+                            </div>
+                        </Col>
+                    </Row>
+
+                    <Form.Item label="Ghi chú" name="note">
+                        <Input.TextArea rows={2} placeholder="Ghi chú thêm (nếu có)" />
+                    </Form.Item>
+                </Form>
             </Modal>
         </div>
     );

@@ -7,6 +7,7 @@ import {
     PhoneOutlined, UserOutlined, MessageOutlined,
     CalendarOutlined, CheckCircleOutlined
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -15,6 +16,7 @@ const { TextArea } = Input;
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const ConsultationForm = () => {
+    const navigate = useNavigate();
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
@@ -78,7 +80,7 @@ const ConsultationForm = () => {
                         >
                             Gửi yêu cầu khác
                         </Button>,
-                        <Button key="home" onClick={() => window.location.href = '/'}>
+                        <Button key="home" onClick={() => navigate('/')}>
                             Về trang chủ
                         </Button>,
                     ]}

@@ -19,7 +19,6 @@ const UserSchema = new mongoose.Schema({
     enum: ['owner', 'admin', 'staff'], 
     default: 'staff' 
   },
-  // [NEW] Link to Staff profile
   staffId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Staff',

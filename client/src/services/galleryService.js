@@ -1,7 +1,11 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+const getAuthHeaders = () => ({
+    'Authorization': `Bearer ${localStorage.getItem('token')}`
+});
+
 export const galleryService = {
-    // Get all gallery items (optional filter by type)
+    // Get all gallery items (optional filter by type) — public, no auth needed
     getAllGalleryItems: async (type) => {
         try {
             let url = `${API_URL}/api/gallery`;
@@ -14,12 +18,12 @@ export const galleryService = {
         }
     },
 
-    // Create new gallery item
+    // Create new gallery item — requires auth (FormData, no Content-Type)
     createGalleryItem: async (formData) => {
         try {
             const response = await fetch(`${API_URL}/api/gallery`, {
                 method: 'POST',
-                // No Content-Type header needed for FormData; browser sets it with boundary
+                headers: getAuthHeaders(),
                 body: formData
             });
             return await response.json();
@@ -29,11 +33,12 @@ export const galleryService = {
         }
     },
 
-    // Update gallery item
+    // Update gallery item — requires auth
     updateGalleryItem: async (id, formData) => {
         try {
             const response = await fetch(`${API_URL}/api/gallery/${id}`, {
                 method: 'PUT',
+                headers: getAuthHeaders(),
                 body: formData
             });
             return await response.json();
@@ -43,11 +48,12 @@ export const galleryService = {
         }
     },
 
-    // Delete gallery item
+    // Delete gallery item — requires auth
     deleteGalleryItem: async (id) => {
         try {
             const response = await fetch(`${API_URL}/api/gallery/${id}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: getAuthHeaders()
             });
             return await response.json();
         } catch (error) {

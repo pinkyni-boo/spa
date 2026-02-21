@@ -24,7 +24,10 @@ const BookingCalendarView = ({
     onSelectEvent,
     onSelectSlot,
     openCreateModal,
-    handleApprove
+    handleApprove,
+    filterBranch,    // Server pagination filters
+    filterStaff,
+    filterPayment,
 }) => {
     return (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 600, minWidth: 0 }}>
@@ -56,6 +59,7 @@ const BookingCalendarView = ({
                         onCreate={openCreateModal}
                         onApprove={handleApprove}
                         onEdit={onSelectEvent}
+                        fetchParams={filterBranch ? { branchId: filterBranch, staffId: filterStaff, paymentStatus: filterPayment } : null}
                     />
                 </div>
             )}

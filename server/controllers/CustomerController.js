@@ -6,7 +6,6 @@ const Booking = require('../models/Booking'); // Import Booking model
 exports.searchCustomers = async (req, res) => {
     try {
         const { query, branchId } = req.query; // Search by name or phone, filter by branch
-        console.log('[SEARCH CUSTOMERS] Query:', query, 'Branch:', branchId); // [DEBUG]
         
         let customers = [];
         let bookings = [];
@@ -24,7 +23,6 @@ exports.searchCustomers = async (req, res) => {
                 .select('customerName phone createdAt')
                 .sort({ createdAt: -1 })
                 .limit(200);
-            console.log('[SEARCH CUSTOMERS] Default view, bookings count:', bookings.length); // [DEBUG]
         } else {
             // [SEARCH VIEW] GLOBAL SEARCH (As per requirement: CRM is Global)
             // Priority 1: Search in Customer collection (synced data)
@@ -34,8 +32,6 @@ exports.searchCustomers = async (req, res) => {
                     { name: { $regex: query, $options: 'i' } }
                 ]
             }).limit(20).sort({ lastVisit: -1 });
-            console.log('[SEARCH CUSTOMERS] Customers from CRM:', customers.length); // [DEBUG]
-
             // Priority 2: Fallback search in Booking collection
             bookings = await Booking.find({
                 $or: [
@@ -43,7 +39,6 @@ exports.searchCustomers = async (req, res) => {
                     { customerName: { $regex: query, $options: 'i' } }
                 ]
             }).select('customerName phone createdAt').sort({ createdAt: -1 }).limit(100);
-            console.log('[SEARCH CUSTOMERS] Bookings found:', bookings.length); // [DEBUG]
         }
 
         // Aggregate unique phone numbers
@@ -73,7 +68,6 @@ exports.searchCustomers = async (req, res) => {
             }
         }
 
-        console.log('[SEARCH CUSTOMERS] Final result count:', result.length); // [DEBUG]
         // Return top 50
         res.json({
             success: true,
@@ -179,10 +173,10 @@ exports.syncCustomerStats = async (data) => {
         }
         
         await customer.save();
-        console.log(`[CRM] Synced Customer: ${customer.name} (${customer.phone}) - Added ${newPoints} points`);
+        console.log(`Synced Customer: ${customer.name} (${customer.phone}) - Added ${newPoints} points`);
         return customer;
     } catch (error) {
-        console.error("[CRM] Sync Error:", error);
+        console.error("Sync Error:", error);
     }
 };
 
@@ -198,7 +192,7 @@ exports.deductPoints = async (phone, points) => {
 
         customer.loyaltyPoints -= points;
         await customer.save();
-        console.log(`[CRM] Deducted ${points} points from ${phone}`);
+        console.log(`Deducted ${points} points from ${phone}`);
         return true;
     } catch (error) {
         console.error("Deduct Points Error:", error);

@@ -256,6 +256,9 @@ const BookingManager = () => {
                         }}
                         openCreateModal={openCreateModal}
                         handleApprove={handleApprove}
+                        filterBranch={filterBranch}
+                        filterStaff={filterStaff}
+                        filterPayment={filterPayment}
                     />
 
                     {/* RIGHT: DYNAMIC SIDEBAR (Collapsible) - Always visible */}

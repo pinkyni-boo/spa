@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const BookingSchema = new mongoose.Schema({
   customerName: { type: String, required: true },
   phone: { type: String, required: true },
-  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }, // [NEW] Link to Branch
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
   
   // Liên kết với bảng Service để lấy giá và thời lượng
   serviceId: { 
@@ -16,14 +16,14 @@ const BookingSchema = new mongoose.Schema({
   staffId: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Staff',
-    default: null // Sẽ thành mandatory ở Phase 2
+    default: null
   },
   roomId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Room',
     default: null
   },
-  // [MULTI-BED] Giường cụ thể trong phòng
+  // Giường cụ thể trong phòng
   bedId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Bed',
@@ -50,18 +50,18 @@ const BookingSchema = new mongoose.Schema({
     default: 'online'
   },
 
-  // [NEW] PAYMENT STATUS (Advanced Filter)
+  // Trạng thái thanh toán
   paymentStatus: {
       type: String,
       enum: ['unpaid', 'paid'],
       default: 'unpaid'
   },
   
-  // [NEW] Thực tế làm: Check-in / Checkout
+  // Thời gian thực tế: Check-in / Checkout
   actualStartTime: { type: Date },
   actualEndTime: { type: Date },
 
-  // [NEW] Dịch vụ thực tế (Upsell sẽ update vào đây)
+  // Dịch vụ thực tế đã làm (có thể upsell thêm)
   servicesDone: [{
       serviceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Service' },
       name: String, // Snapshot name
@@ -69,7 +69,7 @@ const BookingSchema = new mongoose.Schema({
       qty: { type: Number, default: 1 }
   }],
   
-  // [NEW] Sản phẩm mua thêm (Retail)
+  // Sản phẩm mua thêm (Retail)
   productsBought: [{
       productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Service' }, // Dùng bảng Service type='product'
       name: String,
@@ -77,10 +77,10 @@ const BookingSchema = new mongoose.Schema({
       qty: { type: Number, default: 1 }
   }],
 
-  // [NEW] Tổng tiền chốt (Sau khi xong xuôi)
+  // Tổng tiền chốt sau khi hoàn thành dịch vụ
   finalPrice: { type: Number, default: 0 },
 
-  // [NEW] Promotion Tracking (For Conflict Detection)
+  // Khuyến mãi đã áp dụng
   appliedPromotions: [{
     promotionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Promotion' },
     code: String,

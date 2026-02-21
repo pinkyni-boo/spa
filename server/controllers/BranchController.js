@@ -5,7 +5,7 @@ const ActionLogController = require('./ActionLogController');
 exports.getAllBranches = async (req, res) => {
     try {
         const branches = await Branch.find()
-            .populate('managerId', 'name phone email') // [NEW] Populate manager info
+            .populate('managerId', 'name phone email')
             .sort({ createdAt: -1 });
         res.json({
             success: true,
@@ -21,7 +21,7 @@ exports.getAllBranches = async (req, res) => {
 exports.getBranch = async (req, res) => {
     try {
         const branch = await Branch.findById(req.params.id)
-            .populate('managerId', 'name phone email'); // [NEW]
+            .populate('managerId', 'name phone email');
         if (!branch) {
             return res.status(404).json({ success: false, message: 'Branch not found' });
         }
@@ -38,14 +38,14 @@ exports.getBranch = async (req, res) => {
 // Create branch
 exports.createBranch = async (req, res) => {
     try {
-        const { name, address, phone, email, managerId, workingHours } = req.body; // [FIX] Updated field name
+        const { name, address, phone, email, managerId, workingHours } = req.body;
 
         const branch = new Branch({
             name,
             address,
             phone,
             email,
-            managerId, // [UPDATED] Use managerId instead of manager object
+            managerId,
             workingHours,
             status: 'active'
         });
@@ -66,7 +66,7 @@ exports.createBranch = async (req, res) => {
 // Update branch
 exports.updateBranch = async (req, res) => {
     try {
-        const { name, address, phone, email, managerId, workingHours, status } = req.body; // [FIX] Updated field name
+        const { name, address, phone, email, managerId, workingHours, status } = req.body;
 
         const branch = await Branch.findByIdAndUpdate(
             req.params.id,

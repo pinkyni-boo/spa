@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Table, Tag, Button, Avatar, Typography, Space, DatePicker, Tabs, Tooltip } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Table, Tag, Button, Avatar, Typography, Space, DatePicker, Tabs, Tooltip, Spin } from 'antd';
 import { ClockCircleOutlined, UserOutlined, AppstoreOutlined, CheckCircleOutlined, EditOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import theme from '../../../theme';
+import { adminBookingService } from '../../../services/adminBookingService';
 
 const IconHeader = ({ icon, label }) => (
     <Tooltip title={label} placement="top">
@@ -15,8 +16,43 @@ const { Text } = Typography;
 /* Fluid scale helper: maps viewport 900px→1600px to size min→max */
 const fl = (min, max) => `clamp(${min}px, ${min}px + (${max - min}) * ((100vw - 900px) / 700), ${max}px)`;
 
-const BookingListView = ({ bookings, loading, onEdit, onApprove, filterDate, setFilterDate, onCreate }) => {
+const PAGE_SIZE = 20;
+
+const BookingListView = ({ bookings: propBookings, loading: propLoading, onEdit, onApprove, filterDate, setFilterDate, onCreate, fetchParams }) => {
     const [activeTab, setActiveTab] = useState('all');
+
+    // Server-side pagination state (khi có fetchParams)
+    const [serverBookings, setServerBookings] = useState([]);
+    const [serverLoading, setServerLoading] = useState(false);
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
+
+    const isServerMode = !!fetchParams;
+    const bookings = isServerMode ? serverBookings : (propBookings || []);
+    const loading   = isServerMode ? serverLoading  : propLoading;
+
+    useEffect(() => {
+        if (!isServerMode) return;
+        let cancelled = false;
+        const load = async () => {
+            setServerLoading(true);
+            try {
+                const res = await adminBookingService.getAllBookings({
+                    ...fetchParams,
+                    page,
+                    limit: PAGE_SIZE,
+                });
+                if (!cancelled && res.success) {
+                    setServerBookings(res.bookings || []);
+                    setTotal(res.total || 0);
+                }
+            } finally {
+                if (!cancelled) setServerLoading(false);
+            }
+        };
+        load();
+        return () => { cancelled = true; };
+    }, [page, fetchParams?.branchId, fetchParams?.staffId, fetchParams?.paymentStatus, isServerMode]);
 
     const getFilteredBookings = () => {
         if (activeTab === 'all') return bookings;
@@ -173,7 +209,15 @@ const BookingListView = ({ bookings, loading, onEdit, onApprove, filterDate, set
                 rowKey="_id"
                 loading={loading}
                 size="small"
-                pagination={{ pageSize: 8, size: 'small' }}
+                pagination={isServerMode ? {
+                    current: page,
+                    pageSize: PAGE_SIZE,
+                    total: total,
+                    onChange: (p) => { setPage(p); setActiveTab('all'); },
+                    showTotal: (t) => `${t} đơn`,
+                    showSizeChanger: false,
+                    size: 'small',
+                } : { pageSize: 8, size: 'small' }}
                 tableLayout="fixed"
             />
         </div>

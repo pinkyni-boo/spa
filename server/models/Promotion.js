@@ -22,11 +22,9 @@ const promotionSchema = new mongoose.Schema({
         required: true,
         min: 0
     },
-    // [NEW] Conflict Logic
-    allowCombine: {
-        type: Boolean, 
-        default: true,
-        help: "Cho phép dùng chung với các ưu đãi khác (Point, Voucher...)"
+  allowCombine: {
+        type: Boolean,
+        default: true
     },
     
     // Validity

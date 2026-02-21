@@ -4,8 +4,8 @@ const ActionLogController = require('./ActionLogController');
 // 1. Lấy danh sách nhân viên
 exports.getAllStaff = async (req, res) => {
     try {
-        const staff = await Staff.find({ isDeleted: { $ne: true } }) // [FIX] Soft Delete Filter
-            .populate('branchId', 'name') // [FIX] Populate Branch Name
+        const staff = await Staff.find({ isDeleted: { $ne: true } })
+            .populate('branchId', 'name')
             .sort({ isActive: -1, name: 1 });
         res.json({ success: true, staff });
     } catch (error) {
@@ -16,13 +16,13 @@ exports.getAllStaff = async (req, res) => {
 // 2. Tạo nhân viên mới
 exports.createStaff = async (req, res) => {
     try {
-        const { name, phone, branchId, role, shifts, isActive } = req.body; // [UPDATED] add role
-        
+        const { name, phone, branchId, role, shifts, isActive } = req.body;
+
         const newStaff = new Staff({
             name,
             phone,
             branchId,
-            role, // [NEW]
+            role,
             shifts: shifts || [],
             isActive: isActive !== undefined ? isActive : true
         });
@@ -40,15 +40,11 @@ exports.createStaff = async (req, res) => {
 exports.updateStaffDetails = async (req, res) => {
     try {
         const { id } = req.params;
-        // [FIX] Allow updating name, phone, branchId
-        const { name, phone, branchId, role, skills, shifts, isActive } = req.body; // [UPDATED] add role
-
-        // Validate shifts logic (nếu cần)
-        // VD: startTime < endTime
+        const { name, phone, branchId, role, skills, shifts, isActive } = req.body;
 
         const staff = await Staff.findByIdAndUpdate(
             id,
-            { name, phone, branchId, role, skills, shifts, isActive }, // [UPDATED]
+            { name, phone, branchId, role, skills, shifts, isActive },
             { new: true }
         );
 

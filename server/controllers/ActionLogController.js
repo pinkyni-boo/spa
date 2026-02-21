@@ -49,7 +49,6 @@ const ActionLogController = {
             });
 
             await newLog.save();
-            // console.log(`[AUDIT] Action: ${action} by ${displayName}`);
         } catch (error) {
             console.error('[AUDIT ERROR] Failed to save log:', error);
         }

@@ -17,6 +17,10 @@ const WaitlistSidebar = ({ waitlist, setWaitlist, refreshTrigger, onDragStart, o
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [form] = Form.useForm();
     const [searchText, setSearchText] = useState('');
+
+    // Lấy branchId từ user hiện tại
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const userBranchId = currentUser?.branchId || null;
     
     // 1. INIT
     const fetchWaitlist = async () => {
@@ -33,7 +37,8 @@ const WaitlistSidebar = ({ waitlist, setWaitlist, refreshTrigger, onDragStart, o
         // Format Dayjs to HH:mm string if present
         const payload = {
             ...values,
-            preferredTime: values.preferredTime ? values.preferredTime.format('HH:mm') : null
+            preferredTime: values.preferredTime ? values.preferredTime.format('HH:mm') : null,
+            branchId: userBranchId, // Gắn chi nhánh của admin đang đăng nhập
         };
 
         const res = await adminBookingService.addToWaitlist(payload);

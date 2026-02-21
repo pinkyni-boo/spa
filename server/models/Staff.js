@@ -18,13 +18,13 @@ const StaffSchema = new mongoose.Schema({
     type: String, 
     required: true 
   },
-  phone: { type: String, default: "" }, // [NEW]
-  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }, // [NEW]
+  phone: { type: String, default: "" },
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
   role: {
     type: String,
     enum: ['ktv', 'admin', 'owner'],
     default: 'ktv'
-  }, // [NEW] Staff role: ktv (service provider), admin (manager), or owner
+  },
   avatar: {
     type: String,
     default: ""
@@ -41,7 +41,6 @@ const StaffSchema = new mongoose.Schema({
   }],
   // Ca làm việc cố định trong tuần
   shifts: [ShiftSchema],
-  // [NEW] Soft Delete
   isDeleted: {
       type: Boolean,
       default: false

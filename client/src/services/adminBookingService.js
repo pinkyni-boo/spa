@@ -20,8 +20,9 @@ export const adminBookingService = {
       if (filters.status) params.append('status', filters.status);
       if (filters.staffId) params.append('staffId', filters.staffId);
       if (filters.paymentStatus) params.append('paymentStatus', filters.paymentStatus);
-
-      if (filters.paymentStatus) params.append('paymentStatus', filters.paymentStatus);
+      if (filters.branchId) params.append('branchId', filters.branchId);
+      if (filters.page)  params.append('page',  filters.page);
+      if (filters.limit) params.append('limit', filters.limit);
 
       const response = await fetch(`${API_URL}/api/bookings?${params.toString()}`, {
           headers: getAuthHeaders()
@@ -232,7 +233,9 @@ export const adminBookingService = {
 
   getWaitlist: async () => {
       try {
-          const response = await fetch(`${API_URL}/api/waitlist`);
+          const response = await fetch(`${API_URL}/api/waitlist`, {
+              headers: getAuthHeaders()
+          });
           return await response.json();
       } catch (error) {
           return { success: false, message: error.message };
@@ -269,7 +272,10 @@ export const adminBookingService = {
 
   deleteWaitlist: async (id) => {
       try {
-          const response = await fetch(`${API_URL}/api/waitlist/${id}`, { method: 'DELETE' });
+          const response = await fetch(`${API_URL}/api/waitlist/${id}`, {
+              method: 'DELETE',
+              headers: getAuthHeaders()
+          });
           return await response.json();
       } catch (error) {
           return { success: false, message: error.message };

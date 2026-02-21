@@ -8,6 +8,7 @@ const WaitlistSchema = new mongoose.Schema({
   preferredTime: { type: String }, // NEW: Store HH:mm
   note: { type: String },
   status: { type: String, default: 'waiting' }, // waiting, converted, cancelled
+  branchId: { type: String, default: null }, // Chi nhánh quản lý hàng chờ này
 }, { timestamps: true });
 
 module.exports = mongoose.model('Waitlist', WaitlistSchema);

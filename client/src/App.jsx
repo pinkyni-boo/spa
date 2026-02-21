@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Layout, Card, Tabs, Typography, Button, ConfigProvider } from 'antd';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { MenuUnfoldOutlined, MenuFoldOutlined } from '@ant-design/icons';
 
 import Footer from './Pages/Global/Footer.jsx';
@@ -79,9 +79,7 @@ const MainContent = () => {
 
     if (isAdmin) {
         if (!isAuthenticated) {
-            // Redirect to Login if accessing Admin without Auth
-            window.location.href = '/login';
-            return null;
+            return <Navigate to="/login" replace />;
         }
 
         return (

@@ -10,15 +10,13 @@ const ServiceSchema = new mongoose.Schema({
     type: Number, 
     required: true 
   },
-  duration: { 
-    type: Number, 
-    required: true, 
-    help: "Thời gian làm dịch vụ tính bằng phút (VD: 60, 90). Đây là chỉ số quan trọng để tính lịch." 
+  duration: {
+    type: Number,
+    required: true
   },
   breakTime: {
     type: Number,
-    default: 30, // Default 30 mins buffer as requested
-    help: "Thời gian nghỉ/dọn dẹp sau dịch vụ"
+    default: 30
   },
   image: {
     type: String,
@@ -32,27 +30,37 @@ const ServiceSchema = new mongoose.Schema({
     enum: ['Body', 'Face', 'Combo', 'Other', 'Head', 'Skincare', 'Haircare', 'Voucher'], // Added product categories
     default: 'Body'
   },
-  // [NEW] Service Type (service vs product)
+  // Loại: service (dịch vụ) hoặc product (sản phẩm bán lẻ)
   type: {
       type: String,
       enum: ['service', 'product'],
       default: 'service'
   },
-  // [NEW] Required Capabilities for Room/Staff Matching
   requiredCapabilities: {
       type: [String],
       default: []
   },
-  // [NEW] Strict Room Type Requirement
   requiredRoomType: {
       type: String,
       enum: ['HEAD_SPA', 'BODY_SPA', 'NAIL_SPA', 'OTHER'],
       default: 'BODY_SPA'
   },
-  // [NEW] Soft Delete
   isDeleted: {
       type: Boolean,
       default: false
+  },
+  // Quản lý tồn kho (chỉ áp dụng khi type === 'product')
+  stock: {
+      type: Number,
+      default: null   // null = không quản lý tồn kho (dịch vụ)
+  },
+  stockUnit: {
+      type: String,
+      default: 'cái'  // cái, chai, hộp, tuúp...
+  },
+  lowStockAlert: {
+      type: Number,
+      default: 5      // Cảnh báo khi tồn kho ≤ mức này
   }
 }, { timestamps: true });
 

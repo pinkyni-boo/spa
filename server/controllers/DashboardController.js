@@ -1,6 +1,6 @@
 const Booking = require('../models/Booking');
 const Staff = require('../models/Staff');
-const Room = require('../models/Room'); // [NEW] Import Room model
+const Room = require('../models/Room');
 const dayjs = require('dayjs');
 
 // Get occupancy rate for all rooms
@@ -12,7 +12,7 @@ exports.getOccupancyRate = async (req, res) => {
 
         // 1. Get all active rooms for this branch
         const rooms = await Room.find({ 
-            ...req.branchQuery, // [FIX] Isolation
+            ...req.branchQuery,
             isActive: true 
         });
 
@@ -76,7 +76,7 @@ exports.getStats = async (req, res) => {
 
         // Today's completed bookings
         const todayBookings = await Booking.find({
-            ...req.branchQuery, // [FIX] Isolation
+            ...req.branchQuery,
             startTime: { $gte: today.toDate(), $lte: todayEnd.toDate() },
             status: { $in: ['completed', 'processing', 'confirmed'] }
         }).populate('serviceId');
@@ -95,7 +95,7 @@ exports.getStats = async (req, res) => {
 
         // Pending bookings
         const pendingBookings = await Booking.countDocuments({
-            ...req.branchQuery, // [FIX] Isolation
+            ...req.branchQuery,
             status: 'pending'
         });
 
@@ -182,7 +182,7 @@ exports.getTopServices = async (req, res) => {
         const startOfMonth = dayjs().startOf('month');
         
         const bookings = await Booking.find({
-            ...req.branchQuery, // [FIX] Isolation
+            ...req.branchQuery,
             startTime: { $gte: startOfMonth.toDate() },
             status: { $in: ['completed', 'processing', 'confirmed'] }
         }).populate('serviceId');

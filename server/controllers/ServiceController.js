@@ -4,26 +4,23 @@ const ActionLogController = require('./ActionLogController');
 exports.getAllServices = async (req, res) => {
     try {
         const { type } = req.query;
-        let query = { isDeleted: { $ne: true } }; // [FIX] Soft Delete Filter
-        
-        
+        let query = { isDeleted: { $ne: true } };
+
         if (type === 'service') {
-            // [FIX] Legacy Data Support: Old docs don't have 'type', treat as service.
-            query = { 
-                ...query, // [FIX] Preserve isDeleted check
+            // Legacy support: old docs may not have 'type' field
+            query = {
+                ...query,
                 $or: [
-                    { type: 'service' }, 
-                    { type: { $exists: false } }, 
+                    { type: 'service' },
+                    { type: { $exists: false } },
                     { type: null }
-                ] 
+                ]
             };
         } else if (type === 'product') {
-            query = { ...query, type: 'product' }; // [FIX] Preserve isDeleted check
+            query = { ...query, type: 'product' };
         }
 
-        console.log('GET Services Query:', JSON.stringify(query));
         const services = await Service.find(query).sort({ createdAt: -1 });
-        console.log('GET Services Result Count:', services.length);
         
         res.json({ success: true, services });
     } catch (error) {
@@ -33,16 +30,16 @@ exports.getAllServices = async (req, res) => {
 
 exports.createService = async (req, res) => {
     try {
-        const { name, price, duration, breakTime, category, description, image, type } = req.body; // [FIX] Add type
+        const { name, price, duration, breakTime, category, description, image, type } = req.body;
         const newService = new Service({
             name,
             price,
             duration,
-            breakTime: breakTime || 30, // Default 30 if not provided
+            breakTime: breakTime || 30,
             category,
             description,
             image,
-            type: type || 'service' // [FIX] Save type field
+            type: type || 'service'
         });
         await newService.save();
         ActionLogController.createLog(req, req.user, 'SERVICE_CREATE', 'Service', newService._id, newService.name);
@@ -66,7 +63,6 @@ exports.updateService = async (req, res) => {
 exports.deleteService = async (req, res) => {
     try {
         const { id } = req.params;
-        // [FIX] Soft Delete
         const svc = await Service.findByIdAndUpdate(id, { isDeleted: true }, { new: true });
         ActionLogController.createLog(req, req.user, 'SERVICE_DELETE', 'Service', id, svc?.name || id);
         res.json({ success: true, message: 'Deleted successfully (Soft)' });
@@ -75,7 +71,6 @@ exports.deleteService = async (req, res) => {
     }
 };
 
-// [NEW] Seed Sample Services
 exports.seedServices = async (req, res) => {
     try {
         // 1. Delete all existing SERVICES (keep products if any, or delete all as requested)

@@ -254,7 +254,7 @@ const TabCashflow = () => {
                 const res = await fetch(`${API_URL}/api/reports/cashflow?${params}`, { headers: getHeaders() });
                 const data = await res.json();
                 if (!cancelled && data.success) {
-                    setRows(data.tableData);
+                    setRows([...( data.tableData || [])].sort((a, b) => new Date(b.time) - new Date(a.time)));
                     setSummary(data.summary || {});
                 }
             } catch (_) {} finally { if (!cancelled) setLoading(false); }
@@ -372,13 +372,15 @@ const TabCashflow = () => {
                     pagination={{ pageSize: 30, showTotal: t => `${t} dòng` }}
                     rowClassName={r => r.rowType === 'income' ? 'income-row' : 'expense-row'}
                     summary={() => (
-                        <Table.Summary.Row>
-                            <Table.Summary.Cell colSpan={4}><Text strong>Tổng kỳ</Text></Table.Summary.Cell>
-                            <Table.Summary.Cell align="right">
-                                <Text strong style={{ color: net >= 0 ? '#1890ff' : '#ff4d4f' }}>{fmt(net)}</Text>
-                            </Table.Summary.Cell>
-                            <Table.Summary.Cell colSpan={2} />
-                        </Table.Summary.Row>
+                        <Table.Summary fixed="top">
+                            <Table.Summary.Row style={{ background: '#fafafa', fontWeight: 700 }}>
+                                <Table.Summary.Cell colSpan={4}><Text strong>Tổng kỳ</Text></Table.Summary.Cell>
+                                <Table.Summary.Cell align="right">
+                                    <Text strong style={{ color: net >= 0 ? '#1890ff' : '#ff4d4f' }}>{fmt(net)}</Text>
+                                </Table.Summary.Cell>
+                                <Table.Summary.Cell colSpan={2} />
+                            </Table.Summary.Row>
+                        </Table.Summary>
                     )}
                 />
             </Card>

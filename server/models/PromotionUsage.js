@@ -9,7 +9,7 @@ const promotionUsageSchema = new mongoose.Schema({
     bookingId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Booking',
-        required: false // [FIX] Optional for Retail/Test
+        required: false
     },
     customerPhone: {
         type: String,

@@ -1,6 +1,6 @@
 const Promotion = require('../models/Promotion');
 const PromotionUsage = require('../models/PromotionUsage');
-const Booking = require('../models/Booking'); // [NEW] For conflict checking
+const Booking = require('../models/Booking');
 const ActionLogController = require('./ActionLogController');
 
 // Get all promotions
@@ -41,7 +41,7 @@ exports.getActivePromotions = async (req, res) => {
     }
 };
 
-// [NEW] Suggest Applicable Promotions
+// Suggest Applicable Promotions
 exports.suggestPromotions = async (req, res) => {
     try {
         const { orderValue, branchId } = req.body; // Expecting current cart total
@@ -75,7 +75,6 @@ exports.suggestPromotions = async (req, res) => {
 // Create promotion
 exports.createPromotion = async (req, res) => {
     try {
-        console.log('[CREATE PROMOTION] Request body:', JSON.stringify(req.body, null, 2)); // [DEBUG] Log request
         const promotion = new Promotion(req.body);
         await promotion.save();
         ActionLogController.createLog(req, req.user, 'PROMOTION_CREATE', 'Promotion', promotion._id, promotion.name || promotion.code);
@@ -86,13 +85,7 @@ exports.createPromotion = async (req, res) => {
         });
     } catch (error) {
         console.error('Error creating promotion:', error);
-        console.error('Error details:', error.message); // [DEBUG] Detailed error
-        console.error('Stack:', error.stack); // [DEBUG] Stack trace
-        res.status(500).json({ 
-            success: false, 
-            message: 'Server error', 
-            error: error.message // [DEBUG] Send error message to frontend
-        });
+        res.status(500).json({ success: false, message: 'Server error' });
     }
 };
 
@@ -147,7 +140,7 @@ exports.deletePromotion = async (req, res) => {
 // Validate promotion code
 exports.validateCode = async (req, res) => {
     try {
-        const { code, orderValue, serviceId, branchId, customerPhone, bookingId } = req.body; // [NEW] bookingId for conflict check
+        const { code, orderValue, serviceId, branchId, customerPhone, bookingId } = req.body;
         
         // Find promotion
         const promotion = await Promotion.findOne({ 
@@ -238,8 +231,8 @@ exports.validateCode = async (req, res) => {
             }
         }
         
-        // [NEW] ⚠️ COUPON CONFLICT CHECK ⚠️
-        // Check if booking already has promotions that conflict
+        // ⚠️ COUPON CONFLICT CHECK ⚠️
+        // Kiểm tra đơn hàng đã có mã giảm giá không cho phép kết hợp
         if (bookingId) {
             const booking = await Booking.findById(bookingId).populate('appliedPromotions.promotionId');
             
@@ -299,7 +292,7 @@ exports.validateCode = async (req, res) => {
                 type: promotion.type,
                 value: promotion.value,
                 isFlashSale: promotion.isFlashSale,
-                allowCombine: promotion.allowCombine // [NEW] Return conflict flag
+                allowCombine: promotion.allowCombine
             },
             discountAmount,
             finalPrice: orderValue - discountAmount
@@ -315,8 +308,7 @@ exports.applyPromotion = async (req, res) => {
     try {
         const { promotionId, bookingId, customerPhone, discountAmount } = req.body;
         
-        // [NEW] ⚠️ DOUBLE CHECK CONFLICT BEFORE APPLYING ⚠️
-        // This is the FINAL gate - validateCode already checked, but we check again for safety
+        // ⚠️ DOUBLE CHECK CONFLICT TRƯỜC KHI ÁP DỤNG ⚠️
         const booking = await Booking.findById(bookingId).populate('appliedPromotions.promotionId');
         const promotion = await Promotion.findById(promotionId);
         
@@ -340,14 +332,12 @@ exports.applyPromotion = async (req, res) => {
             }
         }
         
-        // [NEW] Save promotion to booking
         booking.appliedPromotions.push({
             promotionId: promotion._id,
             code: promotion.code,
             discountAmount: discountAmount
         });
         
-        // [NEW] Update total discount and final price
         booking.totalDiscount = (booking.totalDiscount || 0) + discountAmount;
         
         // Recalculate final price

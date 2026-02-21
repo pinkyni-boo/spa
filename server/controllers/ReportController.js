@@ -1,5 +1,6 @@
 const Invoice = require('../models/Invoice');
 const Expense = require('../models/Expense');
+const Transaction = require('../models/Transaction');
 const Booking = require('../models/Booking');
 
 const EXPENSE_CAT_LABELS = {
@@ -8,6 +9,7 @@ const EXPENSE_CAT_LABELS = {
     salary: 'Lương / thưởng',
     utility: 'Điện / nước / internet',
     other: 'Chi khác',
+    other_expense: 'Chi khác',
 };
 
 // GET /api/reports/daily?date=YYYY-MM-DD
@@ -36,10 +38,14 @@ exports.getDailyReport = async (req, res) => {
             .sort({ createdAt: 1 })
             .lean();
 
-        // 2. Lấy phiếu chi (CHI)
+        // 2. Lấy phiếu chi (CHI) — từ cả Expense model và Transaction model
         const expenseQuery = { date: { $gte: startOfDay, $lte: endOfDay } };
         if (branchId) expenseQuery.branchId = branchId;
         const expenses = await Expense.find(expenseQuery).sort({ date: 1 }).lean();
+
+        const txExpenseQuery = { type: 'expense', date: { $gte: startOfDay, $lte: endOfDay } };
+        if (branchId) txExpenseQuery.branchId = branchId;
+        const txExpenses = await Transaction.find(txExpenseQuery).sort({ date: 1 }).lean();
 
         // 3. Format dòng Thu
         let totalIncome = 0, totalTip = 0;
@@ -71,7 +77,7 @@ exports.getDailyReport = async (req, res) => {
             };
         });
 
-        // 4. Format dòng Chi
+        // 4. Format dòng Chi (Expense model)
         let totalExpense = 0;
         const expenseRows = expenses.map(exp => {
             totalExpense += exp.amount;
@@ -86,15 +92,36 @@ exports.getDailyReport = async (req, res) => {
                 price: 0,
                 tip: 0,
                 surchargeFee: 0,
-                total: -exp.amount,    // Số âm để nhận diện Chi
+                total: -exp.amount,
                 amount: exp.amount,
                 paymentMethod: exp.paymentMethod || 'cash',
                 note: exp.reason,
             };
         });
 
+        // 4b. Format dòng Chi (Transaction model)
+        const txExpenseRows = txExpenses.map(tx => {
+            totalExpense += tx.amount;
+            return {
+                _id: tx._id,
+                rowType: 'expense',
+                time: tx.date,
+                customerName: '— Phiếu Chi —',
+                phone: '',
+                serviceName: EXPENSE_CAT_LABELS[tx.category] || tx.category || '—',
+                staffName: tx.createdBy || '—',
+                price: 0,
+                tip: 0,
+                surchargeFee: 0,
+                total: -tx.amount,
+                amount: tx.amount,
+                paymentMethod: tx.paymentMethod || 'cash',
+                note: tx.reason || '',
+            };
+        });
+
         // 5. Gộp + sort theo giờ
-        const tableData = [...incomeRows, ...expenseRows].sort(
+        const tableData = [...incomeRows, ...expenseRows, ...txExpenseRows].sort(
             (a, b) => new Date(a.time) - new Date(b.time)
         );
 
@@ -143,10 +170,14 @@ exports.getCashflowReport = async (req, res) => {
             })
             .sort({ createdAt: 1 }).lean();
 
-        // 2. Expenses (CHI)
+        // 2. Expenses (CHI) — từ cả Expense model và Transaction model
         const expenseQuery = { date: { $gte: start, $lte: end } };
         if (branchId) expenseQuery.branchId = branchId;
         const expenses = await Expense.find(expenseQuery).sort({ date: 1 }).lean();
+
+        const txExpenseQuery = { type: 'expense', date: { $gte: start, $lte: end } };
+        if (branchId) txExpenseQuery.branchId = branchId;
+        const txExpenses = await Transaction.find(txExpenseQuery).sort({ date: 1 }).lean();
 
         // 3. Format Thu rows
         let totalIncome = 0, totalTip = 0;
@@ -174,7 +205,7 @@ exports.getCashflowReport = async (req, res) => {
             };
         });
 
-        // 4. Format Chi rows
+        // 4. Format Chi rows (Expense model)
         let totalExpense = 0;
         const expenseRows = expenses.map(exp => {
             totalExpense += exp.amount;
@@ -194,7 +225,26 @@ exports.getCashflowReport = async (req, res) => {
             };
         });
 
-        const tableData = [...incomeRows, ...expenseRows].sort(
+        // 4b. Format Chi rows (Transaction model)
+        const txExpenseRows = txExpenses.map(tx => {
+            totalExpense += tx.amount;
+            return {
+                _id: tx._id,
+                rowType: 'expense',
+                time: tx.date,
+                customerName: tx.reason,
+                phone: '',
+                serviceName: EXPENSE_CAT_LABELS[tx.category] || tx.category || '—',
+                staffName: tx.createdBy || '—',
+                price: 0,
+                tip: 0,
+                total: tx.amount,
+                paymentMethod: tx.paymentMethod || 'cash',
+                note: tx.note || '',
+            };
+        });
+
+        const tableData = [...incomeRows, ...expenseRows, ...txExpenseRows].sort(
             (a, b) => new Date(a.time) - new Date(b.time)
         );
 

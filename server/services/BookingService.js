@@ -3,6 +3,7 @@ const Service = require('../models/Service');
 const Staff = require('../models/Staff');
 const Room = require('../models/Room');
 const Bed = require('../models/Bed');
+const Branch = require('../models/Branch');
 const dayjs = require('dayjs');
 const isBetween = require('dayjs/plugin/isBetween');
 const customParseFormat = require('dayjs/plugin/customParseFormat');
@@ -62,7 +63,6 @@ const checkAvailability = async (date, serviceId, serviceName, branchId) => {
 
     // C. Get Resources (Scoped by Branch)
     const allRooms = await Room.find({ isActive: true, branchId: branchId });
-    // [MULTI-BED] Load beds – fall back to capacity if no beds defined yet
     const allBeds = await Bed.find({ isActive: true, branchId: branchId }).lean();
     const hasBeds = allBeds.length > 0;
     const qualifiedStaff = await Staff.find({ 
@@ -70,8 +70,6 @@ const checkAvailability = async (date, serviceId, serviceName, branchId) => {
         branchId: branchId
     });
     
-    // [NEW] Get Branch Working Hours
-    const Branch = require('../models/Branch');
     const branch = await Branch.findById(branchId);
     if (!branch) throw { status: 404, message: 'Chi nhánh không tồn tại' };
     
@@ -113,7 +111,6 @@ const checkAvailability = async (date, serviceId, serviceName, branchId) => {
 
         let hasAvailableRoom;
         if (hasBeds) {
-            // [MULTI-BED] Check per individual bed
             const suitableBeds = allBeds.filter(b => suitableRoomIds.has(b.roomId.toString()));
             hasAvailableRoom = suitableBeds.some(bed => {
                 const bedBusy = bookingsToday.some(booking => {
@@ -192,12 +189,7 @@ const checkAvailability = async (date, serviceId, serviceName, branchId) => {
 const createBooking = async (bookingData) => {
     const { customerName, phone, serviceName, date, time, roomId, bedId: requestedBedId, staffId, branchId, status, source } = bookingData;
     
-    const requestId = Math.random().toString(36).substring(7);
-    console.log(`[${requestId}] ========= BOOKING REQUEST STARTED =========`);
-    
     const unlock = await bookingMutex.lock();
-    console.log(`[${requestId}] Mutex acquired`);
-    
     try {
         // 0. Validate Branch
         if (!branchId) {
@@ -232,7 +224,6 @@ const createBooking = async (bookingData) => {
             startTime: { $gte: dayStart, $lte: dayEnd },
             status: { $ne: 'cancelled' }
         });
-        console.log(`[${requestId}] Found ${bookingsToday.length} existing bookings for ${date}, hasBeds=${hasBeds}`);
 
         // A. Find Room + Bed
         let assignedRoom = null;
@@ -277,8 +268,7 @@ const createBooking = async (bookingData) => {
             let targetType = service.requiredRoomType || 'BODY_SPA';
             const sName = (service.name || '').toLowerCase();
 
-            // [FIX] Comprehensive Keyword Matching (Prioritize Name)
-            // Override default if name strongly suggests another type
+            // Override service type based on name keywords
             const headKeywords = ['gội', 'hair', 'tóc', 'head', 'dưỡng sinh', 'shampoo', 'wash'];
             const nailKeywords = ['nail', 'móng', 'tay', 'chân', 'sơn', 'gel', 'da', 'bột', 'dũa', 'úp', 'gắn', 'đắp', 'vẽ', 'ẩn', 'xà cừ', 'ombre', 'mắt mèo', 'cat eye', 'tháo'];
 
@@ -300,11 +290,8 @@ const createBooking = async (bookingData) => {
                 
                 return false;
             });
-            
-            console.log(`[${requestId}] Suitable rooms for ${service.name} (${targetType}): ${suitableRooms.length}`);
-            
+
             if (hasBeds) {
-                // [MULTI-BED] Find first free bed in a suitable room
                 const suitableRoomIds = new Set(suitableRooms.map(r => r._id.toString()));
                 const suitableBeds = allBeds
                     .filter(b => suitableRoomIds.has(b.roomId.toString()))
@@ -316,7 +303,6 @@ const createBooking = async (bookingData) => {
                             const bStart = dayjs(b.startTime);
                             const bEnd = dayjs(b.endTime).add(b.bufferTime || 0, 'minute');
                             const overlaps = startTime.isBefore(bEnd) && busyEndTime.isAfter(bStart);
-                            if (overlaps) console.log(`[${requestId}]   - Bed "${bed.name}" busy: ${bStart.format('HH:mm')}-${bEnd.format('HH:mm')}`);
                             return overlaps;
                         }
                         return false;
@@ -324,7 +310,6 @@ const createBooking = async (bookingData) => {
                     if (!bedBusy) {
                         assignedBed = bed;
                         assignedRoom = allRooms.find(r => r._id.toString() === bed.roomId.toString());
-                        console.log(`[${requestId}] ✅ Auto-assigned bed: ${bed.name}`);
                         break;
                     }
                 }
@@ -336,23 +321,18 @@ const createBooking = async (bookingData) => {
                             const bStart = dayjs(b.startTime);
                             const bEnd = dayjs(b.endTime).add(b.bufferTime || 0, 'minute');
                             const overlaps = startTime.isBefore(bEnd) && busyEndTime.isAfter(bStart);
-                            if (overlaps) console.log(`[${requestId}]   - Overlap: ${bStart.format('HH:mm')}-${bEnd.format('HH:mm')}`);
                             return overlaps;
                         }
                         return false;
                     });
-                    const hasCapacity = concurrentBookings.length < room.capacity;
-                    console.log(`[${requestId}] Room "${room.name}": ${concurrentBookings.length}/${room.capacity} - ${hasCapacity ? 'AVAILABLE' : 'FULL'}`);
-                    return hasCapacity;
+                    return concurrentBookings.length < room.capacity;
                 });
             }
         }
 
         if (!assignedRoom) {
-            console.log(`[${requestId}] ❌ NO ROOM/BED AVAILABLE`);
             throw { status: 409, message: 'Hết phòng/giường vào giờ này rồi!' };
         }
-        console.log(`[${requestId}] ✅ Assigned room: ${assignedRoom.name}${assignedBed ? ` / ${assignedBed.name}` : ''}`);
 
         // B. Find Staff
         const dayOfWeek = startTime.day();
@@ -387,7 +367,7 @@ const createBooking = async (bookingData) => {
             serviceId: service._id,
             staffId: assignedStaff._id,
             roomId: assignedRoom._id,
-            bedId: assignedBed ? assignedBed._id : null,  // [MULTI-BED]
+            bedId: assignedBed ? assignedBed._id : null,
             startTime: startTime.toDate(),
             endTime: endTime.toDate(),
             bufferTime: bufferTime,

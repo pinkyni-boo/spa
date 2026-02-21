@@ -6,7 +6,7 @@ const ActionLogController = require('./ActionLogController');
 exports.getAllRooms = async (req, res) => {
   try {
     const rooms = await Room.find()
-      .populate('branchId', 'name') // [FIX] Populate Branch Name
+      .populate('branchId', 'name')
       .sort({ isActive: -1, name: 1 });
     res.json({ success: true, rooms });
   } catch (error) {

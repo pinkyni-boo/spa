@@ -6,7 +6,7 @@ const RoomSchema = new mongoose.Schema({
     required: true, 
     unique: true 
   },
-  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }, // [NEW]
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
   type: { 
     type: String, 
     enum: ['HEAD_SPA', 'BODY_SPA', 'NAIL_SPA', 'OTHER'], 

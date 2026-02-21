@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const ActionLogController = require('./ActionLogController');
+const bcrypt = require('bcryptjs');
 
 // Get all users
 exports.getAllUsers = async (req, res) => {
@@ -22,20 +23,21 @@ exports.getAllUsers = async (req, res) => {
 // Create new user
 exports.createUser = async (req, res) => {
     try {
-        const { username, password, name, role, managedBranches, phone, staffId } = req.body; // [NEW] Add staffId
+        const { username, password, name, role, managedBranches, phone, staffId } = req.body;
 
         const existingUser = await User.findOne({ username });
         if (existingUser) {
             return res.status(400).json({ success: false, message: 'Username already exists' });
         }
 
+        const hashedPassword = await bcrypt.hash(password, 10);
         const newUser = new User({
             username,
-            password, // Plain text for now as requested
+            password: hashedPassword,
             name,
             role,
-            staffId, // [NEW] Save staffId
-            managedBranches: role === 'admin' ? managedBranches : [], // Only admins have branches
+            staffId,
+            managedBranches: role === 'admin' ? managedBranches : [],
             phone
         });
 
@@ -52,19 +54,19 @@ exports.createUser = async (req, res) => {
 exports.updateUser = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, role, managedBranches, phone, password, isActive, staffId } = req.body; // [NEW] Add staffId
+        const { name, role, managedBranches, phone, password, isActive, staffId } = req.body;
 
         const updateData = {
             name,
             role,
             phone,
             isActive,
-            staffId, // [NEW] Include staffId
+            staffId,
             managedBranches: role === 'admin' ? managedBranches : []
         };
 
         if (password) {
-            updateData.password = password;
+            updateData.password = await bcrypt.hash(password, 10);
         }
 
         const updatedUser = await User.findByIdAndUpdate(id, updateData, { new: true }).populate('managedBranches', 'name');
