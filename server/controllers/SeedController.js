@@ -103,3 +103,21 @@ exports.seedGalleryAndFeedback = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// Seed lại 6 dịch vụ từ services.json (xóa dịch vụ cũ, giữ lại sản phẩm)
+exports.seedServices = async (req, res) => {
+    try {
+        const Service = require('../models/Service');
+        const servicesData = require('../data/services.json');
+
+        // Xóa toàn bộ services (type='service' hoặc k có type)
+        await Service.deleteMany({ $or: [{ type: 'service' }, { type: { $exists: false } }, { type: null }] });
+
+        // Insert 6 dịch vụ mới
+        await Service.insertMany(servicesData);
+
+        res.json({ success: true, message: `Đã seed ${servicesData.length} dịch vụ thành công` });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

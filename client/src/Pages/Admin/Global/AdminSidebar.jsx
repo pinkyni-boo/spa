@@ -39,8 +39,19 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
     const location = useLocation();
     const [currentUser, setCurrentUser] = useState(null);
     const [pendingCount, setPendingCount] = useState(0);
+    const [pendingBookingCount, setPendingBookingCount] = useState(0);
     const prevCountRef = useRef(null);
+    const prevBookingCountRef = useRef(null);
     const [notifApi, notifHolder] = notification.useNotification();
+
+    const navigateWithFallback = (path) => {
+        navigate(path);
+        setTimeout(() => {
+            if (window.location.pathname !== path) {
+                window.location.assign(path);
+            }
+        }, 80);
+    };
 
     useEffect(() => {
         const userStr = localStorage.getItem('user');
@@ -49,19 +60,26 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
         }
     }, []);
 
-    // Poll pending consultations every 10s
+    // Poll pending consultations + pending bookings and notify admin when new items appear
     useEffect(() => {
         const fetchPending = async () => {
             const token = localStorage.getItem('token');
             if (!token) return;
             try {
-                const res = await fetch(`${API_URL}/api/consultations?status=pending&limit=1`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                const data = await res.json();
-                if (data.success) {
-                    const count = data.total || 0;
-                    // Notify if count increased
+                const [consultRes, bookingRes] = await Promise.all([
+                    fetch(`${API_URL}/api/consultations?status=pending&limit=1`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    }),
+                    fetch(`${API_URL}/api/bookings?status=pending&limit=1`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    })
+                ]);
+
+                const consultData = await consultRes.json();
+                const bookingData = await bookingRes.json();
+
+                if (consultData.success) {
+                    const count = consultData.total || 0;
                     if (prevCountRef.current !== null && count > prevCountRef.current) {
                         const diff = count - prevCountRef.current;
                         notifApi.info({
@@ -70,11 +88,38 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
                             icon: <BellOutlined style={{ color: '#D4AF37' }} />,
                             placement: 'topRight',
                             duration: 6,
-                            onClick: () => navigate('/admin/consultations'),
+                            onClick: () => navigateWithFallback('/admin/consultations'),
+                            btn: (
+                                <Button size="small" type="link" onClick={() => navigateWithFallback('/admin/consultations')}>
+                                    Mở
+                                </Button>
+                            ),
                         });
                     }
                     prevCountRef.current = count;
                     setPendingCount(count);
+                }
+
+                if (bookingData.success) {
+                    const bookingCount = bookingData.total || 0;
+                    if (prevBookingCountRef.current !== null && bookingCount > prevBookingCountRef.current) {
+                        const diff = bookingCount - prevBookingCountRef.current;
+                        notifApi.info({
+                            message: 'Đơn đặt lịch mới!',
+                            description: `Có ${diff} đơn đặt lịch mới cần xử lý.`,
+                            icon: <BellOutlined style={{ color: '#52c41a' }} />,
+                            placement: 'topRight',
+                            duration: 6,
+                            onClick: () => navigateWithFallback('/admin/bookings'),
+                            btn: (
+                                <Button size="small" type="link" onClick={() => navigateWithFallback('/admin/bookings')}>
+                                    Mở
+                                </Button>
+                            ),
+                        });
+                    }
+                    prevBookingCountRef.current = bookingCount;
+                    setPendingBookingCount(bookingCount);
                 }
             } catch (_) {}
         };
@@ -89,7 +134,7 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
             clearInterval(interval);
             window.removeEventListener('consultation-updated', fetchPending);
         };
-    }, []);
+    }, [navigate, notifApi]);
 
     const menuItems = [
         {
@@ -100,8 +145,15 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
         // Đặt Lịch - Flat Item (không có group)
         {
             key: '/admin/bookings',
-            icon: <CalendarOutlined />,
-            label: 'Đặt Lịch',
+            icon: <Badge count={pendingBookingCount} size="small" offset={[4, -2]}><CalendarOutlined /></Badge>,
+            label: (
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    Đặt Lịch
+                    {pendingBookingCount > 0 && (
+                        <Badge count={pendingBookingCount} size="small" style={{ backgroundColor: '#52c41a' }} />
+                    )}
+                </span>
+            ),
         },
         // GROUP 1: QUẢN LÝ (Management - Cài đặt tài nguyên)
         {
@@ -306,7 +358,7 @@ const AdminSidebar = ({ collapsed, setCollapsed }) => {
                 }}>
                     {!collapsed && currentUser && (
                         <div style={{ marginBottom: 8 }}>
-                            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                            <Space orientation="vertical" size={4} style={{ width: '100%' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <Avatar 
                                         style={{ backgroundColor: currentUser.role === 'owner' ? '#D4Af37' : '#52c41a' }}

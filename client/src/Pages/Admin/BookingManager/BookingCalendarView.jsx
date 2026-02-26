@@ -28,6 +28,7 @@ const BookingCalendarView = ({
     filterBranch,    // Server pagination filters
     filterStaff,
     filterPayment,
+    refreshTrigger,
 }) => {
     return (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 600, minWidth: 0 }}>
@@ -59,6 +60,7 @@ const BookingCalendarView = ({
                         onCreate={openCreateModal}
                         onApprove={handleApprove}
                         onEdit={onSelectEvent}
+                        refreshTrigger={refreshTrigger}
                         fetchParams={filterBranch ? { branchId: filterBranch, staffId: filterStaff, paymentStatus: filterPayment } : null}
                     />
                 </div>

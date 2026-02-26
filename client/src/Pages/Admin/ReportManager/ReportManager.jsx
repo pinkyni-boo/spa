@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Typography, Card, Tabs, DatePicker, Table, Button, Row, Col,
-    Statistic, Tag, message, Form, Input, Select, Modal, Popconfirm,
+    Statistic, Tag, App, Form, Input, Select, Modal, Popconfirm,
     Space, Badge, Tooltip
 } from 'antd';
 import {
@@ -158,7 +158,7 @@ const TabDailyReport = () => {
         {
             title: 'Khách hàng', key: 'customer',
             render: (_, r) => r.rowType === 'income' ? (
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                     <Text strong>{r.customerName}</Text>
                     <Text type="secondary" style={{ fontSize: 12 }}>{r.phone}</Text>
                 </Space>
@@ -231,6 +231,7 @@ const TabDailyReport = () => {
 
 // ─── TAB 3: SỔ QUỸ THU/CHI ────────────────────────────────────────────────────
 const TabCashflow = () => {
+    const { message } = App.useApp();
     const [rows, setRows] = useState([]);
     const [summary, setSummary] = useState({ totalIncome: 0, totalTip: 0, totalExpense: 0, netCash: 0 });
     const [loading, setLoading] = useState(false);

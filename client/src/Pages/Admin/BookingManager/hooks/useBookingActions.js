@@ -1,4 +1,4 @@
-import { message } from 'antd';
+import { App } from 'antd';
 import dayjs from 'dayjs';
 import { adminBookingService } from '../../../../services/adminBookingService';
 
@@ -10,31 +10,50 @@ export const useBookingActions = ({
     // Actions
     fetchData,
     // Setters
-    setIsModalVisible, setDrawerVisible, setSelectedBooking, setIsEditing, setDraggedWaitlistItem, setRefreshWaitlist
+    setIsModalVisible, setDrawerVisible, setSelectedBooking, setIsEditing, setDraggedWaitlistItem, setRefreshWaitlist, setRefreshBookingList
 }) => {
+    const { message } = App.useApp();
+
+    const refreshBookingViews = async () => {
+        await fetchData();
+        if (typeof setRefreshBookingList === 'function') {
+            setRefreshBookingList(prev => prev + 1);
+        }
+    };
 
     const handleCreateSubmit = async (values) => {
-         const data = {
-             customerName: values.customerName,
-             phone: values.phone,
-             serviceName: values.serviceName,
-             date: values.date.format('YYYY-MM-DD'),
-             time: values.time,
-             branchId: filterBranch 
-         };
-         
          if (!filterBranch) {
              message.error("Vui lòng chọn chi nhánh trước khi tạo đơn!");
              return;
          }
 
+         // Clean phone: only digits
+         const cleanPhone = (values.phone || '').replace(/[^0-9]/g, '');
+
+         const data = {
+             customerName: values.customerName,
+             phone: cleanPhone || undefined,   // undefined = server won't validate
+             serviceName: values.serviceName,
+             serviceId: values.serviceId,      // send ID for exact match — no fuzzy needed
+             date: values.date.format('YYYY-MM-DD'),
+             time: values.time,
+             branchId: filterBranch,
+             source: 'offline',                // MUST be here before Joi runs
+         };
+
          try {
-            await adminBookingService.createBooking(data);
-            message.success("Tạo đơn thành công");
-            setIsModalVisible(false);
-            fetchData();
+            const result = await adminBookingService.createBooking(data);
+            if (result.success) {
+                message.success("Tạo đơn thành công!");
+                setIsModalVisible(false);
+                await refreshBookingViews();
+            } else {
+                // Show Joi errors if available, else generic message
+                const detail = result.errors?.join(', ') || result.message || 'Tạo đơn thất bại';
+                message.error(detail);
+            }
          } catch (error) {
-             message.error("Tạo đơn thất bại");
+             message.error("Tạo đơn thất bại: " + (error.message || ''));
          }
     };
 
@@ -54,7 +73,7 @@ export const useBookingActions = ({
             const result = await adminBookingService.approveBooking(bookingId);
             if (result.success) {
                 message.success('Đã duyệt đơn');
-                await fetchData(); 
+                await refreshBookingViews();
             } else {
                 message.error(result.message || 'Không thể duyệt đơn');
             }
@@ -68,7 +87,7 @@ export const useBookingActions = ({
             await adminBookingService.createInvoice(invoiceData);
             message.success('Thanh toán thành công');
             setSelectedBooking(null);
-            fetchData();
+            await refreshBookingViews();
         } catch (error) {
             message.error('Thanh toán thất bại');
         }
@@ -99,102 +118,29 @@ export const useBookingActions = ({
                     if (result.success) message.success('Đã cập nhật');
                     break;
                 case 'upsell_save':
-                     // Create Linked Booking Logic
+                     // Append service to parent's servicesDone + create linked child booking for calendar
                      if (data && data.addedService) {
-                         const currentBooking = data.booking;
-                         const newServiceData = data.addedService; // { name, price, qty } 
-                         
-                         // 1. Find Real Service Object
-                         const foundService = services.find(s => s.name === newServiceData.name);
-                         
-                         if (!foundService) {
-                             message.error(`Không tìm thấy dịch vụ: ${newServiceData.name}`);
-                             break;
-                         }
+                         const { addedService, bookingId: targetBookingId, roomId, bedId, startTime } = data;
 
-                         // 2. Determine Duration
-                         let duration = foundService.duration || 60; 
+                         const items = [{
+                             name: addedService.name,
+                             price: addedService.price || 0,
+                             quantity: addedService.qty || 1,
+                             serviceId: addedService._id || null
+                         }];
 
-                         const startTimeObj = dayjs(currentBooking.endTime); 
-                         const endTimeObj = startTimeObj.add(duration, 'minute');
+                         result = await adminBookingService.addServiceToBooking(
+                             targetBookingId,
+                             items,
+                             { roomId: roomId || null, bedId: bedId || null, startTime: startTime || null }
+                         );
 
-                         // 3. AUTO-ASSIGN ROOM
-                         let targetType = foundService.requiredRoomType || 'BODY_SPA'; 
-                         const sName = foundService.name.toLowerCase();
-                         
-                         const headKeywords = ['gội', 'hair', 'tóc', 'head', 'dưỡng sinh', 'shampoo', 'wash'];
-                         const nailKeywords = ['nail', 'móng', 'tay', 'chân', 'sơn', 'gel', 'da', 'bột', 'dũa', 'úp', 'gắn', 'đắp', 'vẽ', 'ẩn', 'xà cừ', 'ombre', 'mắt mèo', 'cat eye', 'tháo'];
-
-                         if (headKeywords.some(k => sName.includes(k))) {
-                             targetType = 'HEAD_SPA';
-                         } else if (nailKeywords.some(k => sName.includes(k))) {
-                             targetType = 'NAIL_SPA';
-                         }
-                         
-                         // Find active room
-                         const suitableRooms = rooms.filter(r => {
-                             if (!r.isActive) return false;
-                             if (r.type === targetType) return true;
-                             
-                             const rName = (r.name || '').toLowerCase();
-                             if (targetType === 'NAIL_SPA' && (rName.includes('nail') || rName.includes('móng'))) return true;
-                             if (targetType === 'HEAD_SPA' && (rName.includes('gội') || rName.includes('hair') || rName.includes('tóc'))) return true;
-                             
-                             return false;
-                         });
-
-                         let assignedRoomId = null;
-                         
-                         const freeRoom = suitableRooms.find(room => {
-                             const isBusy = bookings.some(b => {
-                                 if (b.resourceId === room._id && b.status !== 'cancelled') {
-                                     const bStart = dayjs(b.start);
-                                     const bEnd = dayjs(b.end);
-                                     return startTimeObj.isBefore(bEnd) && endTimeObj.isAfter(bStart);
-                                 }
-                                 return false;
-                             });
-                             return !isBusy;
-                         });
-
-                         if (freeRoom) {
-                             assignedRoomId = freeRoom._id;
-                         } else if (suitableRooms.length > 0) {
-                             assignedRoomId = suitableRooms[0]._id;
-                         } else {
-                             if (targetType === 'NAIL_SPA') {
-                                 message.error('Không tìm thấy phòng Nail trống! Vui lòng kiểm tra lại.');
-                                 return; 
-                             }
-                         }
-
-                         const newBookingData = {
-                             customerName: currentBooking.customerName,
-                             phone: currentBooking.phone,
-                             serviceId: foundService._id, 
-                             serviceName: foundService.name, 
-                             date: startTimeObj.format('YYYY-MM-DD'),
-                             time: startTimeObj.format('HH:mm'),
-                             startTime: startTimeObj.toDate(), 
-                             endTime: endTimeObj.toDate(),
-                             status: 'confirmed', 
-                             note: `Làm thêm từ đơn #${currentBooking._id.slice(-4)}`,
-                             type: targetType, 
-                             roomId: assignedRoomId, 
-                             branchId: filterBranch || (currentBooking.branchId?._id || currentBooking.branchId)
-                         };
-                         
-                         result = await adminBookingService.createBooking(newBookingData);
-                         
                          if (result.success) {
-                             message.success(`Đã thêm lịch: ${foundService.name}`);
-                             fetchData(); 
+                             message.success(`Đã thêm "${addedService.name}" vào đơn hàng`);
+                             setSelectedBooking(result.booking); // Cập nhật drawer ngay lập tức
+                             await refreshBookingViews(); // Cập nhật bảng biểu ngay
                          } else {
-                              if (result.message && result.message.includes('serviceId')) {
-                                   message.error('Lỗi: ID Dịch vụ không hợp lệ');
-                              } else {
-                                  message.error(result.message || 'Không thể tạo lịch làm thêm');
-                              }
+                             message.error(result.message || 'Không thể thêm dịch vụ');
                          }
                      }
                      break;
@@ -205,7 +151,7 @@ export const useBookingActions = ({
             // Only refresh if action was successful (and distinct from upsell which handles its own refresh)
             if (result && result.success && action !== 'upsell_save') {
                 setDrawerVisible(false);
-                await fetchData(); 
+                await refreshBookingViews();
             } else if (result && !result.success && action !== 'upsell_save') {
                 message.error(result.message || 'Thao tác thất bại');
             }
@@ -221,11 +167,13 @@ export const useBookingActions = ({
             let finalRoomId = resourceId;
             let finalBedId = undefined;
 
-            if (targetResource?.isBed) {
+            // Check virtual bed (legacy id "roomId_bed_N") BEFORE isBed flag
+            if (typeof resourceId === 'string' && resourceId.includes('_bed_')) {
+                finalRoomId = resourceId.split('_bed_')[0];
+            } else if (targetResource?.isBed) {
+                // Real bed from Bed model
                 finalBedId = resourceId;
                 finalRoomId = targetResource.parentRoomId;
-            } else if (typeof resourceId === 'string' && resourceId.includes('_bed_')) {
-                finalRoomId = resourceId.split('_bed_')[0];
             }
 
             const updatePayload = { startTime: start, endTime: end, roomId: finalRoomId };
@@ -233,7 +181,7 @@ export const useBookingActions = ({
 
             await adminBookingService.updateBooking(event._id, updatePayload);
             message.success('Đã chuyển lịch');
-            fetchData();
+            await refreshBookingViews();
         } catch (error) {
             message.error('Không thể chuyển lịch');
         }
@@ -246,7 +194,7 @@ export const useBookingActions = ({
                 endTime: end
             });
             message.success('Đã thay đổi thời gian');
-            fetchData();
+            await refreshBookingViews();
         } catch (error) {
             message.error('Không thể thay đổi thời gian');
         }
@@ -268,13 +216,14 @@ export const useBookingActions = ({
         let finalRoomId = resolvedResourceId;
         let finalBedId = null;
 
-        if (targetResource?.isBed) {
-            // Multi-bed: resolvedResourceId is bed._id, parentRoomId is the actual room
+        // Check virtual bed (legacy id "roomId_bed_N") BEFORE isBed flag
+        if (typeof resolvedResourceId === 'string' && resolvedResourceId.includes('_bed_')) {
+            // Virtual bed — extract parent roomId, no bedId
+            finalRoomId = resolvedResourceId.split('_bed_')[0];
+        } else if (targetResource?.isBed) {
+            // Real bed from Bed model — set both
             finalBedId = resolvedResourceId;
             finalRoomId = targetResource.parentRoomId;
-        } else if (typeof resolvedResourceId === 'string' && resolvedResourceId.includes('_bed_')) {
-            // Legacy fallback
-            finalRoomId = resolvedResourceId.split('_bed_')[0];
         }
 
         // --- SERVICE vs ROOM TYPE VALIDATION ---
@@ -294,7 +243,7 @@ export const useBookingActions = ({
 
         let targetBranchId = filterBranch;
         if (!targetBranchId && targetResource) {
-            targetBranchId = targetResource.branchId?._id || targetResource.branchId;
+            targetBranchId = targetResource.branchId?._id?.toString() || targetResource.branchId?.toString();
         }
 
         if (!targetBranchId) {
@@ -303,20 +252,23 @@ export const useBookingActions = ({
         }
 
         try {
+            const cleanPhone = (waitlistItem.phone || '').replace(/[^0-9]/g, '');
             const bookingPayload = {
                 customerName: waitlistItem.customerName,
-                phone: waitlistItem.phone,
+                phone: cleanPhone || undefined,
                 serviceName: waitlistItem.serviceName,
                 date: dayjs(start).format('YYYY-MM-DD'),
                 time: dayjs(start).format('HH:mm'),
-                branchId: targetBranchId,
-                roomId: finalRoomId
+                branchId: String(targetBranchId),
+                roomId: finalRoomId || null,
+                source: 'offline',
             };
             if (finalBedId) bookingPayload.bedId = finalBedId;
 
             const result = await adminBookingService.createBooking(bookingPayload);
             if (!result.success) {
-                message.error(result.message || 'Không thể tạo booking');
+                const errDetail = result.errors?.join(', ') || result.message || 'Không thể tạo booking';
+                message.error(errDetail);
                 return;
             }
             
@@ -325,7 +277,7 @@ export const useBookingActions = ({
             message.success(`Đã xếp lịch cho ${waitlistItem.customerName}`);
             setDraggedWaitlistItem(null); 
             
-            fetchData();
+            await refreshBookingViews();
             setRefreshWaitlist(prev => prev + 1);
         } catch (error) {
             console.error('Drop Error:', error);

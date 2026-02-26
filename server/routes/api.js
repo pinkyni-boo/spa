@@ -26,6 +26,7 @@ router.use(apiLimiter);
 
 // --- DASHBOARD ROUTES ---
 router.post('/seed-data', verifyToken, checkRole(['owner']), destructiveLimiter, SeedController.seedGalleryAndFeedback);
+router.post('/seed-services', verifyToken, checkRole(['owner']), destructiveLimiter, SeedController.seedServices);
 router.get('/dashboard/stats', verifyToken, branchCheck, DashboardController.getStats);
 router.get('/dashboard/revenue-chart', verifyToken, checkRole(['admin', 'owner']), branchCheck, DashboardController.getRevenueChart);
 router.get('/dashboard/top-services', verifyToken, branchCheck, DashboardController.getTopServices);
@@ -55,6 +56,7 @@ router.put('/promotions/:id', verifyToken, checkRole(['admin', 'owner']), valida
 router.delete('/promotions/:id', verifyToken, checkRole(['admin', 'owner']), PromotionController.deletePromotion);
 router.post('/promotions/validate', PromotionController.validateCode);
 router.post('/promotions/apply', PromotionController.applyPromotion);
+router.post('/promotions/suggest', PromotionController.suggestPromotions); // Suggest applicable promotions for invoice
 
 // --- FEEDBACK ROUTES ---
 router.get('/feedbacks', FeedbackController.getAllFeedbacks);
@@ -72,17 +74,17 @@ router.get('/customers/:phone/history', verifyToken, checkRole(['admin', 'owner'
 // --- SERVICE ROUTES (NEW PHASE 6) ---
 router.get('/services', ServiceController.getAllServices); // Public
 router.post('/services', verifyToken, checkRole(['admin', 'owner']), ServiceController.createService);
-router.post('/services/seed', verifyToken, checkRole(['admin', 'owner']), ServiceController.seedServices);
+// /services/seed removed — use /seed-services (SeedController) if needed in dev
 router.put('/services/:id', verifyToken, checkRole(['admin', 'owner']), ServiceController.updateService);
 router.delete('/services/:id', verifyToken, checkRole(['admin', 'owner']), ServiceController.deleteService);
 
-// --- BOOKING ROUTES ---
 // --- BOOKING ROUTES ---
 router.post('/bookings/check-slot', bookingLimiter, BookingController.checkAvailability); // Public
 router.post('/bookings', bookingLimiter, optionalAuth, validate(createBookingSchema), BookingController.createBooking); // Public (Customers) — optionalAuth for audit log
 router.get('/bookings/search', verifyToken, branchCheck, BookingController.searchBookings); // Admin
 router.get('/bookings/history/:phone', verifyToken, BookingController.getCustomerHistory); // Admin
 router.get('/bookings', verifyToken, branchCheck, BookingController.getAllBookings); // Admin
+router.get('/bookings/:id', verifyToken, BookingController.getBookingById);
 router.put('/bookings/:id', verifyToken, checkRole(['admin', 'owner', 'ktv']), BookingController.updateBooking);
 router.put('/bookings/:id/approve', verifyToken, checkRole(['admin', 'owner']), BookingController.approveBooking);
 router.put('/bookings/:id/complete', verifyToken, checkRole(['admin', 'owner']), BookingController.completeBooking);

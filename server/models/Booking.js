@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const BookingSchema = new mongoose.Schema({
   customerName: { type: String, required: true },
-  phone: { type: String, required: true },
+  phone: { type: String, required: false, default: '' },
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
   
   // Liên kết với bảng Service để lấy giá và thời lượng
@@ -76,6 +76,13 @@ const BookingSchema = new mongoose.Schema({
       price: Number,
       qty: { type: Number, default: 1 }
   }],
+
+  // Liên kết đơn con (khi +DV tạo booking riêng cho bảng biểu)
+  parentBookingId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Booking',
+    default: null
+  },
 
   // Tổng tiền chốt sau khi hoàn thành dịch vụ
   finalPrice: { type: Number, default: 0 },

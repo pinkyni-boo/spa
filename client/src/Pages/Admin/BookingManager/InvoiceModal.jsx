@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Descriptions, Table, Button, Typography, InputNumber, Select, Divider, message, Tag } from 'antd';
+import { Modal, Descriptions, Table, Button, Typography, InputNumber, Select, Divider, App, Tag } from 'antd';
 import dayjs from 'dayjs';
 
 import { adminBookingService } from '../../../services/adminBookingService';
@@ -7,6 +7,7 @@ import { adminBookingService } from '../../../services/adminBookingService';
 const { Title, Text } = Typography;
 
 const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
+    const { message } = App.useApp();
     // STATE
     const [items, setItems] = useState([]);
     const [discount, setDiscount] = useState(0);

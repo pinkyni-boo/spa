@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import withDragAndDropLib from 'react-big-calendar/lib/addons/dragAndDrop';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { Spin, message, Tabs, Button, Popover, Tag } from 'antd';
+import { Spin, App, Tabs, Button, Popover, Tag } from 'antd';
 import { LeftOutlined, RightOutlined, CalendarOutlined, ClockCircleOutlined, UserOutlined, PhoneOutlined, SkinOutlined } from '@ant-design/icons';
 import theme from '../../../theme';
 // import { adminBookingService } from '../../../services/adminBookingService';
@@ -79,6 +79,54 @@ const DnDCalendarView = ({ date, views, events, resources, onNavigate, onEventDr
     // [NEW] TAB STATE
     const [activeTab, setActiveTab] = useState('all');
 
+    const roomTypeLabelMap = React.useMemo(() => ({
+        HEAD_SPA: '💆 Gội',
+        BODY_SPA: '🛁 Body',
+        NAIL_SPA: '💅 Nail',
+        FACE_SPA: '🧖 Mặt',
+    }), []);
+
+    const normalizeTypeLabel = React.useCallback((type) => {
+        if (!type) return 'Khác';
+        if (roomTypeLabelMap[type]) return roomTypeLabelMap[type];
+        const base = String(type)
+            .replace(/_SPA$/i, '')
+            .replace(/_/g, ' ')
+            .trim();
+        if (!base) return 'Khác';
+        return `🏷 ${base.charAt(0).toUpperCase()}${base.slice(1).toLowerCase()}`;
+    }, [roomTypeLabelMap]);
+
+    const availableRoomTypes = React.useMemo(() => {
+        if (!resources) return [];
+        const types = Array.from(new Set(
+            resources
+                .map(r => r.roomType || r.type)
+                .filter(Boolean)
+        ));
+
+        const priority = ['HEAD_SPA', 'BODY_SPA', 'NAIL_SPA', 'FACE_SPA'];
+        return types.sort((a, b) => {
+            const ia = priority.indexOf(a);
+            const ib = priority.indexOf(b);
+            if (ia === -1 && ib === -1) return String(a).localeCompare(String(b));
+            if (ia === -1) return 1;
+            if (ib === -1) return -1;
+            return ia - ib;
+        });
+    }, [resources]);
+
+    const tabItems = React.useMemo(() => ([
+        { key: 'all', label: 'Tất cả' },
+        ...availableRoomTypes.map(type => ({ key: type, label: normalizeTypeLabel(type) }))
+    ]), [availableRoomTypes, normalizeTypeLabel]);
+
+    useEffect(() => {
+        if (activeTab !== 'all' && !availableRoomTypes.includes(activeTab)) {
+            setActiveTab('all');
+        }
+    }, [activeTab, availableRoomTypes]);
+
     // [NEW] FILTER RESOURCES LOGIC
     const filteredResources = React.useMemo(() => {
         if (!resources) return [];
@@ -99,7 +147,7 @@ const DnDCalendarView = ({ date, views, events, resources, onNavigate, onEventDr
             if (activeTab === 'NAIL_SPA') {
                 return rType === 'NAIL_SPA' || rTitle.includes('nail') || rTitle.includes('móng');
             }
-            return true;
+            return rType === activeTab;
         });
     }, [resources, activeTab]);
 
@@ -253,6 +301,12 @@ const DnDCalendarView = ({ date, views, events, resources, onNavigate, onEventDr
             newStyle.zIndex = 100;
         }
 
+        // Linked (+DV) child bookings: teal left-border indicator
+        if (event.parentBookingId) {
+            newStyle.borderLeft = '4px solid #13c2c2';
+            newStyle.opacity = 0.92;
+        }
+
         return {
             style: newStyle,
             className: className
@@ -327,6 +381,7 @@ const DnDCalendarView = ({ date, views, events, resources, onNavigate, onEventDr
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
                         }}>
+                            {event.parentBookingId && <span style={{ fontSize: 9, background: '#13c2c2', color: 'white', borderRadius: 3, padding: '0 3px', marginRight: 3 }}>+DV</span>}
                             {event.title}
                         </div>
                         <div style={{
@@ -730,12 +785,7 @@ const DnDCalendarView = ({ date, views, events, resources, onNavigate, onEventDr
                     type="card"
                     size="small"
                     tabBarStyle={{ marginBottom: 0, minWidth: 'max-content' }}
-                    items={[
-                        { key: 'all', label: 'Tất cả' },
-                        { key: 'HEAD_SPA', label: '💆 Gội' },
-                        { key: 'BODY_SPA', label: '🛁 Body' },
-                        { key: 'NAIL_SPA', label: '💅 Nail' }
-                    ]}
+                    items={tabItems}
                 />
             </div>
             
@@ -745,7 +795,7 @@ const DnDCalendarView = ({ date, views, events, resources, onNavigate, onEventDr
             {/* SUGGESTION BANNER */}
              <div className="suggestion-banner" style={{ padding: '8px 16px', background: '#f6ffed', borderBottom: '1px solid #b7eb8f', color: '#389e0d', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, fontSize: 13, flexWrap: 'wrap', overflowX: 'auto' }}>
                 <ClockCircleOutlined style={{ fontSize: 16 }} />
-                <span style={{ minWidth: 0, flex: '1 1 auto' }}><strong>Giờ trống ({activeTab === 'all' ? 'Tất cả' : activeTab === 'HEAD_SPA' ? 'Gội' : activeTab === 'BODY_SPA' ? 'Body' : 'Nail'}):</strong> {availableRanges}</span>
+                     <span style={{ minWidth: 0, flex: '1 1 auto' }}><strong>Giờ trống ({activeTab === 'all' ? 'Tất cả' : normalizeTypeLabel(activeTab).replace(/^\S+\s/, '')}):</strong> {availableRanges}</span>
              </div>
              <style>{`
                 @media (max-width: 768px) {

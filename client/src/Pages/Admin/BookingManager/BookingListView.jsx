@@ -18,7 +18,7 @@ const fl = (min, max) => `clamp(${min}px, ${min}px + (${max - min}) * ((100vw - 
 
 const PAGE_SIZE = 20;
 
-const BookingListView = ({ bookings: propBookings, loading: propLoading, onEdit, onApprove, filterDate, setFilterDate, onCreate, fetchParams }) => {
+const BookingListView = ({ bookings: propBookings, loading: propLoading, onEdit, onApprove, filterDate, setFilterDate, onCreate, fetchParams, refreshTrigger = 0 }) => {
     const [activeTab, setActiveTab] = useState('all');
 
     // Server-side pagination state (khi có fetchParams)
@@ -52,7 +52,7 @@ const BookingListView = ({ bookings: propBookings, loading: propLoading, onEdit,
         };
         load();
         return () => { cancelled = true; };
-    }, [page, fetchParams?.branchId, fetchParams?.staffId, fetchParams?.paymentStatus, isServerMode]);
+    }, [page, fetchParams?.branchId, fetchParams?.staffId, fetchParams?.paymentStatus, isServerMode, refreshTrigger]);
 
     const getFilteredBookings = () => {
         if (activeTab === 'all') return bookings;
@@ -188,7 +188,7 @@ const BookingListView = ({ bookings: propBookings, loading: propLoading, onEdit,
             <div style={{ marginBottom: fl(12, 20), display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <Typography.Title level={5} style={{ margin: 0, fontSize: fl(14, 16) }}>Danh Sách Đơn</Typography.Title>
                 <Space size={6}>
-                    <DatePicker placeholder="Lọc ngày" onChange={setFilterDate} size="small" style={{ fontSize: fl(11, 13) }} />
+                    <DatePicker placeholder="Lọc ngày" format="DD/MM/YYYY" onChange={setFilterDate} size="small" style={{ fontSize: fl(11, 13) }} />
                     <Button type="primary" onClick={onCreate} size="small" style={{ fontSize: fl(11, 13) }}>+ Tạo Đơn</Button>
                 </Space>
             </div>

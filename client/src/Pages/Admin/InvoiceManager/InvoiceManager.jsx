@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     Table, Tag, Button, Typography, Card, DatePicker,
     Row, Col, Statistic, Drawer, Descriptions, Divider,
-    Space, Input, Modal, message, Tooltip, Empty,
+    Space, Input, Modal, App, Tooltip, Empty,
     Form, InputNumber, Select
 } from 'antd';
 import {
@@ -26,6 +26,7 @@ const PM_MAP = {
 };
 
 const InvoiceManager = () => {
+    const { message } = App.useApp();
     const [invoices, setInvoices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [dateRange, setDateRange] = useState([dayjs().subtract(30, 'day'), dayjs()]);
@@ -453,7 +454,7 @@ const InvoiceManager = () => {
                 okText="Xác Nhận Thanh Toán"
                 okButtonProps={{ style: { background: '#722ed1', borderColor: '#722ed1' }, loading: retailSubmitting }}
                 width={680}
-                destroyOnClose
+                destroyOnHidden
             >
                 <Form form={retailForm} layout="vertical">
                     <Row gutter={12}>

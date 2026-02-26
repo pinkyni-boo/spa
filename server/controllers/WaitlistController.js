@@ -27,9 +27,16 @@ exports.getWaitlist = async (req, res) => {
         if (req.user?.role === 'owner') {
             // owner thấy tất cả
         } else if (req.user?.managedBranches?.length > 0) {
-            query.branchId = { $in: req.user.managedBranches };
+            // Admin: thấy item của nhánh mình + item chưa có nhánh (null)
+            query.$or = [
+                { branchId: { $in: req.user.managedBranches } },
+                { branchId: null }
+            ];
         } else if (req.user?.branchId) {
-            query.branchId = req.user.branchId;
+            query.$or = [
+                { branchId: req.user.branchId.toString() },
+                { branchId: null }
+            ];
         }
 
         const items = await Waitlist.find(query).sort({ createdAt: 1 }); // Oldest first

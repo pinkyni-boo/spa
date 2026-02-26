@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Card, Typography, Modal, Form, Input, Select, Tag, Space, message, Switch, TimePicker, Divider, Row, Col } from 'antd';
+import { Table, Button, Card, Typography, Modal, Form, Input, Select, Tag, Space, App, Switch, TimePicker, Divider, Row, Col } from 'antd';
 import { EditOutlined, UserOutlined, PhoneOutlined, ShopOutlined, PlusOutlined } from '@ant-design/icons';
 import theme from '../../../theme';
 import { resourceService } from '../../../services/resourceService';
@@ -20,6 +20,7 @@ const DAYS_OF_WEEK = [
 ];
 
 const StaffManager = () => {
+  const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [staffList, setStaffList] = useState([]);
   const [branches, setBranches] = useState([]); // [NEW]

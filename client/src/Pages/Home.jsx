@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Row, Col, Carousel, Card, Input, Form, Divider, Image, message, Select } from 'antd';
+import { Typography, Button, Row, Col, Carousel, Card, Input, Form, Divider, Image, App, Select } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { CaretRightOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import royalLuxuryTheme from '../theme';
@@ -11,6 +11,7 @@ const { TextArea } = Input;
 const { Option } = Select;
 
 const Home = () => {
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const [consultForm] = Form.useForm();
   const [consultLoading, setConsultLoading] = useState(false);

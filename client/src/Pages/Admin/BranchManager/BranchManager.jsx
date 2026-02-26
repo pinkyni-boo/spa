@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Typography, Button, Card, Row, Col, Modal, Form, Input, TimePicker, Tag, message, Popconfirm, Spin, Select } from 'antd';
+import { Layout, Typography, Button, Card, Row, Col, Modal, Form, Input, TimePicker, Tag, App, Popconfirm, Spin, Select } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, EnvironmentOutlined, PhoneOutlined, MailOutlined, UserOutlined } from '@ant-design/icons';
 import { branchService } from '../../../services/branchService';
 import { resourceService } from '../../../services/resourceService'; // [CHANGED] Use resourceService to fetch staff
@@ -9,6 +9,7 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 
 const BranchManager = () => {
+    const { message } = App.useApp();
     const [branches, setBranches] = useState([]);
     const [loading, setLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);

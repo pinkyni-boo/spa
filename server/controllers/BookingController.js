@@ -38,7 +38,7 @@ exports.createBooking = async (req, res) => {
         // Nếu admin/staff/owner tạo thủ công → auto confirm, đánh dấu source manual
         const isStaff = req.user && ['admin', 'owner', 'staff'].includes(req.user.role);
         const bodyWithDefaults = isStaff
-            ? { ...req.body, source: 'manual', status: 'confirmed' }
+            ? { ...req.body, source: 'offline', status: 'confirmed' }
             : req.body;
         const result = await BookingService.createBooking(bodyWithDefaults);
         
@@ -127,6 +127,36 @@ exports.getAllBookings = async (req, res) => {
   }
 };
 
+exports.getBookingById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const booking = await Booking.findById(id)
+            .populate('serviceId', 'name price duration requiredRoomType')
+            .populate('staffId', 'name')
+            .populate('roomId', 'name type roomType')
+            .populate('bedId', 'name')
+            .populate('branchId', 'name');
+        if (!booking) return res.status(404).json({ success: false, message: 'Không tìm thấy đơn' });
+
+        // Nếu là child booking, trả về parent kèm child services
+        if (booking.parentBookingId) {
+            const parent = await Booking.findById(booking.parentBookingId)
+                .populate('serviceId', 'name price duration requiredRoomType')
+                .populate('staffId', 'name')
+                .populate('roomId', 'name type roomType')
+                .populate('bedId', 'name')
+                .populate('branchId', 'name');
+            if (parent) {
+                return res.json({ success: true, booking: parent, resolvedFromChild: true });
+            }
+        }
+
+        res.json({ success: true, booking });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 exports.updateBooking = async (req, res) => {
     try {
         const bookingId = req.params.id;
@@ -181,9 +211,17 @@ exports.updateBooking = async (req, res) => {
 
 exports.cancelBooking = async (req, res) => {
     try {
-        await Booking.findByIdAndUpdate(req.params.id, { status: 'cancelled' });
-        
-        ActionLogController.createLog(req, req.user, 'BOOKING_CANCEL', 'Booking', req.params.id);
+        const booking = await Booking.findById(req.params.id);
+        if (!booking) return res.status(404).json({ success: false, message: 'Không tìm thấy đơn' });
+
+        // Resolve to parent if this is a child booking
+        const parentId = booking.parentBookingId ? booking.parentBookingId.toString() : booking._id.toString();
+
+        // Cancel parent + all linked children
+        await Booking.findByIdAndUpdate(parentId, { status: 'cancelled' });
+        await Booking.updateMany({ parentBookingId: parentId }, { status: 'cancelled' });
+
+        ActionLogController.createLog(req, req.user, 'BOOKING_CANCEL', 'Booking', parentId);
 
         res.json({ success: true, message: 'Đã hủy đơn' });
     } catch (error) {
@@ -193,18 +231,19 @@ exports.cancelBooking = async (req, res) => {
 
 exports.approveBooking = async (req, res) => {
     try {
-        const booking = await Booking.findByIdAndUpdate(
-            req.params.id, 
-            { status: 'confirmed' },
-            { new: true }
-        );
-        if (!booking) {
-            return res.status(404).json({ success: false, message: 'Không tìm thấy đơn' });
-        }
-        
-        ActionLogController.createLog(req, req.user, 'BOOKING_APPROVE', 'Booking', booking._id, booking.customerName);
+        const found = await Booking.findById(req.params.id);
+        if (!found) return res.status(404).json({ success: false, message: 'Không tìm thấy đơn' });
 
-        res.json({ success: true, booking, message: 'Đã duyệt đơn' });
+        // Resolve to parent if this is a child booking
+        const parentId = found.parentBookingId ? found.parentBookingId.toString() : found._id.toString();
+
+        const parent = await Booking.findByIdAndUpdate(parentId, { status: 'confirmed' }, { new: true });
+        // Also approve all linked children
+        await Booking.updateMany({ parentBookingId: parentId }, { status: 'confirmed' });
+
+        ActionLogController.createLog(req, req.user, 'BOOKING_APPROVE', 'Booking', parent._id, parent.customerName);
+
+        res.json({ success: true, booking: parent, message: 'Đã duyệt đơn' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -234,22 +273,32 @@ exports.completeBooking = async (req, res) => {
 exports.checkIn = async (req, res) => {
     try {
         const { id } = req.params;
-        const booking = await Booking.findById(id);
-        
-        if (!booking) return res.status(404).json({ message: 'Không tìm thấy đơn' });
+        const found = await Booking.findById(id);
+
+        if (!found) return res.status(404).json({ message: 'Không tìm thấy đơn' });
+
+        // Resolve to parent if this is a child booking
+        const parentId = found.parentBookingId ? found.parentBookingId.toString() : found._id.toString();
+        const booking = found.parentBookingId ? await Booking.findById(parentId) : found;
+
+        if (!booking) return res.status(404).json({ message: 'Không tìm thấy đơn cha' });
         if (booking.status !== 'confirmed') return res.status(400).json({ message: 'Chỉ đơn đã xác nhận mới được Check-in' });
 
-        // Shift booking time to now
+        // Shift parent booking time to now
         const now = new Date();
         const duration = booking.endTime - booking.startTime; // Ms
-        
+
         booking.startTime = now;
         booking.endTime = new Date(now.getTime() + duration);
-        
         booking.status = 'processing';
         booking.actualStartTime = now;
-        
         await booking.save();
+
+        // Also set children to processing (keep their own time slots)
+        await Booking.updateMany(
+            { parentBookingId: parentId },
+            { status: 'processing', actualStartTime: now }
+        );
 
         ActionLogController.createLog(req, req.user, 'BOOKING_CHECKIN', 'Booking', booking._id, booking.customerName);
 
@@ -293,7 +342,7 @@ exports.searchBookings = async (req, res) => {
 
 exports.updateBookingServices = async (req, res) => {
     try {
-        const { items } = req.body; // Expect items array: [{ name, price, quantity }]
+        const { items, roomId, bedId, startTime } = req.body; // items: [{ name, price, quantity, serviceId }]
         const { id } = req.params;
 
         if (!items || !Array.isArray(items)) {
@@ -308,7 +357,7 @@ exports.updateBookingServices = async (req, res) => {
         // Initialize if empty
         if (!booking.servicesDone) booking.servicesDone = [];
 
-        // Append new items
+        // Append new items to parent's servicesDone (for invoice display)
         items.forEach(item => {
             booking.servicesDone.push({
                 name: item.name,
@@ -316,13 +365,49 @@ exports.updateBookingServices = async (req, res) => {
                 qty: item.quantity || 1
             });
         });
-        
-        // Recalculate Total? (If total field exists)
-        // booking.totalPrice = ... (If we track it) - usually computed on frontend or separate field
-        
         await booking.save();
 
-        res.json({ success: true, booking, message: 'Đã thêm dịch vụ thành công' });
+        // --- Create a linked child booking for calendar visibility ---
+        if (roomId && startTime && items.length > 0) {
+            const item = items[0];
+            const childServiceId = item.serviceId || null;
+            let duration = 60;
+
+            if (childServiceId) {
+                const Service = require('../models/Service');
+                const svc = await Service.findById(childServiceId);
+                if (svc) duration = svc.duration || 60;
+            }
+
+            const childStart = new Date(startTime);
+            const childEnd = new Date(childStart.getTime() + duration * 60 * 1000);
+
+            const childData = {
+                customerName: booking.customerName,
+                phone: booking.phone || '',
+                branchId: booking.branchId,
+                serviceId: childServiceId || booking.serviceId,
+                roomId,
+                staffId: booking.staffId || null,
+                startTime: childStart,
+                endTime: childEnd,
+                status: booking.status,
+                source: 'offline',
+                parentBookingId: booking._id,
+                note: `[+DV] Đính kèm đơn ${booking._id}`
+            };
+            if (bedId) childData.bedId = bedId;
+            await Booking.create(childData);
+        }
+
+        // Return populated parent so drawer can refresh immediately
+        const populated = await Booking.findById(id)
+            .populate('serviceId', 'name duration price requiredRoomType')
+            .populate('staffId', 'name')
+            .populate('roomId', 'name type roomType')
+            .populate('bedId', 'name');
+
+        res.json({ success: true, booking: populated, message: 'Đã thêm dịch vụ thành công' });
     } catch (error) {
         console.error('Error updating services:', error);
         res.status(500).json({ success: false, message: error.message });

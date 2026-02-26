@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Layout, Card, Tabs, Typography, Button, ConfigProvider } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Layout, Card, Tabs, Typography, Button, ConfigProvider, App as AntdApp } from 'antd';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { MenuUnfoldOutlined, MenuFoldOutlined } from '@ant-design/icons';
 
@@ -50,6 +50,16 @@ const MainContent = () => {
     const isLogin = location.pathname === '/login';
     const isConsultationForm = location.pathname === '/tu-van';
     const [collapsed, setCollapsed] = useState(false);
+  const [routeRenderKey, setRouteRenderKey] = useState(0);
+
+  useEffect(() => {
+    const refreshCurrentRoute = () => {
+      setRouteRenderKey(prev => prev + 1);
+    };
+
+    window.addEventListener('app:data-mutated', refreshCurrentRoute);
+    return () => window.removeEventListener('app:data-mutated', refreshCurrentRoute);
+  }, []);
 
     // Robust Auth Check
     const checkAuth = () => {
@@ -87,7 +97,7 @@ const MainContent = () => {
                 <AdminSidebar collapsed={collapsed} setCollapsed={setCollapsed} />
                 <Layout style={{ marginLeft: collapsed ? 80 : 250, transition: 'all 0.2s' }}>
                     <Content style={{ margin: 0, minHeight: 280, background: '#f0f2f5', overflow: 'hidden' }}>
-                        <Routes>
+                <Routes key={`admin-${location.pathname}-${routeRenderKey}`}>
                             <Route path="/admin/accounts" element={<AccountManager />} />
                             <Route path="/admin" element={<Dashboard />} />
                             <Route path="/admin/dashboard" element={<Dashboard />} />
@@ -115,7 +125,7 @@ const MainContent = () => {
     return (
       <Layout style={{ minHeight: '100vh', backgroundColor: '#ffffffff' }}>
         <Nav />
-        <Routes>
+        <Routes key={`public-${location.pathname}-${routeRenderKey}`}>
           <Route path="/" element={<Home />} />
           <Route path="/services" element={<ServicePage />} />
           <Route path="/service/:id" element={<Detail />} />
@@ -142,12 +152,14 @@ const MainContent = () => {
 
 const App = () => (
   <ConfigProvider theme={{ token: { fontFamily: "'Be Vietnam Pro', sans-serif" } }}>
-    <BookingProvider>
-      <BrowserRouter>
-        <ScrollToTop />
-        <MainContent />
-      </BrowserRouter>
-    </BookingProvider>
+    <AntdApp>
+      <BookingProvider>
+        <BrowserRouter>
+          <ScrollToTop />
+          <MainContent />
+        </BrowserRouter>
+      </BookingProvider>
+    </AntdApp>
   </ConfigProvider>
 );
 

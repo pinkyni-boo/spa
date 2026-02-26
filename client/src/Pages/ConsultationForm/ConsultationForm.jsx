@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Form, Input, Select, Button, Card, Typography, message,
+    Form, Input, Select, Button, Card, Typography, App,
     Row, Col, Result, Space
 } from 'antd';
 import {
@@ -16,6 +16,7 @@ const { TextArea } = Input;
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const ConsultationForm = () => {
+    const { message } = App.useApp();
     const navigate = useNavigate();
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
@@ -50,9 +51,17 @@ const ConsultationForm = () => {
             });
             const data = await res.json();
             if (data.success) {
-                setSubmitted(true);
+                message.open({
+                    type: 'success',
+                    content: 'Gửi yêu cầu tư vấn thành công!',
+                    duration: 1.5,
+                });
+                setTimeout(() => setSubmitted(true), 250);
             } else {
-                message.error(data.message || 'Gửi thất bại. Vui lòng thử lại.');
+                const detail = Array.isArray(data.errors) && data.errors.length
+                    ? data.errors.join(' | ')
+                    : (data.message || 'Gửi thất bại. Vui lòng thử lại.');
+                message.error(detail);
             }
         } catch (e) {
             message.error('Có lỗi xảy ra. Vui lòng thử lại.');
@@ -186,7 +195,10 @@ const ConsultationForm = () => {
                     <Form.Item
                         name="concern"
                         label="Nội dung cần tư vấn"
-                        rules={[{ required: true, message: 'Vui lòng mô tả vấn đề cần tư vấn' }]}
+                        rules={[
+                            { required: true, message: 'Vui lòng mô tả vấn đề cần tư vấn' },
+                            { min: 5, message: 'Nội dung tư vấn tối thiểu 5 ký tự' },
+                        ]}
                     >
                         <TextArea
                             rows={4}

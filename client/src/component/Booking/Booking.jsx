@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Row, Col, Typography, Button, Form, Input, Select, DatePicker, ConfigProvider, message, Spin } from 'antd';
+import { Modal, Row, Col, Typography, Button, Form, Input, Select, DatePicker, ConfigProvider, App, Spin } from 'antd';
 import { PhoneOutlined, ArrowRightOutlined, CloseOutlined, DownOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useBooking } from './BookingContext';
 import theme from '../../theme';
@@ -10,13 +10,6 @@ import dayjs from 'dayjs';
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
-// Danh sách dịch vụ (khớp với server/data/services.json)
-const SERVICE_OPTIONS = [
-  { label: "Massage Body Thụy Điển (60p)", value: "Massage Body Thụy Điển" },
-  { label: "Chăm sóc da mặt chuyên sâu (90p)", value: "Chăm sóc da mặt chuyên sâu" },
-  { label: "Gội đầu dưỡng sinh (45p)", value: "Gội đầu dưỡng sinh" }
-];
-
 // Tạo danh sách Full Slot từ 09:00 đến 20:00 (Backend cho phép lố giờ đến 20:30)
 const FULL_TIME_SLOTS = [];
 for (let i = 9; i < 20; i++) {
@@ -25,6 +18,7 @@ for (let i = 9; i < 20; i++) {
 }
 
 const Booking = () => {
+  const { message } = App.useApp();
   const { isBookingOpen, closeBooking, bookingData } = useBooking(); // Lấy bookingData từ kho
   const [form] = Form.useForm();
   
@@ -38,6 +32,9 @@ const Booking = () => {
   // [NEW] Branch State
   const [branches, setBranches] = useState([]);
   const [selectedBranch, setSelectedBranch] = useState(null);
+
+  // [NEW] Services State (fetched from API)
+  const [serviceOptions, setServiceOptions] = useState([]);
 
   // [NEW] Fetch Branches on Init
   useEffect(() => {
@@ -53,6 +50,16 @@ const Booking = () => {
                 }
             }
         });
+
+        // Fetch services from API
+        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/services?type=service`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && Array.isArray(data.services)) {
+                    setServiceOptions(data.services);
+                }
+            })
+            .catch(() => {});
     }
   }, [isBookingOpen]); 
 
@@ -326,8 +333,8 @@ const Booking = () => {
                         handleCheckAvailability();
                     }}
                   >
-                    {SERVICE_OPTIONS.map(opt => (
-                      <Option key={opt.value} value={opt.value}>{opt.label}</Option>
+                    {serviceOptions.map(opt => (
+                      <Option key={opt._id || opt.name} value={opt.name}>{opt.name} ({opt.duration}p)</Option>
                     ))}
                   </Select>
                 </Form.Item>
@@ -340,6 +347,7 @@ const Booking = () => {
                 >
                   <DatePicker 
                     variant="borderless"
+                    format="DD/MM/YYYY"
                     style={{ width: '100%', borderBottom: '1px solid #3a3528', padding: '6px 0' }}
                     onChange={(date) => {
                         form.setFieldsValue({ date });
@@ -404,12 +412,10 @@ const Booking = () => {
 
                   {/* [NEW] Overtime Warning */}
                   {selectedSlot && (() => {
-                    const service = SERVICE_OPTIONS.find(s => s.value === form.getFieldValue('serviceName'));
+                    const service = serviceOptions.find(s => s.name === form.getFieldValue('serviceName'));
                     if (!service) return null;
                     
-                    // Extract duration from label (e.g., "Massage (60p)" -> 60)
-                    const durationMatch = service.label.match(/(\d+)p/);
-                    const duration = durationMatch ? parseInt(durationMatch[1]) : 60;
+                    const duration = service.duration || 60;
                     
                     // Parse selected slot time
                     const [hour, minute] = selectedSlot.split(':').map(Number);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Typography, Card, Table, Button, Modal, Form, Input, Select, Tag, Popconfirm, message, Space, Row, Col } from 'antd';
+import { Layout, Typography, Card, Table, Button, Modal, Form, Input, Select, Tag, Popconfirm, App, Space, Row, Col } from 'antd';
 import { UserOutlined, PlusOutlined, EditOutlined, DeleteOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { userService } from '../../../services/userService';
 import { branchService } from '../../../services/branchService';
@@ -9,6 +9,7 @@ const { Title } = Typography;
 const { Option } = Select;
 
 const AccountManager = () => {
+    const { message } = App.useApp();
     const [users, setUsers] = useState([]);
     const [branches, setBranches] = useState([]);
     const [staffList, setStaffList] = useState([]); // [NEW] Staff with admin/owner roles

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, InputNumber, Select, message, Popconfirm, Tag } from 'antd';
+import { Table, Button, Modal, Form, Input, InputNumber, Select, App, Popconfirm, Tag } from 'antd';
 import { resourceService } from '../../../services/resourceService';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 
 const { Option } = Select;
 
 const ServiceManager = () => {
+    const { message } = App.useApp();
     const [services, setServices] = useState([]);
     const [loading, setLoading] = useState(false);
     const [isModalVisible, setIsModalVisible] = useState(false);

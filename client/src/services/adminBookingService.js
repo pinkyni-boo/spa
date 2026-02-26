@@ -47,13 +47,10 @@ export const adminBookingService = {
   // 2. Tạo Booking thủ công
   createBooking: async (bookingData) => {
     try {
-      const response = await fetch(`${API_URL}/api/bookings`, { // Fixed URL
+      const response = await fetch(`${API_URL}/api/bookings`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ 
-          ...bookingData, 
-          source: 'offline'
-        }) 
+        body: JSON.stringify(bookingData)
       });
       return await response.json();
     } catch (error) {
@@ -96,6 +93,32 @@ export const adminBookingService = {
         const response = await fetch(`${API_URL}/api/bookings/${id}`, {
             method: 'DELETE',
             headers: getAuthHeaders()
+        });
+        return await response.json();
+    } catch (error) {
+        return { success: false, message: 'Lỗi kết nối' };
+    }
+  },
+
+  // Lấy 1 booking theo ID (tự động resolve về parent nếu là child booking)
+  getBookingById: async (id) => {
+    try {
+        const response = await fetch(`${API_URL}/api/bookings/${id}`, {
+            headers: getAuthHeaders()
+        });
+        return await response.json();
+    } catch (error) {
+        return { success: false, message: 'Lỗi kết nối' };
+    }
+  },
+
+  // Thêm dịch vụ vào booking đã tồn tại (không tạo booking mới)
+  addServiceToBooking: async (id, items, extra = {}) => {
+    try {
+        const response = await fetch(`${API_URL}/api/bookings/${id}/services`, {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ items, ...extra })
         });
         return await response.json();
     } catch (error) {
@@ -189,33 +212,27 @@ export const adminBookingService = {
   // 9. [PHASE 5] CRM Search (Smart Suggestion)
   searchCustomers: async (query) => {
       try {
-          const response = await fetch(`${API_URL}/api/customers/search?query=${query}`);
+          const response = await fetch(`${API_URL}/api/customers/search?query=${query}`, {
+              headers: getAuthHeaders()
+          });
           return await response.json();
       } catch (error) {
           return { success: false, customers: [] };
       }
   },
 
-  // 10. [PHASE 5] CRM History (Lookup)
-  getCustomerHistory: async (phone) => {
-      try {
-          const response = await fetch(`${API_URL}/api/bookings?phone=${phone}`);
-          return await response.json(); // Returns array of bookings
-      } catch (error) {
-          return [];
-      }
-  },
-
   // 11. [PHASE 5.3] Retail Products
   getServices: async () => {
     try {
-        const response = await fetch(`${API_URL}/api/services`);
+        const response = await fetch(`${API_URL}/api/services`, {
+            headers: getAuthHeaders()
+        });
         return await response.json();
     } catch (error) {
         return [];
     }
-  }
-  ,
+  },
+
 
   // --- WAITLIST (NEW) ---
   addToWaitlist: async (data) => {
@@ -245,7 +262,9 @@ export const adminBookingService = {
   // [NEW] CRM - Get Customer History
   getCustomerHistory: async (phone) => {
       try {
-          const response = await fetch(`${API_URL}/api/bookings/history/${phone}`);
+          const response = await fetch(`${API_URL}/api/bookings/history/${phone}`, {
+              headers: getAuthHeaders()
+          });
           const data = await response.json();
           return data.bookings || data || [];
       } catch (error) {

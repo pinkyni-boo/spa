@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Layout, Input, Table, Typography, Drawer, Card, Tag, Statistic, Row, Col, Avatar, Timeline, message, AutoComplete } from 'antd';
+import { Layout, Input, Table, Typography, Drawer, Card, Tag, Statistic, Row, Col, Avatar, Timeline, App, AutoComplete } from 'antd';
 import { SearchOutlined, UserOutlined, HistoryOutlined, PhoneOutlined, DatabaseOutlined, DollarOutlined } from '@ant-design/icons';
 import { customerService } from '../../../services/customerService';
 import dayjs from 'dayjs';
@@ -7,6 +7,7 @@ import dayjs from 'dayjs';
 const { Title, Text } = Typography;
 
 const CustomerManager = () => {
+    const { message } = App.useApp();
     const [loading, setLoading] = useState(false);
     const [customers, setCustomers] = useState([]);
     const [suggestions, setSuggestions] = useState([]); // [NEW] For autocomplete

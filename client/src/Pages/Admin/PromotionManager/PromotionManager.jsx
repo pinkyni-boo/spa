@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Typography, Button, Table, Modal, Form, Input, InputNumber, DatePicker, Select, Tag, message, Popconfirm, Space, Switch, Row, Col } from 'antd';
+import { Layout, Typography, Button, Table, Modal, Form, Input, InputNumber, DatePicker, Select, Tag, App, Popconfirm, Space, Switch, Row, Col } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ThunderboltOutlined, PercentageOutlined, DollarOutlined } from '@ant-design/icons';
 import { promotionService } from '../../../services/promotionService';
 import dayjs from 'dayjs';
@@ -8,6 +8,7 @@ const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const PromotionManager = () => {
+    const { message } = App.useApp();
     const [promotions, setPromotions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);

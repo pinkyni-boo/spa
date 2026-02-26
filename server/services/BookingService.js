@@ -32,6 +32,41 @@ class Mutex {
 const bookingMutex = new Mutex();
 
 // ---------------------------------------------------------
+// HELPER: Find service by name with fuzzy fallback
+// Level 1: exact case-insensitive match
+// Level 2: partial — DB name contains query or query contains DB name
+// Level 3: longest common keyword (dịch vụ cũ vs mới)
+// ---------------------------------------------------------
+const findServiceByName = async (serviceName) => {
+    if (!serviceName) return null;
+    const q = serviceName.trim();
+
+    // Level 1: exact (case-insensitive)
+    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    let svc = await Service.findOne({ name: { $regex: new RegExp(`^${escaped}$`, 'i') }, type: 'service' });
+    if (svc) return svc;
+
+    // Level 2: partial substring match
+    svc = await Service.findOne({ name: { $regex: new RegExp(escaped, 'i') }, type: 'service' });
+    if (svc) return svc;
+
+    // Level 3: keyword overlap — find service whose name shares most words with query
+    const allServices = await Service.find({ type: 'service', isDeleted: { $ne: true } });
+    if (!allServices.length) return null;
+
+    const qWords = q.toLowerCase().split(/[\s,]+/).filter(w => w.length >= 2);
+    let bestMatch = null;
+    let bestScore = 0;
+    for (const s of allServices) {
+        const sWords = s.name.toLowerCase().split(/[\s,]+/);
+        const score = qWords.filter(w => sWords.some(sw => sw.includes(w) || w.includes(sw))).length;
+        if (score > bestScore) { bestScore = score; bestMatch = s; }
+    }
+    // Require at least 1 keyword match
+    return bestScore >= 1 ? bestMatch : null;
+};
+
+// ---------------------------------------------------------
 // 1. CHECK AVAILABILITY (Business Logic)
 // ---------------------------------------------------------
 const checkAvailability = async (date, serviceId, serviceName, branchId) => {
@@ -54,11 +89,11 @@ const checkAvailability = async (date, serviceId, serviceName, branchId) => {
     if (serviceId) {
         service = await Service.findById(serviceId);
     } else {
-        service = await Service.findOne({ name: serviceName });
+        service = await findServiceByName(serviceName);
     }
 
     if (!service) {
-        throw { status: 404, message: 'Dịch vụ không tồn tại' };
+        throw { status: 404, message: `Dịch vụ "${serviceName}" không tồn tại` };
     }
 
     // C. Get Resources (Scoped by Branch)
@@ -85,13 +120,14 @@ const checkAvailability = async (date, serviceId, serviceName, branchId) => {
     
     let currentSlot = openTime;
 
-    // Get all bookings for that day
+    // Get all active bookings for that day (exclude cancelled + completed)
     const dayStart = dayjs(`${date} 00:00`).toDate();
     const dayEnd = dayjs(`${date} 23:59`).toDate();
     
     const bookingsToday = await Booking.find({
+        branchId: branchId,
         startTime: { $gte: dayStart, $lte: dayEnd },
-        status: { $ne: 'cancelled' }
+        status: { $in: ['pending', 'confirmed', 'processing'] }
     });
 
     while (currentSlot.isBefore(closeTime)) {
@@ -187,7 +223,7 @@ const checkAvailability = async (date, serviceId, serviceName, branchId) => {
 // 2. CREATE BOOKING (Business Logic)
 // ---------------------------------------------------------
 const createBooking = async (bookingData) => {
-    const { customerName, phone, serviceName, date, time, roomId, bedId: requestedBedId, staffId, branchId, status, source } = bookingData;
+    const { customerName, phone, serviceName, serviceId: requestedServiceId, date, time, roomId, bedId: requestedBedId, staffId, branchId, status, source } = bookingData;
     
     const unlock = await bookingMutex.lock();
     try {
@@ -202,10 +238,16 @@ const createBooking = async (bookingData) => {
             throw { status: 400, message: 'Ngày giờ không hợp lệ' };
         }
 
-        // 2. Get Service
-        const service = await Service.findOne({ name: serviceName });
+        // 2. Get Service — prefer exact ID, fallback to fuzzy name match
+        let service = null;
+        if (requestedServiceId) {
+            service = await Service.findById(requestedServiceId);
+        }
+        if (!service && serviceName) {
+            service = await findServiceByName(serviceName);
+        }
         if (!service) {
-            throw { status: 404, message: 'Dịch vụ k tồn tại' };
+            throw { status: 404, message: `Dịch vụ "${serviceName || requestedServiceId}" không tồn tại trong hệ thống` };
         }
         
         const endTime = startTime.add(service.duration, 'minute');
@@ -220,9 +262,11 @@ const createBooking = async (bookingData) => {
 
         const dayStart = dayjs(`${date} 00:00`).toDate();
         const dayEnd = dayjs(`${date} 23:59`).toDate();
+        // Only include ACTIVE bookings: exclude cancelled + completed (completed means customer already left)
         const bookingsToday = await Booking.find({
+            branchId: branchId,
             startTime: { $gte: dayStart, $lte: dayEnd },
-            status: { $ne: 'cancelled' }
+            status: { $in: ['pending', 'confirmed', 'processing'] }
         });
 
         // A. Find Room + Bed
@@ -270,7 +314,7 @@ const createBooking = async (bookingData) => {
 
             // Override service type based on name keywords
             const headKeywords = ['gội', 'hair', 'tóc', 'head', 'dưỡng sinh', 'shampoo', 'wash'];
-            const nailKeywords = ['nail', 'móng', 'tay', 'chân', 'sơn', 'gel', 'da', 'bột', 'dũa', 'úp', 'gắn', 'đắp', 'vẽ', 'ẩn', 'xà cừ', 'ombre', 'mắt mèo', 'cat eye', 'tháo'];
+            const nailKeywords = ['nail', 'móng', 'sơn', 'gel', 'bột', 'dũa', 'úp', 'gắn', 'đắp', 'vẽ', 'ẩn', 'xà cừ', 'ombre', 'mắt mèo', 'cat eye', 'tháo'];
 
             if (headKeywords.some(k => sName.includes(k))) {
                 targetType = 'HEAD_SPA';

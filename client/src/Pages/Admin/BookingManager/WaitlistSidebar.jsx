@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Card, Button, Typography, Tag, List, message, Input, Form, Modal, Select, Tooltip, TimePicker } from 'antd';
+import { Card, Button, Typography, Tag, List, App, Input, Form, Modal, Select, Tooltip, TimePicker } from 'antd';
 import { UserAddOutlined, DragOutlined, DeleteOutlined, PlusOutlined, ClockCircleOutlined, UserOutlined, LeftOutlined, SearchOutlined, AimOutlined } from '@ant-design/icons';
 import { adminBookingService } from '../../../services/adminBookingService';
 import dayjs from 'dayjs';
@@ -12,10 +12,12 @@ dayjs.locale('vi');
 const { Title, Text } = Typography;
 
 const WaitlistSidebar = ({ waitlist, setWaitlist, refreshTrigger, onDragStart, onCollapse, onHighlightRoom }) => {
-    
+    const { message } = App.useApp();
+
     // UI Local State for Modal
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [form] = Form.useForm();
+    const [serviceOptions, setServiceOptions] = useState([]);
     const [searchText, setSearchText] = useState('');
 
     // Lấy branchId từ user hiện tại
@@ -32,13 +34,26 @@ const WaitlistSidebar = ({ waitlist, setWaitlist, refreshTrigger, onDragStart, o
         fetchWaitlist();
     }, [refreshTrigger]);
 
+    // Fetch services khi mở modal
+    useEffect(() => {
+        if (isModalVisible && serviceOptions.length === 0) {
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+            fetch(`${API_URL}/api/services?type=service`)
+                .then(r => r.json())
+                .then(data => { if (data.success) setServiceOptions(data.services || []); })
+                .catch(() => {});
+        }
+    }, [isModalVisible]);
+
     // 2. ADD TO WAITLIST
     const handleAdd = async (values) => {
-        // Format Dayjs to HH:mm string if present
+        // Lấy duration thật từ serviceOptions
+        const selectedService = serviceOptions.find(s => s.name === values.serviceName);
         const payload = {
             ...values,
+            duration: selectedService?.duration || 60,
             preferredTime: values.preferredTime ? values.preferredTime.format('HH:mm') : null,
-            branchId: userBranchId, // Gắn chi nhánh của admin đang đăng nhập
+            branchId: userBranchId,
         };
 
         const res = await adminBookingService.addToWaitlist(payload);
@@ -201,10 +216,10 @@ const WaitlistSidebar = ({ waitlist, setWaitlist, refreshTrigger, onDragStart, o
                         <Input />
                     </Form.Item>
                     <Form.Item label="Dịch vụ quan tâm" name="serviceName" rules={[{ required: true }]}>
-                        <Select>
-                            <Select.Option value="Massage Body Thụy Điển">Massage Body Thụy Điển</Select.Option>
-                            <Select.Option value="Chăm sóc da mặt chuyên sâu">Chăm sóc da mặt chuyên sâu</Select.Option>
-                            <Select.Option value="Gội đầu dưỡng sinh">Gội đầu dưỡng sinh</Select.Option>
+                        <Select placeholder="Chọn dịch vụ">
+                            {serviceOptions.map(s => (
+                                <Select.Option key={s._id} value={s.name}>{s.name} ({s.duration}p)</Select.Option>
+                            ))}
                         </Select>
                     </Form.Item>
                     <Form.Item label="Giờ mong muốn" name="preferredTime" rules={[{ required: true, message: 'Vui lòng chọn giờ!' }]}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, InputNumber, Select, message, Tag, Tooltip } from 'antd';
+import { Table, Button, Modal, Form, Input, InputNumber, Select, App, Tag, Tooltip } from 'antd';
 import { PlusOutlined, DeleteOutlined, EditOutlined, ShoppingCartOutlined, WarningOutlined } from '@ant-design/icons';
 import theme from '../../../theme';
 import { resourceService } from '../../../services/resourceService';
@@ -7,6 +7,7 @@ import { resourceService } from '../../../services/resourceService';
 const { Option } = Select;
 
 const ProductManager = () => {
+    const { message } = App.useApp();
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [isModalVisible, setIsModalVisible] = useState(false);

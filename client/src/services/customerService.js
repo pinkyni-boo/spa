@@ -1,5 +1,10 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('token')}`
+});
+
 export const customerService = {
     // Search customers
     searchCustomers: async (query) => {
@@ -18,7 +23,7 @@ export const customerService = {
                 }
             }
 
-            const response = await fetch(url);
+            const response = await fetch(url, { headers: getAuthHeaders() });
             return await response.json();
         } catch (error) {
             console.error('Error searching customers:', error);
@@ -42,7 +47,7 @@ export const customerService = {
                 }
             }
 
-            const response = await fetch(url);
+            const response = await fetch(url, { headers: getAuthHeaders() });
             return await response.json();
         } catch (error) {
             console.error('Error fetching customer history:', error);

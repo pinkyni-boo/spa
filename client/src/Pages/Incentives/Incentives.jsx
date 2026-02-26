@@ -354,23 +354,7 @@ const Incentives = () => {
           maxWidth: 500,
           margin: '48px auto 0'
         }}>
-          <p style={{
-            color: theme.colors.text.secondary,
-            fontSize: 13,
-            fontFamily: theme.fonts.body,
-            margin: 0,
-            lineHeight: 1.6
-          }}>
-            <span className="material-symbols-outlined" style={{ 
-              fontSize: 16, 
-              color: theme.colors.primary[400],
-              verticalAlign: 'middle',
-              marginRight: 8
-            }}>
-              info
-            </span>
-            Vui lòng xuất trình mã ưu đãi khi đến spa để được áp dụng
-          </p>
+          
         </div>
       </div>
     </section>

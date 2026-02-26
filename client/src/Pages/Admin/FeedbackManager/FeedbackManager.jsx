@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Typography, Table, Tag, Button, Space, Rate, Image, message, Popconfirm, Tabs, Card, Row, Col, Modal, Form, Input, Select, Upload } from 'antd';
+import { Layout, Typography, Table, Tag, Button, Space, Rate, Image, App, Popconfirm, Tabs, Card, Row, Col, Modal, Form, Input, Select, Upload } from 'antd';
 import { CheckOutlined, CloseOutlined, DeleteOutlined, EyeOutlined, PlusOutlined, EditOutlined, PictureOutlined, UploadOutlined } from '@ant-design/icons';
 import { feedbackService } from '../../../services/feedbackService';
 import { galleryService } from '../../../services/galleryService'; // [NEW]
@@ -13,6 +13,7 @@ const { TextArea } = Input;
 const { Option } = Select;
 
 const FeedbackManager = () => {
+    const { message } = App.useApp();
     // --- STATE ---
     const [feedbacks, setFeedbacks] = useState([]);
     const [galleryItems, setGalleryItems] = useState([]); // [NEW] Gallery Data

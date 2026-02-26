@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Table, Tag, Typography, message } from 'antd';
+import { Modal, Table, Tag, Typography, App } from 'antd';
 import dayjs from 'dayjs';
 import { adminBookingService } from '../../../services/adminBookingService';
 
 const { Text } = Typography;
 
 const CustomerHistoryModal = ({ visible, onClose, customerPhone, customerName }) => {
+    const { message } = App.useApp();
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(false);
 

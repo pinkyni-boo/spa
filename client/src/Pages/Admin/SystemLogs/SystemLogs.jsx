@@ -135,7 +135,7 @@ const SystemLogs = () => {
             width: 160,
             render: (ts) => (
                 <Tooltip title={dayjs(ts).format('DD/MM/YYYY HH:mm:ss')}>
-                    <Space direction="vertical" size={0}>
+                    <Space orientation="vertical" size={0}>
                         <Text style={{ fontSize: 13 }}>{dayjs(ts).format('DD/MM/YYYY')}</Text>
                         <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(ts).format('HH:mm:ss')}</Text>
                     </Space>
@@ -151,7 +151,7 @@ const SystemLogs = () => {
             onFilter: (value, record) =>
                 record.displayName?.toLowerCase().includes(value.toLowerCase()),
             render: (name, record) => (
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                     <Text strong style={{ fontSize: 13 }}>{name}</Text>
                     <Tag color="default" style={{ fontSize: 11 }}>{record.role}</Tag>
                 </Space>
@@ -173,7 +173,7 @@ const SystemLogs = () => {
             key: 'target',
             width: 180,
             render: (type, record) => (
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                     <Text style={{ fontSize: 13 }}>{record.targetName || '—'}</Text>
                     <Text type="secondary" style={{ fontSize: 11 }}>{type}</Text>
                 </Space>

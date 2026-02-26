@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { message, notification } from 'antd';
+import { App } from 'antd';
 import dayjs from 'dayjs';
 
 // Services
@@ -8,6 +8,7 @@ import { resourceService } from '../../../../services/resourceService';
 import { branchService } from '../../../../services/branchService';
 
 export const useBookingData = () => {
+    const { message, notification } = App.useApp();
     // STATE
     const [bookings, setBookings] = useState([]);
     const [rooms, setRooms] = useState([]);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Table, Tag, Button, Modal, Form, Input, Select, Space,
-    Typography, Card, Row, Col, Statistic, Tooltip, message, Popconfirm, Badge
+    Typography, Card, Row, Col, Statistic, Tooltip, App, Popconfirm, Badge
 } from 'antd';
 import {
     PhoneOutlined, UserOutlined, MessageOutlined,
@@ -24,6 +24,7 @@ const STATUS_META = {
 };
 
 const ConsultationManager = () => {
+    const { message } = App.useApp();
     const [consultations, setConsultations] = useState([]);
     const [loading, setLoading] = useState(false);
     const [total, setTotal] = useState(0);
@@ -146,7 +147,7 @@ const ConsultationManager = () => {
             title: 'Khách hàng',
             key: 'customer',
             render: (_, r) => (
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                     <Text strong><UserOutlined style={{ marginRight: 4 }} />{r.customerName}</Text>
                     <Text type="secondary" style={{ fontSize: 12 }}><PhoneOutlined style={{ marginRight: 4 }} />{r.phone}</Text>
                     {r.email && <Text type="secondary" style={{ fontSize: 12 }}>{r.email}</Text>}
@@ -335,7 +336,7 @@ const ConsultationManager = () => {
                 width={600}
             >
                 {selectedRecord && (
-                    <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                    <Space orientation="vertical" style={{ width: '100%' }} size={12}>
                         <Row gutter={16}>
                             <Col span={12}>
                                 <Text type="secondary">Họ tên:</Text>

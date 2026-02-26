@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Descriptions, Table, Button, Typography, InputNumber, Select, Divider, message, Tag, Switch, Slider } from 'antd';
+import { Modal, Descriptions, Table, Button, Typography, InputNumber, Select, Divider, App, Tag, Switch, Slider } from 'antd';
 import dayjs from 'dayjs';
 
 import { adminBookingService } from '../../../services/adminBookingService';
@@ -9,6 +9,7 @@ import { resourceService } from '../../../services/resourceService';
 const { Title, Text } = Typography;
 
 const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
+    const { message } = App.useApp();
     // STATE
     const [items, setItems] = useState([]);
 
@@ -117,7 +118,9 @@ const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
 
                 // [NEW] Fetch Customer Points
                 if (booking.phone) {
-                     fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/bookings/history/${booking.phone}`)
+                     fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/bookings/history/${booking.phone}`, {
+                         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                     })
                         .then(res => res.json())
                         .then(data => {
                              // Backend returns { success, stats, history }
@@ -248,7 +251,8 @@ const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
             surchargeFee: surchargeFee || 0,
             finalTotal,
             paymentMethod,
-            cashierName: 'Admin',
+            cashierName: JSON.parse(localStorage.getItem('user') || '{}').username || 'Admin',
+            staffName: booking?.staffId?.name || '',
             promotionId: selectedPromotionId,
             pointsUsed: usePoints ? pointsToRedeem : 0
         };
@@ -273,7 +277,7 @@ const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
     const handlePrint = () => {
         const custName = booking?.customerName || invoice?.customerName || 'Khách lẻ';
         const custPhone = booking?.phone || invoice?.phone || '';
-        const staffName = booking?.staffId?.name || invoice?.cashierName || '---';
+        const staffName = booking?.staffId?.name || invoice?.staffName || '---';
         const invoiceNo = invoice?._id ? invoice._id.slice(-6).toUpperCase() : ('HD' + Date.now().toString().slice(-6));
         const orderNo = invoice?.orderNo || '---';
         const printTime = dayjs(invoice?.createdAt || undefined).format('HH:mm DD/MM/YYYY');

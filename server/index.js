@@ -100,7 +100,7 @@ app.post('/login', authLimiter, async (req, res) => {
             managedBranches: user.managedBranches?.map(b => b._id.toString()) || []
         }, 
         process.env.JWT_SECRET || 'miu_spa_secret_2024',
-        { expiresIn: '24h' }
+        { expiresIn: '7d' }
       );
 
       ActionLogController.createLog(req, user, 'AUTH_LOGIN', 'User', user._id, user.username);
@@ -114,6 +114,7 @@ app.post('/login', authLimiter, async (req, res) => {
               name: user.name,
               username: user.username,
               role: user.role,
+              branchId: user.managedBranches?.[0]?._id?.toString() || null,
               managedBranches: user.managedBranches || []
           }
       });
@@ -131,8 +132,8 @@ app.listen(PORT, () => {
   console.log(`✅ Server Spa đang chạy tại http://localhost:${PORT}`);
 });
 
-// --- API ĐĂNG KÝ TÀI KHOẢN MỚI ---
-app.post('/register', async (req, res) => {
+// --- API ĐĂNG KÝ TÀI KHOẢN MỚI (Chỉ dùng nội bộ, có rate limit) ---
+app.post('/register', authLimiter, async (req, res) => {
   const { username, password } = req.body;
 
   try {

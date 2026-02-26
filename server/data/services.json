@@ -1,23 +1,68 @@
 [
   {
-    "name": "Massage Body Thụy Điển",
-    "price": 500000,
+    "name": "Massage Đá Nóng",
+    "price": 450000,
     "duration": 60,
+    "breakTime": 15,
     "category": "Body",
-    "description": "Liệu pháp massage nhe nhàng giúp thư giãn cơ thể."
+    "type": "service",
+    "requiredRoomType": "BODY_SPA",
+    "description": "Sử dụng đá bazan nóng kết hợp tinh dầu tự nhiên giúp thư giãn cơ bắp sâu và giải tỏa căng thẳng.",
+    "image": "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=2070&auto=format&fit=crop"
   },
   {
-    "name": "Chăm sóc da mặt chuyên sâu",
-    "price": 700000,
-    "duration": 90,
+    "name": "Chăm Sóc Da Mặt Gold",
+    "price": 800000,
+    "duration": 75,
+    "breakTime": 15,
     "category": "Face",
-    "description": "Liệu trình 12 bước chuẩn spa 5 sao."
+    "type": "service",
+    "requiredRoomType": "BODY_SPA",
+    "description": "Liệu trình chăm sóc da cao cấp với tinh chất vàng 24k giúp trẻ hóa làn da, mờ nếp nhăn.",
+    "image": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=2070&auto=format&fit=crop"
   },
   {
-    "name": "Gội đầu dưỡng sinh",
-    "price": 150000,
+    "name": "Gội Đầu Dưỡng Sinh",
+    "price": 250000,
     "duration": 45,
+    "breakTime": 10,
     "category": "Head",
-    "description": "Thư giãn vùng đầu, giảm stress."
+    "type": "service",
+    "requiredRoomType": "HEAD_SPA",
+    "description": "Kết hợp gội đầu thảo dược và massage cổ vai gáy, giúp lưu thông khí huyết và giảm đau đầu.",
+    "image": "https://images.unsplash.com/photo-1560750588-73207b1ef5b8?q=80&w=2070&auto=format&fit=crop"
+  },
+  {
+    "name": "Trị Liệu Hương Thơm",
+    "price": 650000,
+    "duration": 90,
+    "breakTime": 20,
+    "category": "Body",
+    "type": "service",
+    "requiredRoomType": "BODY_SPA",
+    "description": "Thư giãn tâm trí với các loại tinh dầu thiên nhiên cao cấp được chọn lọc kỹ lưỡng.",
+    "image": "https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?q=80&w=2070&auto=format&fit=crop"
+  },
+  {
+    "name": "Massage Thái Cổ Truyền",
+    "price": 550000,
+    "duration": 90,
+    "breakTime": 20,
+    "category": "Body",
+    "type": "service",
+    "requiredRoomType": "BODY_SPA",
+    "description": "Các động tác ấn huyệt và kéo giãn cơ thể giúp phục hồi năng lượng nhanh chóng.",
+    "image": "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=1974&auto=format&fit=crop"
+  },
+  {
+    "name": "Combo Bạn Thân",
+    "price": 1200000,
+    "duration": 120,
+    "breakTime": 30,
+    "category": "Combo",
+    "type": "service",
+    "requiredRoomType": "BODY_SPA",
+    "description": "Gói dịch vụ dành cho 2 người bao gồm xông hơi, massage body và chăm sóc da mặt cơ bản.",
+    "image": "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=2070&auto=format&fit=crop"
   }
 ]

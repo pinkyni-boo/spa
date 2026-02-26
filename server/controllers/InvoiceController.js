@@ -10,7 +10,7 @@ const mongoose = require('mongoose');
 // 1. Create Invoice (Checkout)
 exports.createInvoice = async (req, res) => {
     try {
-        const { bookingId, customerName, phone, items, subTotal, discount, tax, finalTotal, tipAmount, tipStaffName, surchargeFee, paymentMethod, cashierName, promotionId, pointsUsed } = req.body;
+        const { bookingId, customerName, phone, items, subTotal, discount, tax, finalTotal, tipAmount, tipStaffName, surchargeFee, paymentMethod, cashierName, staffName, promotionId, pointsUsed } = req.body;
 
         // Validation
         if (!finalTotal && finalTotal !== 0) { // Check undefined/null but allow 0
@@ -77,6 +77,7 @@ exports.createInvoice = async (req, res) => {
             finalTotal,
             paymentMethod,
             cashierName,
+            staffName: staffName || '',
             branchId: req.user?.branchId || null,
             note: promotionId ? `Used Promotion: ${promotionId}` : (pointsUsed ? `Used ${pointsUsed} pts` : '')
         });
@@ -94,12 +95,18 @@ exports.createInvoice = async (req, res) => {
 
         // Update Booking Status if this invoice is linked to a booking
         if (bookingId) {
-            await Booking.findByIdAndUpdate(bookingId, {
+            const completedFields = {
                 status: 'completed',
                 paymentStatus: 'paid',
                 finalPrice: finalTotal,
-                actualEndTime: new Date() // Set actual finish time now
-            });
+                actualEndTime: new Date()
+            };
+            await Booking.findByIdAndUpdate(bookingId, completedFields);
+            // Also complete all child bookings (+DV) linked to this parent
+            await Booking.updateMany(
+                { parentBookingId: bookingId },
+                { status: 'completed', paymentStatus: 'paid', actualEndTime: new Date() }
+            );
         }
 
         res.json({ success: true, message: 'Thanh toán thành công', invoice: newInvoice });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Card, Typography, Modal, Form, Input, Select, InputNumber, Tag, Space, message, Popconfirm, Divider, List, Badge } from 'antd';
+import { Table, Button, Card, Typography, Modal, Form, Input, Select, InputNumber, Tag, Space, App, Popconfirm, Divider, List, Badge } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, HomeOutlined, ShopOutlined, BarsOutlined } from '@ant-design/icons';
 import theme from '../../../theme';
 import { resourceService } from '../../../services/resourceService';
@@ -11,6 +11,7 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 
 const RoomManager = () => {
+  const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [rooms, setRooms] = useState([]);
   const [beds, setBeds] = useState([]);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Drawer, Button, Typography, Descriptions, Tag, Avatar, Space, Divider, Select, InputNumber, message, DatePicker, TimePicker } from 'antd';
+import { Drawer, Button, Typography, Descriptions, Tag, Avatar, Space, Divider, Select, InputNumber, App, DatePicker, TimePicker } from 'antd';
 import { HistoryOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import theme from '../../../theme';
@@ -8,10 +8,13 @@ import { resourceService } from '../../../services/resourceService';
 
 const { Title, Text } = Typography;
 
-const BookingDrawer = ({ open, onClose, booking, onAction, services = [] }) => {
+const BookingDrawer = ({ open, onClose, booking, onAction, services = [], rooms = [] }) => {
+    const { message } = App.useApp();
     // --- [NEW] STATE FOR UPSELL ---
     const [isEditing, setIsEditing] = React.useState(false);
     const [selectedServiceToAdd, setSelectedServiceToAdd] = React.useState(null);
+    const [upsellStartTime, setUpsellStartTime] = React.useState(null);
+    const [upsellRoomId, setUpsellRoomId] = React.useState(null);
 
     // --- STATE FOR RESCHEDULE ---
     const [isRescheduling, setIsRescheduling] = React.useState(false);
@@ -81,15 +84,51 @@ const BookingDrawer = ({ open, onClose, booking, onAction, services = [] }) => {
         setIsRescheduling(false);
     };
 
+    const handleStartUpsell = () => {
+        // Pre-fill startTime with parent booking's endTime
+        setUpsellStartTime(dayjs(booking.endTime));
+        setUpsellRoomId(null);
+        setSelectedServiceToAdd(null);
+        setIsEditing(true);
+    };
+
+    const handleUpsellServiceChange = (serviceId) => {
+        const svc = services.find(s => s._id === serviceId);
+        if (svc) {
+            setSelectedServiceToAdd({ ...svc, qty: 1 });
+            // Auto-pick first resource matching service's requiredRoomType
+            const matchRoom = rooms.find(r => (r.roomType || r.type) === svc.requiredRoomType);
+            setUpsellRoomId(matchRoom ? (matchRoom.id || matchRoom._id) : null);
+        } else {
+            setSelectedServiceToAdd(null);
+            setUpsellRoomId(null);
+        }
+    };
+
+    // Resolve resource id to actual roomId + bedId
+    const resolveRoomBed = (resourceId) => {
+        const res = rooms.find(r => (r.id || r._id) === resourceId);
+        if (!res) return { roomId: resourceId, bedId: null };
+        if (res.isBed) return { roomId: res.parentRoomId, bedId: res.id || res._id };
+        return { roomId: res.id || res._id, bedId: null };
+    };
+
     const handleAddService = () => {
-        // Mock Add Logic for UI Demo
-        if (!selectedServiceToAdd) return;
-        
-        onAction('upsell_save', booking._id, { 
-            booking,
-            addedService: selectedServiceToAdd 
+        if (!selectedServiceToAdd) { message.warning('Chọn dịch vụ muốn thêm'); return; }
+        if (!upsellRoomId) { message.warning('Chọn phòng cho dịch vụ thêm'); return; }
+
+        const { roomId, bedId } = resolveRoomBed(upsellRoomId);
+        onAction('upsell_save', booking._id, {
+            bookingId: booking._id,
+            addedService: selectedServiceToAdd,
+            roomId,
+            bedId,
+            startTime: (upsellStartTime || dayjs(booking.endTime)).toISOString()
         });
         setIsEditing(false);
+        setSelectedServiceToAdd(null);
+        setUpsellStartTime(null);
+        setUpsellRoomId(null);
     };
 
     const statusColor = {
@@ -113,7 +152,7 @@ const BookingDrawer = ({ open, onClose, booking, onAction, services = [] }) => {
                 </div>
             }
             placement="right"
-            width={450} // Valid valid override
+            size="large"
             onClose={onClose}
             open={open} // Correct prop usage
             styles={{ body: { paddingBottom: 16 } }}
@@ -138,7 +177,7 @@ const BookingDrawer = ({ open, onClose, booking, onAction, services = [] }) => {
                         <Button size="small" style={{ flex: 1, fontSize: 12 }} onClick={openReschedule} disabled={isRescheduling}>Sửa giờ</Button>
                     )}
                     {booking && ['pending', 'confirmed', 'processing'].includes(booking.status) && (
-                        <Button size="small" style={{ flex: 1, fontSize: 12 }} onClick={() => setIsEditing(true)} disabled={isEditing}>+ DV</Button>
+                        <Button size="small" style={{ flex: 1, fontSize: 12 }} onClick={handleStartUpsell} disabled={isEditing}>+ DV</Button>
                     )}
                 </div>
             }
@@ -191,12 +230,25 @@ const BookingDrawer = ({ open, onClose, booking, onAction, services = [] }) => {
                      {booking.source === 'manual' ? '🖥️ Tạo thủ công' : booking.source === 'offline' ? '🏪 Tại quầy' : '🌐 Website'}
                 </Descriptions.Item>
                 
-                {/* [NEW] Show Upsell Items */}
+                {/* Dịch vụ bổ sung đã thêm vào đơn */}
                 {booking.servicesDone && booking.servicesDone.length > 0 && (
-                    <Descriptions.Item label="Làm thêm">
-                        {booking.servicesDone.map((s, i) => (
-                            <div key={i}>+ {s.name} ({s.qty})</div>
-                        ))}
+                    <Descriptions.Item label="+ Dịch vụ thêm">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {booking.servicesDone.map((s, i) => (
+                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                                    <span>• {s.name}{s.qty > 1 ? ` ×${s.qty}` : ''}</span>
+                                    <span style={{ color: '#52c41a', fontWeight: 600 }}>
+                                        {((s.price || 0) * (s.qty || 1)).toLocaleString('vi-VN')}đ
+                                    </span>
+                                </div>
+                            ))}
+                            <div style={{ borderTop: '1px dashed #d9d9d9', marginTop: 4, paddingTop: 4, display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
+                                <span>Tổng thêm:</span>
+                                <span style={{ color: '#1890ff' }}>
+                                    {booking.servicesDone.reduce((sum, s) => sum + (s.price || 0) * (s.qty || 1), 0).toLocaleString('vi-VN')}đ
+                                </span>
+                            </div>
+                        </div>
                     </Descriptions.Item>
                 )}
             </Descriptions>
@@ -256,43 +308,80 @@ const BookingDrawer = ({ open, onClose, booking, onAction, services = [] }) => {
                 </div>
             )}
 
-            {/* [NEW] UPSELL & EDIT FORM - ALLOWED FOR ALL ACTIVE STATES */}
+            {/* [NEW] UPSELL FORM - Thêm dịch vụ kèm phòng + giờ để hiện bảng biểu */}
             {isEditing && ['pending', 'confirmed', 'processing'].includes(booking.status) && (
                 <div style={{ marginTop: 20, border: '1px dashed #1890ff', padding: 16, borderRadius: 8, background: '#e6f7ff' }}>
-                    <Text strong style={{ color: '#1890ff' }}>✏️ Chỉnh Sửa Đơn Hàng</Text>
-                    
+                    <Text strong style={{ color: '#1890ff' }}>⚡ Thêm Dịch Vụ Kèm Giờ</Text>
+
                     <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        
-                        {/* 2. ADD SERVICE (Renamed to clear intent) */}
-                        <Text strong>⚡ Thêm Dịch Vụ / Phụ Thu:</Text>
-                        <Select 
-                            placeholder="Chọn dịch vụ thêm..." 
+
+                        {/* 1. Chọn dịch vụ - lưu toàn bộ object */}
+                        <Select
+                            placeholder="Chọn dịch vụ thêm..."
                             style={{ width: '100%' }}
                             showSearch
                             optionFilterProp="children"
-                            onChange={(val) => {
-                                // Mock data parsing
-                                const [name, price] = val.split('|');
-                                setSelectedServiceToAdd({ name, price: parseInt(price), qty: 1 });
-                            }}
+                            value={selectedServiceToAdd?._id || undefined}
+                            onChange={handleUpsellServiceChange}
                         >
                             {(services && services.length > 0) ? services.filter(s => s.type !== 'product').map(s => (
-                                <Select.Option key={s._id} value={`${s.name}|${s.price || 0}`}>
-                                    {s.name} ({(s.price || 0).toLocaleString()}đ)
+                                <Select.Option key={s._id} value={s._id}>
+                                    {s.name} ({(s.price || 0).toLocaleString()}đ · {s.duration || 60}p)
                                 </Select.Option>
                             )) : (
                                 <Select.Option disabled>Đang tải dịch vụ...</Select.Option>
                             )}
                         </Select>
 
+                        {/* 2. Giờ bắt đầu (mặc định = endTime của đơn chính) */}
+                        <div>
+                            <Text type="secondary" style={{ fontSize: 12 }}>Giờ bắt đầu dịch vụ thêm:</Text>
+                            <TimePicker
+                                value={upsellStartTime}
+                                onChange={setUpsellStartTime}
+                                format="HH:mm"
+                                minuteStep={5}
+                                style={{ width: '100%', marginTop: 4 }}
+                                placeholder="Giờ bắt đầu"
+                            />
+                        </div>
+
+                        {/* 3. Chọn phòng (auto-filter theo loại dịch vụ) */}
+                        <div>
+                            <Text type="secondary" style={{ fontSize: 12 }}>Phòng:</Text>
+                            <Select
+                                value={upsellRoomId || undefined}
+                                onChange={setUpsellRoomId}
+                                placeholder="Chọn phòng..."
+                                style={{ width: '100%', marginTop: 4 }}
+                                allowClear
+                            >
+                                {rooms
+                                    .filter(r => {
+                                        if (!selectedServiceToAdd) return true;
+                                        return (r.roomType || r.type) === selectedServiceToAdd.requiredRoomType;
+                                    })
+                                    .map(r => (
+                                        <Select.Option key={r.id || r._id} value={r.id || r._id}>
+                                            {r.title || r.name}
+                                        </Select.Option>
+                                    ))
+                                }
+                            </Select>
+                        </div>
+
+                        {/* 4. Số lượng + nút lưu */}
                         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                             <Text>Số lượng:</Text>
-                            <InputNumber min={1} defaultValue={1} onChange={(val) => setSelectedServiceToAdd(prev => ({ ...prev, qty: val }))} />
-                            
-                            <Button type="primary" onClick={handleAddService} disabled={!selectedServiceToAdd}>
-                                Lưu (+ Thêm giờ)
+                            <InputNumber
+                                min={1}
+                                value={selectedServiceToAdd?.qty || 1}
+                                onChange={(val) => setSelectedServiceToAdd(prev => prev ? { ...prev, qty: val } : prev)}
+                            />
+                            <Button type="primary" onClick={handleAddService} disabled={!selectedServiceToAdd || !upsellRoomId}>
+                                Lưu
                             </Button>
-                            <Button onClick={() => setIsEditing(false)}>Hủy</Button>
+                            <Button onClick={() => { setIsEditing(false); setSelectedServiceToAdd(null); setUpsellStartTime(null); setUpsellRoomId(null); }}>Hủy</Button>
                         </div>
                     </div>
                 </div>

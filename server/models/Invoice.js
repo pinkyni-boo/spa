@@ -41,6 +41,9 @@ const InvoiceSchema = new mongoose.Schema({
       default: 'cash'
   },
 
+  // KTV thực hiện dịch vụ (snapshot khi thanh toán)
+  staffName: { type: String, default: '' },
+
   // Người lập hóa đơn
   cashierName: { type: String, default: "Admin" },
 

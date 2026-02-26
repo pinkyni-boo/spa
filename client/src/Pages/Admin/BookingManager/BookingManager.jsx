@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Typography, Segmented, Button, message, notification, Modal, Form, Input, DatePicker, Select, ConfigProvider, Badge, Radio, AutoComplete, Tag } from 'antd';
+import { Layout, Typography, Segmented, Button, App, Modal, Form, Input, DatePicker, Select, ConfigProvider, Badge, Radio, AutoComplete, Tag } from 'antd';
 import { AppstoreOutlined, BarsOutlined, PlusOutlined, LeftOutlined, RightOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import theme from '../../../theme';
@@ -25,12 +25,10 @@ import { useBookingActions } from './hooks/useBookingActions';
 const { Title } = Typography;
 const { Option } = Select;
 
-// Reuse Constants
-const SERVICES_LIST = ["Massage Body Thụy Điển", "Chăm sóc da mặt chuyên sâu", "Gội đầu dưỡng sinh"];
-const TIME_SLOTS = [];
-for (let i = 9; i <= 18; i++) { TIME_SLOTS.push(`${i}:00`); if(i!==18) TIME_SLOTS.push(`${i}:30`); }
+
 
 const BookingManager = () => {
+    const { message } = App.useApp();
     // STATE
     const [viewMode, setViewMode] = useState('calendar'); // 'calendar' | 'list'
     
@@ -56,6 +54,7 @@ const BookingManager = () => {
     const [waitlist, setWaitlist] = useState([]); 
     const [highlightBookingId, setHighlightBookingId] = useState(null); 
     const [refreshWaitlist, setRefreshWaitlist] = useState(0);
+    const [refreshBookingList, setRefreshBookingList] = useState(0);
     const [draggedWaitlistItem, setDraggedWaitlistItem] = useState(null); 
     const [selectedBooking, setSelectedBooking] = useState(null); 
     const [isEditing, setIsEditing] = useState(false);
@@ -93,10 +92,30 @@ const BookingManager = () => {
         // Actions
         fetchData,
         // Setters
-        setIsModalVisible, setDrawerVisible, setSelectedBooking, setIsEditing, setDraggedWaitlistItem, setRefreshWaitlist
+        setIsModalVisible, setDrawerVisible, setSelectedBooking, setIsEditing, setDraggedWaitlistItem, setRefreshWaitlist, setRefreshBookingList
     });
 
     const handleViewChange = (mode) => setViewMode(mode);
+
+    // When admin clicks any booking (parent or child) → always show parent drawer
+    const handleSelectEvent = async (event) => {
+        if (event.parentBookingId) {
+            // It's a child (+DV) booking — resolve to parent
+            try {
+                const result = await adminBookingService.getBookingById(event._id);
+                if (result.success && result.booking) {
+                    setSelectedBooking(result.booking);
+                } else {
+                    setSelectedBooking(event); // fallback
+                }
+            } catch {
+                setSelectedBooking(event);
+            }
+        } else {
+            setSelectedBooking(event);
+        }
+        setDrawerVisible(true);
+    };
 
     // [NEW] Highlight calendar columns matching service type
     const handleHighlightRoom = (waitlistItem) => {
@@ -116,7 +135,13 @@ const BookingManager = () => {
     // Intercept drawer actions that need invoice modal
     const handleDrawerAction = async (action, bookingId, data) => {
         if (action === 'complete') {
-            // Mở modal thanh toán, chưa gọi API
+            // Nếu là child booking (+DV) → resolve về parent để hóa đơn gộp đủ dịch vụ
+            if (selectedBooking?.parentBookingId) {
+                const result = await adminBookingService.getBookingById(selectedBooking._id);
+                if (result.success && result.booking) {
+                    setSelectedBooking(result.booking);
+                }
+            }
             setDrawerVisible(false);
             setIsInvoiceVisible(true);
             return;
@@ -247,10 +272,7 @@ const BookingManager = () => {
                         draggedWaitlistItem={draggedWaitlistItem}
                         highlightRoomType={highlightRoomType}
                         highlightTime={highlightTime}
-                        onSelectEvent={(event) => {
-                            setSelectedBooking(event);
-                            setDrawerVisible(true);
-                        }}
+                        onSelectEvent={handleSelectEvent}
                         onSelectSlot={(slotInfo) => {
                             // Quick create on click logic if needed
                         }}
@@ -259,6 +281,7 @@ const BookingManager = () => {
                         filterBranch={filterBranch}
                         filterStaff={filterStaff}
                         filterPayment={filterPayment}
+                        refreshTrigger={refreshBookingList}
                     />
 
                     {/* RIGHT: DYNAMIC SIDEBAR (Collapsible) - Always visible */}
@@ -366,6 +389,7 @@ const BookingManager = () => {
                     booking={selectedBooking}
                     onAction={handleDrawerAction}
                     services={services}
+                    rooms={rooms}
                 />
 
                 {/* MODAL (CREATE ONLY) */}
