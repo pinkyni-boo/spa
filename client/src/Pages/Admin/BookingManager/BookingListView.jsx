@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Tag, Button, Avatar, Typography, Space, DatePicker, Tabs, Tooltip, Spin } from 'antd';
 import { ClockCircleOutlined, UserOutlined, AppstoreOutlined, CheckCircleOutlined, EditOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { fmtTime, fmtDate } from '../../../config/dateHelper';
 import theme from '../../../theme';
 import { adminBookingService } from '../../../services/adminBookingService';
 
@@ -89,10 +90,10 @@ const BookingListView = ({ bookings: propBookings, loading: propLoading, onEdit,
             render: (text) => (
                 <div>
                     <div style={{ color: theme.colors.primary[800], fontWeight: 700, fontSize: fl(13, 15), lineHeight: 1.3 }}>
-                        {dayjs(text).format('HH:mm')}
+                        {fmtTime(text)}
                     </div>
                     <div style={{ color: '#888', fontSize: fl(10, 12) }}>
-                        {dayjs(text).format('DD/MM/YYYY')}
+                        {fmtDate(text)}
                     </div>
                 </div>
             ),

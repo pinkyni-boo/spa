@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { App } from 'antd';
 import dayjs from 'dayjs';
+import { toCalendarDate } from '../../../../config/dateHelper';
 
 // Services
 import { adminBookingService } from '../../../../services/adminBookingService';
@@ -207,8 +208,8 @@ export const useBookingData = () => {
 
                             return {
                                 ...booking,
-                                start: new Date(booking.startTime),
-                                end: new Date(booking.endTime),
+                                start: toCalendarDate(booking.startTime),
+                                end: toCalendarDate(booking.endTime),
                                 title: booking.customerName || 'Khách',
                                 resourceId: resourceId || 'unassigned'
                             };

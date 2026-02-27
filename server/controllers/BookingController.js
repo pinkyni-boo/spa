@@ -457,8 +457,7 @@ exports.getCustomerHistory = async (req, res) => {
 // ---------------------------------------------------------
 exports.completePastBookings = async (req, res) => {
     try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const today = dayjs().tz(VN_TZ).startOf('day').toDate();
 
         const result = await Booking.updateMany(
             { 
@@ -486,8 +485,7 @@ exports.completePastBookings = async (req, res) => {
 // ---------------------------------------------------------
 exports.fixFutureBookings = async (req, res) => {
     try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const today = dayjs().tz(VN_TZ).startOf('day').toDate();
 
         const result = await Booking.updateMany(
             { 

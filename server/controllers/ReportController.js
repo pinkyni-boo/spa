@@ -2,6 +2,12 @@ const Invoice = require('../models/Invoice');
 const Expense = require('../models/Expense');
 const Transaction = require('../models/Transaction');
 const Booking = require('../models/Booking');
+const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+dayjs.extend(utc);
+dayjs.extend(timezone);
+const VN_TZ = 'Asia/Ho_Chi_Minh';
 
 const EXPENSE_CAT_LABELS = {
     supply: 'Mua vật tư / mỹ phẩm',
@@ -18,9 +24,8 @@ exports.getDailyReport = async (req, res) => {
         const { date } = req.query;
         const branchId = req.branchId || req.user?.branchId;
 
-        const targetDate = date ? new Date(date) : new Date();
-        const startOfDay = new Date(targetDate); startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay   = new Date(targetDate); endOfDay.setHours(23, 59, 59, 999);
+        const startOfDay = dayjs.tz(date || new Date(), VN_TZ).startOf('day').toDate();
+        const endOfDay   = dayjs.tz(date || new Date(), VN_TZ).endOf('day').toDate();
 
         const dateQuery = { createdAt: { $gte: startOfDay, $lte: endOfDay } };
         if (branchId) dateQuery.branchId = branchId;
@@ -150,10 +155,8 @@ exports.getCashflowReport = async (req, res) => {
         const { startDate, endDate } = req.query;
         const branchId = req.branchId || req.user?.branchId;
 
-        const start = startDate ? new Date(startDate) : new Date(new Date().setDate(1));
-        start.setHours(0, 0, 0, 0);
-        const end = endDate ? new Date(endDate) : new Date();
-        end.setHours(23, 59, 59, 999);
+        const start = dayjs.tz(startDate || dayjs().tz(VN_TZ).startOf('month').toDate(), VN_TZ).startOf('day').toDate();
+        const end   = dayjs.tz(endDate || new Date(), VN_TZ).endOf('day').toDate();
 
         const dateQuery = { createdAt: { $gte: start, $lte: end } };
         if (branchId) dateQuery.branchId = branchId;

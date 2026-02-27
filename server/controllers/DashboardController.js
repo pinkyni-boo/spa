@@ -2,13 +2,18 @@ const Booking = require('../models/Booking');
 const Staff = require('../models/Staff');
 const Room = require('../models/Room');
 const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+dayjs.extend(utc);
+dayjs.extend(timezone);
+const VN_TZ = 'Asia/Ho_Chi_Minh';
 
 // Get occupancy rate for all rooms
 exports.getOccupancyRate = async (req, res) => {
     try {
-        const todayStr = req.query.date || dayjs().format('YYYY-MM-DD');
-        const todayStart = dayjs(todayStr).startOf('day');
-        const todayEnd = dayjs(todayStr).endOf('day');
+        const todayStr = req.query.date || dayjs().tz(VN_TZ).format('YYYY-MM-DD');
+        const todayStart = dayjs.tz(todayStr, VN_TZ).startOf('day');
+        const todayEnd = dayjs.tz(todayStr, VN_TZ).endOf('day');
 
         // 1. Get all active rooms for this branch
         const rooms = await Room.find({ 
@@ -71,8 +76,8 @@ exports.getOccupancyRate = async (req, res) => {
 // Get dashboard statistics
 exports.getStats = async (req, res) => {
     try {
-        const today = dayjs().startOf('day');
-        const todayEnd = dayjs().endOf('day');
+        const today = dayjs().tz(VN_TZ).startOf('day');
+        const todayEnd = dayjs().tz(VN_TZ).endOf('day');
 
         // Today's completed bookings
         const todayBookings = await Booking.find({
@@ -124,12 +129,12 @@ exports.getRevenueChart = async (req, res) => {
         
         if (period === 'week') {
             // Last 7 days
-            startDate = dayjs().subtract(6, 'day').startOf('day');
+            startDate = dayjs().tz(VN_TZ).subtract(6, 'day').startOf('day');
             groupBy = 'day';
             dateFormat = 'DD/MM';
         } else {
             // Last 6 months
-            startDate = dayjs().subtract(5, 'month').startOf('month');
+            startDate = dayjs().tz(VN_TZ).subtract(5, 'month').startOf('month');
             groupBy = 'month';
             dateFormat = 'MM/YYYY';
         }
@@ -155,7 +160,7 @@ exports.getRevenueChart = async (req, res) => {
         // Generate full date range
         const chartData = [];
         let current = startDate;
-        const end = dayjs();
+        const end = dayjs().tz(VN_TZ);
 
         while (current.isBefore(end) || current.isSame(end, groupBy)) {
             const key = current.format(dateFormat);
@@ -179,7 +184,7 @@ exports.getRevenueChart = async (req, res) => {
 // Get top services
 exports.getTopServices = async (req, res) => {
     try {
-        const startOfMonth = dayjs().startOf('month');
+        const startOfMonth = dayjs().tz(VN_TZ).startOf('month');
         
         const bookings = await Booking.find({
             ...req.branchQuery,
@@ -219,7 +224,7 @@ exports.getTopServices = async (req, res) => {
 // Get staff status
 exports.getStaffStatus = async (req, res) => {
     try {
-        const now = dayjs();
+        const now = dayjs().tz(VN_TZ);
         const todayStart = now.startOf('day');
         const todayEnd = now.endOf('day');
 
@@ -276,8 +281,8 @@ exports.getStaffPerformance = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
 
-        const start = startDate ? dayjs(startDate).startOf('day') : dayjs().startOf('month');
-        const end = endDate ? dayjs(endDate).endOf('day') : dayjs().endOf('day');
+        const start = startDate ? dayjs.tz(startDate, VN_TZ).startOf('day') : dayjs().tz(VN_TZ).startOf('month');
+        const end = endDate ? dayjs.tz(endDate, VN_TZ).endOf('day') : dayjs().tz(VN_TZ).endOf('day');
 
         // 1. Get completed bookings in range
         const bookings = await Booking.find({
@@ -378,7 +383,7 @@ exports.getStaffPerformance = async (req, res) => {
 exports.getDailyReport = async (req, res) => {
     try {
         const { date } = req.query;
-        const targetDate = date ? dayjs(date) : dayjs();
+        const targetDate = date ? dayjs.tz(date, VN_TZ) : dayjs().tz(VN_TZ);
         const startOfDay = targetDate.startOf('day').toDate();
         const endOfDay = targetDate.endOf('day').toDate();
 

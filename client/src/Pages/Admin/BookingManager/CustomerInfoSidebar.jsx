@@ -2,19 +2,20 @@ import React from 'react';
 import { Card, Button, Typography, Tag, List, Divider, Avatar, Empty } from 'antd';
 import { CloseOutlined, UserOutlined, ClockCircleOutlined, CheckCircleOutlined, HistoryOutlined, PhoneOutlined, StarFilled } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { fmtDT, fmtDate, dayjsVN } from '../../../config/dateHelper';
 
 const { Title, Text } = Typography;
 
 const CustomerInfoSidebar = ({ customer, history, onClose, onSelectHistory }) => {
     
     // Sort history: Upcoming first, then Completed (Desc)
-    const now = dayjs();
+    const now = dayjsVN(new Date());
     const upcoming = history.filter(h => {
-        const isAfter = dayjs(h.startTime).isAfter(now);
+        const isAfter = dayjsVN(h.startTime).isAfter(now);
         const notCancelled = h.status !== 'cancelled';
         return isAfter && notCancelled;
     });
-    const past = history.filter(h => dayjs(h.startTime).isBefore(now) && h.status !== 'cancelled');
+    const past = history.filter(h => dayjsVN(h.startTime).isBefore(now) && h.status !== 'cancelled');
 
     return (
         <div style={{ padding: '16px', height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
@@ -53,7 +54,7 @@ const CustomerInfoSidebar = ({ customer, history, onClose, onSelectHistory }) =>
                                 style={{ borderColor: '#91d5ff', background: '#e6f7ff' }}
                                 onClick={() => onSelectHistory(item)}
                             >
-                                <div style={{ fontWeight: 'bold' }}>{dayjs(item.startTime).format('HH:mm - DD/MM/YYYY')}</div>
+                                <div style={{ fontWeight: 'bold' }}>{fmtDT(item.startTime)}</div>
                                 <div>{item.serviceName || item.serviceId?.name}</div>
                                 <div style={{ fontSize: 11, color: '#666' }}>{item.staffName || item.staffId?.name}</div>
                             </Card>
@@ -78,7 +79,7 @@ const CustomerInfoSidebar = ({ customer, history, onClose, onSelectHistory }) =>
                             onClick={() => onSelectHistory(item)}
                         >
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                 <strong style={{ color: '#555' }}>{dayjs(item.startTime).format('DD/MM/YYYY')}</strong>
+                                 <strong style={{ color: '#555' }}>{fmtDate(item.startTime)}</strong>
                                  <Tag color={item.status === 'completed' ? 'green' : 'default'}>{item.status}</Tag>
                             </div>
                             <div style={{ marginTop: 4 }}>{item.serviceName || item.serviceId?.name}</div>

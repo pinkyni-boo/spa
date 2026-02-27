@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Select, DatePicker, AutoComplete, Button, Badge } from 'antd';
 import { AppstoreOutlined, BarsOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { fmtDTShort } from '../../../config/dateHelper';
 import { adminBookingService } from '../../../services/adminBookingService';
 
 const { Option } = Select;
@@ -109,11 +110,11 @@ const BookingToolbar = ({
                     filterOption={false}
                     placeholder="🔍 Tìm SĐT/Tên"
                     options={searchResults.map(b => ({
-                        value: `${b.customerName} - ${dayjs(b.startTime).format('DD/MM HH:mm')}`, 
+                        value: `${b.customerName} - ${fmtDTShort(b.startTime)}`, 
                         label: (
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <strong>{b.customerName}</strong>
-                                <span style={{ fontSize: 12, color: '#888' }}>{dayjs(b.startTime).format('DD/MM HH:mm')}</span>
+                                <span style={{ fontSize: 12, color: '#888' }}>{fmtDTShort(b.startTime)}</span>
                             </div>
                         ),
                         booking: b 
