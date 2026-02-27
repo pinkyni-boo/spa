@@ -7,9 +7,16 @@ const Branch = require('../models/Branch');
 const dayjs = require('dayjs');
 const isBetween = require('dayjs/plugin/isBetween');
 const customParseFormat = require('dayjs/plugin/customParseFormat');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
 
 dayjs.extend(isBetween);
 dayjs.extend(customParseFormat);
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+// Múi giờ Việt Nam — dùng xuyên suốt để parse input từ client
+const VN_TZ = 'Asia/Ho_Chi_Minh';
 
 // ---------------------------------------------------------
 // MUTEX (Concurrency Control)
@@ -76,8 +83,8 @@ const checkAvailability = async (date, serviceId, serviceName, branchId) => {
     }
 
     // Validate Date Range (Max 7 days)
-    const bookingDate = dayjs(date);
-    const today = dayjs().startOf('day');
+    const bookingDate = dayjs.tz(date, VN_TZ);
+    const today = dayjs().tz(VN_TZ).startOf('day');
     const maxDate = today.add(7, 'day').endOf('day');
 
     if (bookingDate.isAfter(maxDate)) {
@@ -113,16 +120,16 @@ const checkAvailability = async (date, serviceId, serviceName, branchId) => {
 
     // D. Time Loop (Dynamic)
     const availableSlots = [];
-    const openTime = dayjs(`${date} ${openStr}`, 'YYYY-MM-DD HH:mm');
-    const closeTime = dayjs(`${date} ${closeStr}`, 'YYYY-MM-DD HH:mm');
+    const openTime = dayjs.tz(`${date} ${openStr}`, 'YYYY-MM-DD HH:mm', VN_TZ);
+    const closeTime = dayjs.tz(`${date} ${closeStr}`, 'YYYY-MM-DD HH:mm', VN_TZ);
     const ALLOWED_OVERTIME = 30;
     const hardStop = closeTime.add(ALLOWED_OVERTIME, 'minute');
     
     let currentSlot = openTime;
 
     // Get all active bookings for that day (exclude cancelled + completed)
-    const dayStart = dayjs(`${date} 00:00`).toDate();
-    const dayEnd = dayjs(`${date} 23:59`).toDate();
+    const dayStart = dayjs.tz(`${date} 00:00`, 'YYYY-MM-DD HH:mm', VN_TZ).toDate();
+    const dayEnd = dayjs.tz(`${date} 23:59`, 'YYYY-MM-DD HH:mm', VN_TZ).toDate();
     
     const bookingsToday = await Booking.find({
         branchId: branchId,
@@ -181,8 +188,8 @@ const checkAvailability = async (date, serviceId, serviceName, branchId) => {
             const shift = staff.shifts?.find(s => s.dayOfWeek === dayOfWeek);
             if (!shift || shift.isOff) return false;
 
-            const shiftStart = dayjs(`${date} ${shift.startTime}`, 'YYYY-MM-DD HH:mm');
-            const shiftEnd = dayjs(`${date} ${shift.endTime}`, 'YYYY-MM-DD HH:mm');
+            const shiftStart = dayjs.tz(`${date} ${shift.startTime}`, 'YYYY-MM-DD HH:mm', VN_TZ);
+            const shiftEnd = dayjs.tz(`${date} ${shift.endTime}`, 'YYYY-MM-DD HH:mm', VN_TZ);
 
             if (proposedStart.isBefore(shiftStart) || proposedEndService.isAfter(shiftEnd)) {
                 return false;
@@ -232,8 +239,8 @@ const createBooking = async (bookingData) => {
             throw { status: 400, message: 'Thiếu thông tin chi nhánh!' };
         }
 
-        // 1. Parse Date/Time
-        const startTime = dayjs(`${date} ${time}`, 'YYYY-MM-DD HH:mm');
+        // 1. Parse Date/Time — parse as VN timezone (UTC+7)
+        const startTime = dayjs.tz(`${date} ${time}`, 'YYYY-MM-DD HH:mm', VN_TZ);
         if (!startTime.isValid()) {
             throw { status: 400, message: 'Ngày giờ không hợp lệ' };
         }
@@ -260,8 +267,8 @@ const createBooking = async (bookingData) => {
         const hasBeds = allBeds.length > 0;
         let qualifiedStaff = await Staff.find({ isActive: true, branchId: branchId });
 
-        const dayStart = dayjs(`${date} 00:00`).toDate();
-        const dayEnd = dayjs(`${date} 23:59`).toDate();
+        const dayStart = dayjs.tz(`${date} 00:00`, 'YYYY-MM-DD HH:mm', VN_TZ).toDate();
+        const dayEnd = dayjs.tz(`${date} 23:59`, 'YYYY-MM-DD HH:mm', VN_TZ).toDate();
         // Only include ACTIVE bookings: exclude cancelled + completed (completed means customer already left)
         const bookingsToday = await Booking.find({
             branchId: branchId,
@@ -384,8 +391,8 @@ const createBooking = async (bookingData) => {
             const shift = staff.shifts?.find(s => s.dayOfWeek === dayOfWeek);
             if (!shift || shift.isOff) return false;
             
-            const shiftStart = dayjs(`${date} ${shift.startTime}`, 'YYYY-MM-DD HH:mm');
-            const shiftEnd = dayjs(`${date} ${shift.endTime}`, 'YYYY-MM-DD HH:mm');
+            const shiftStart = dayjs.tz(`${date} ${shift.startTime}`, 'YYYY-MM-DD HH:mm', VN_TZ);
+            const shiftEnd = dayjs.tz(`${date} ${shift.endTime}`, 'YYYY-MM-DD HH:mm', VN_TZ);
             
             if (startTime.isBefore(shiftStart) || endTime.isAfter(shiftEnd)) return false;
 
