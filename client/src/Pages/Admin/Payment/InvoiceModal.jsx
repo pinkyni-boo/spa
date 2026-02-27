@@ -118,7 +118,7 @@ const InvoiceModal = ({ visible, onClose, booking, invoice, onSubmit }) => {
 
                 // [NEW] Fetch Customer Points
                 if (booking.phone) {
-                     fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/bookings/history/${booking.phone}`, {
+                     fetch(`${(import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '')}/api/bookings/history/${booking.phone}`, {
                          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                      })
                         .then(res => res.json())

@@ -335,9 +335,7 @@ const Incentives = () => {
             padding: 60,
             color: theme.colors.text.secondary
           }}>
-            <span className="material-symbols-outlined" style={{ fontSize: 60, opacity: 0.3 }}>
-              inbox
-            </span>
+            
             <p style={{ marginTop: 16, fontFamily: theme.fonts.body }}>
               Hiện chưa có ưu đãi nào
             </p>

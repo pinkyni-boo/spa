@@ -37,7 +37,7 @@ const WaitlistSidebar = ({ waitlist, setWaitlist, refreshTrigger, onDragStart, o
     // Fetch services khi mở modal
     useEffect(() => {
         if (isModalVisible && serviceOptions.length === 0) {
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+            const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '');
             fetch(`${API_URL}/api/services?type=service`)
                 .then(r => r.json())
                 .then(data => { if (data.success) setServiceOptions(data.services || []); })

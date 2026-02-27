@@ -5,7 +5,7 @@ import theme from '../../../theme';
 import { resourceService } from '../../../services/resourceService';
 import { branchService } from '../../../services/branchService';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '');
 
 const { Title, Text } = Typography;
 const { Option } = Select;

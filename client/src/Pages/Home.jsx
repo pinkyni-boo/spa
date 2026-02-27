@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { CaretRightOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import royalLuxuryTheme from '../theme';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '');
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;

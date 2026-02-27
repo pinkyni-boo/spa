@@ -44,7 +44,7 @@ const InvoiceManager = () => {
     const [retailItems, setRetailItems] = useState([{ key: 0, itemId: null, name: '', qty: 1, price: 0, subtotal: 0 }]);
     const [retailSubmitting, setRetailSubmitting] = useState(false);
 
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '');
 
     const fetchInvoices = async () => {
         setLoading(true);

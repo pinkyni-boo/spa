@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import API_URL from '../config/api.js';
 
 export const feedbackService = {
     // Get all feedbacks (admin)

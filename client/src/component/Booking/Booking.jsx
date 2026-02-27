@@ -52,7 +52,7 @@ const Booking = () => {
         });
 
         // Fetch services from API
-        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/services?type=service`)
+        fetch(`${(import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '')}/api/services?type=service`)
             .then(r => r.json())
             .then(data => {
                 if (data.success && Array.isArray(data.services)) {

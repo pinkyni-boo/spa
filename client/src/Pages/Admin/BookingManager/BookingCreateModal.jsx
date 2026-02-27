@@ -17,7 +17,7 @@ const BookingCreateModal = ({ visible, onCancel, onCreate }) => {
 
     useEffect(() => {
         if (!visible) return;
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '');
         fetch(`${API_URL}/api/services`, {
             headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         })

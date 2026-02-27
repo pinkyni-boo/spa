@@ -14,7 +14,7 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '');
 
 const STATUS_META = {
     pending:   { label: 'Chờ xử lý',  color: 'gold',   icon: <ClockCircleOutlined /> },

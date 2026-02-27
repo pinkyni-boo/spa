@@ -1,5 +1,5 @@
 // ĐỊA CHỈ SERVER — production: VITE_API_URL từ Vercel env, local: fallback localhost
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import API_URL from '../config/api.js';
 
 export const bookingService = {
   // 1. Hàm hỏi giờ trống (UPDATED PHASE 2 SMART LOGIC)
