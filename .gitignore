@@ -1,6 +1,5 @@
 node_modules/
 .env
-.env.local
 .env.production
 NOTES_*.md
 PROJECT_ASSESSMENT.md
