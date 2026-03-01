@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { App } from 'antd';
 import dayjs from 'dayjs';
 import { toCalendarDate } from '../../../../config/dateHelper';
@@ -29,7 +29,9 @@ export const useBookingData = () => {
     const [isInitialized, setIsInitialized] = useState(false);
 
     // POLLING
-    const [lastBookingCount, setLastBookingCount] = useState(0);
+    const knownIdsRef = useRef(new Set());
+    const filterRef   = useRef({});
+    const roomsRef    = useRef([]);  // để transform bookings mà không cần refetch rooms
 
     // 1. INITIALIZE (AUTH & BRANCH)
     useEffect(() => {
@@ -172,6 +174,7 @@ export const useBookingData = () => {
             }
 
             setRooms([...transformedResources]);
+            roomsRef.current = [...transformedResources];
 
             // Security Check for Bookings
             let shouldFetchBookings = true;
@@ -219,6 +222,8 @@ export const useBookingData = () => {
                     }).filter(b => b !== null);
                     
                     setBookings(transformedBookings);
+                    knownIdsRef.current = new Set(transformedBookings.map(b => b._id));
+                    filterRef.current   = { branchId: filterBranch, staffId: filterStaff, paymentStatus: filterPayment };
                 }
             }
         } catch (error) {
@@ -236,40 +241,72 @@ export const useBookingData = () => {
         }
     }, [isInitialized, filterBranch, filterStaff, filterPayment, currentDate]);
 
-    // 4. POLLING
+    // 4. SILENT REFRESH — only re-fetch bookings, no loading spinner
+    const refreshBookings = useCallback(async () => {
+        try {
+            const params = filterRef.current;
+            const result = await adminBookingService.getAllBookings(params);
+            if (!result.success) return;
+
+            const incoming = result.bookings || [];
+            const newOnes  = incoming.filter(b => !knownIdsRef.current.has(b._id));
+
+            const resources = roomsRef.current;
+            // Build roomById lookup for legacy capacity fallback
+            const roomById = {};
+            resources.forEach(r => { if (r.parentRoomId) { /* bed */ } else { roomById[r._id] = r; } });
+
+            const transformedBookings = incoming.map((booking) => {
+                try {
+                    let resourceId = null;
+                    if (booking.bedId) {
+                        resourceId = typeof booking.bedId === 'object' ? booking.bedId._id : booking.bedId;
+                    } else if (booking.roomId) {
+                        const rId = typeof booking.roomId === 'object' ? booking.roomId._id : booking.roomId;
+                        const room = roomById[rId];
+                        if (room && (room.capacity || 1) > 1) {
+                            resourceId = `${rId}_bed_1`;
+                        } else {
+                            resourceId = rId;
+                        }
+                    }
+                    return {
+                        ...booking,
+                        start: toCalendarDate(booking.startTime),
+                        end:   toCalendarDate(booking.endTime),
+                        title: booking.customerName || 'Khách',
+                        resourceId: resourceId || 'unassigned'
+                    };
+                } catch { return null; }
+            }).filter(Boolean);
+
+            setBookings(transformedBookings);
+            knownIdsRef.current = new Set(transformedBookings.map(b => b._id));
+
+            if (newOnes.length > 0) {
+                notification.success({
+                    message: '🔔 Có đơn đặt lịch mới!',
+                    description: newOnes.map(b => {
+                        const timeStr = b.startTime
+                            ? new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(b.startTime))
+                            : '';
+                        return `${b.customerName || 'Khách'} — ${b.serviceName || ''} lúc ${timeStr}`;
+                    }).join('\n'),
+                    duration: 8,
+                    placement: 'topRight',
+                });
+            }
+        } catch (err) {
+            console.error('Silent refresh error:', err);
+        }
+    }, [notification]); // dùng refs → không bị stale closure theo filter
+
+    // 5. POLLING mỗi 5 giây
     useEffect(() => {
         if (!isInitialized) return;
-        
-        const pollInterval = setInterval(async () => {
-            try {
-                const params = {
-                    branchId: filterBranch,
-                    staffId: filterStaff,
-                    paymentStatus: filterPayment
-                };
-                
-                const result = await adminBookingService.getAllBookings(params);
-                
-                if (result.success) {
-                    const currentCount = result.bookings?.length || 0;
-                    if (lastBookingCount > 0 && currentCount > lastBookingCount) {
-                        notification.success({
-                            message: '🔔 Đơn Đặt Lịch Mới!',
-                            description: `Có ${currentCount - lastBookingCount} đơn mới!`,
-                            duration: 8,
-                            placement: 'topRight'
-                        });
-                        fetchData();
-                    }
-                    setLastBookingCount(currentCount);
-                }
-            } catch (error) {
-                console.error('Polling error:', error);
-            }
-        }, 5000); // [FIX] 5s thay vì 10s - data nhỏ hơn nên an toàn 
-        
-        return () => clearInterval(pollInterval);
-    }, [isInitialized, lastBookingCount, filterBranch, filterStaff, filterPayment]);
+        const id = setInterval(refreshBookings, 5000);
+        return () => clearInterval(id);
+    }, [isInitialized, refreshBookings]);
 
     return {
         bookings, setBookings,
@@ -280,6 +317,6 @@ export const useBookingData = () => {
         filterPayment, setFilterPayment, // Exposed if needed later
         currentDate, setCurrentDate,
         userRole, managedBranches,
-        fetchData
+        fetchData, refreshBookings
     };
 };

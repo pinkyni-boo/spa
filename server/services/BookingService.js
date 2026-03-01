@@ -76,16 +76,16 @@ const findServiceByName = async (serviceName) => {
 // ---------------------------------------------------------
 // 1. CHECK AVAILABILITY (Business Logic)
 // ---------------------------------------------------------
-const checkAvailability = async (date, serviceId, serviceName, branchId) => {
+const checkAvailability = async (date, serviceId, serviceName, branchId, isAuthenticated = false) => {
     // A. Validate Input
     if (!date || (!serviceName && !serviceId) || !branchId) {
         throw { status: 400, message: 'Thiếu thông tin ngày, dịch vụ hoặc chi nhánh' };
     }
 
-    // Validate Date Range (Max 7 days)
+    // Validate Date Range (Max 7 days for public; unlimited for authenticated admin)
     const bookingDate = dayjs.tz(date, VN_TZ);
     const today = dayjs().tz(VN_TZ).startOf('day');
-    const maxDate = today.add(7, 'day').endOf('day');
+    const maxDate = today.add(isAuthenticated ? 365 : 7, 'day').endOf('day');
 
     if (bookingDate.isAfter(maxDate)) {
         throw { status: 400, message: 'Chỉ được đặt lịch trước tối đa 7 ngày!' };
@@ -390,17 +390,17 @@ const createBooking = async (bookingData) => {
         const assignedStaff = qualifiedStaff.find(staff => {
             const shift = staff.shifts?.find(s => s.dayOfWeek === dayOfWeek);
             if (!shift || shift.isOff) return false;
-            
+
             const shiftStart = dayjs.tz(`${date} ${shift.startTime}`, 'YYYY-MM-DD HH:mm', VN_TZ);
-            const shiftEnd = dayjs.tz(`${date} ${shift.endTime}`, 'YYYY-MM-DD HH:mm', VN_TZ);
-            
+            const shiftEnd   = dayjs.tz(`${date} ${shift.endTime}`,   'YYYY-MM-DD HH:mm', VN_TZ);
+
             if (startTime.isBefore(shiftStart) || endTime.isAfter(shiftEnd)) return false;
 
             const isBusy = bookingsToday.some(b => {
                 if (b.staffId?.toString() === staff._id.toString()) {
                     const bStart = dayjs(b.startTime);
-                    const bEnd = dayjs(b.endTime).add(b.bufferTime || 0, 'minute');
-                    return (startTime.isBefore(bEnd) && busyEndTime.isAfter(bStart));
+                    const bEnd   = dayjs(b.endTime).add(b.bufferTime || 0, 'minute');
+                    return startTime.isBefore(bEnd) && busyEndTime.isAfter(bStart);
                 }
                 return false;
             });

@@ -6,6 +6,7 @@ import theme from '../../theme';
 import { bookingService } from '../../services/bookingService';
 import { branchService } from '../../services/branchService'; // [NEW] Import branchService
 import dayjs from 'dayjs';
+import { VN_TZ, dayjsVN } from '../../config/dateHelper';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -115,9 +116,10 @@ const Booking = () => {
       customerName: values.customerName,
       phone: values.phone,
       serviceName: values.serviceName,
-      date: values.date.format('YYYY-MM-DD'),
+      // Format ngày theo VN timezone tường minh dùng Intl — đúng dù browser ở UTC
+      date: new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(values.date.valueOf())),
       time: selectedSlot,
-      branchId: values.branchId // [NEW] Include branchId
+      branchId: values.branchId
     };
 
     const result = await bookingService.createBooking(bookingData);
@@ -354,10 +356,13 @@ const Booking = () => {
                         handleCheckAvailability();
                     }}
                     inputReadOnly={true} // [FIX] Prevent manual typing to bypass disabledDate
-                    disabledDate={(current) => {
-                        // Can not select days before today and today + 7 days
-                        return current && (current < dayjs().startOf('day') || current > dayjs().add(7, 'day').endOf('day'));
-                    }} // Không cho chọn ngày quá khứ và quá 7 ngày
+    disabledDate={(current) => {
+                        // Dùng Intl để lấy ngày VN — đúng trên mọi browser timezone
+                        const todayVN = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
+                        const maxVN   = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(Date.now() + 7*86400000));
+                        const curVN   = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(current.valueOf()));
+                        return curVN < todayVN || curVN > maxVN;
+                    }}
                     popupClassName="booking-datepicker-popup" // Class riêng để style popup
                   />
                 </Form.Item>

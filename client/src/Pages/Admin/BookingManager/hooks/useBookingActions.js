@@ -8,14 +8,19 @@ export const useBookingActions = ({
     // State Values
     filterBranch, draggedWaitlistItem,
     // Actions
-    fetchData,
+    fetchData, refreshBookings,
     // Setters
     setIsModalVisible, setDrawerVisible, setSelectedBooking, setIsEditing, setDraggedWaitlistItem, setRefreshWaitlist, setRefreshBookingList
 }) => {
     const { message } = App.useApp();
 
     const refreshBookingViews = async () => {
-        await fetchData();
+        // Use silent refresh (no spinner) if available, else fall back to full fetchData
+        if (typeof refreshBookings === 'function') {
+            await refreshBookings();
+        } else {
+            await fetchData();
+        }
         if (typeof setRefreshBookingList === 'function') {
             setRefreshBookingList(prev => prev + 1);
         }

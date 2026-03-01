@@ -37,6 +37,7 @@ const BookingManager = () => {
     const [viewingCustomer, setViewingCustomer] = useState(null);
     const [customerHistory, setCustomerHistory] = useState([]);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // [NEW] Collapsible sidebar
+
     // [HOOK] Data Logic
     const { 
         bookings, rooms, staffs, services, loading, 
@@ -45,11 +46,11 @@ const BookingManager = () => {
         filterPayment, setFilterPayment, 
         currentDate, setCurrentDate, 
         userRole, managedBranches, 
-        fetchData 
+        fetchData, refreshBookings
     } = useBookingData();
 
     // [UI STATE]
-    const [isModalVisible, setIsModalVisible] = useState(false); 
+    const [isModalVisible, setIsModalVisible] = useState(false);
     const [drawerVisible, setDrawerVisible] = useState(false); 
     const [waitlist, setWaitlist] = useState([]); 
     const [highlightBookingId, setHighlightBookingId] = useState(null); 
@@ -90,7 +91,7 @@ const BookingManager = () => {
         // State Values
         filterBranch, draggedWaitlistItem,
         // Actions
-        fetchData,
+        fetchData, refreshBookings,
         // Setters
         setIsModalVisible, setDrawerVisible, setSelectedBooking, setIsEditing, setDraggedWaitlistItem, setRefreshWaitlist, setRefreshBookingList
     });
@@ -410,6 +411,7 @@ const BookingManager = () => {
                     visible={isModalVisible} 
                     onCancel={() => setIsModalVisible(false)}
                     onCreate={handleCreateSubmit}
+                    branchId={filterBranch}
                 />
 
                 {/* [NEW] INVOICE MODAL */}

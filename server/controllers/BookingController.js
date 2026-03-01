@@ -19,7 +19,9 @@ exports.checkAvailability = async (req, res) => {
   try {
     const { date, serviceName, serviceId, branchId } = req.body;
     
-    const result = await BookingService.checkAvailability(date, serviceId, serviceName, branchId);
+    // Allow authenticated requests (admin) to bypass the 7-day cap
+    const isAuthenticated = !!req.headers.authorization;
+    const result = await BookingService.checkAvailability(date, serviceId, serviceName, branchId, isAuthenticated);
     res.json(result);
     
   } catch (error) {

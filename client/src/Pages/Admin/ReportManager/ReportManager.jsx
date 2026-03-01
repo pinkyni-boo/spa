@@ -14,6 +14,7 @@ import {
     TrophyOutlined, TeamOutlined, CalendarOutlined, WalletOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { VN_TZ, fmtTime, fmtDTShort } from '../../../config/dateHelper';
 import { dashboardService } from '../../../services/dashboardService';
 
 const { Title, Text } = Typography;
@@ -152,7 +153,7 @@ const TabDailyReport = () => {
     useEffect(() => { load(); }, [load]);
 
     const columns = [
-        { title: 'Giờ', dataIndex: 'time', width: 55, render: v => <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(v).format('HH:mm')}</Text> },
+        { title: 'Giờ', dataIndex: 'time', width: 55, render: v => <Text type="secondary" style={{ fontSize: 12 }}>{fmtTime(v)}</Text> },
         { title: 'Loại', dataIndex: 'rowType', width: 60,
             render: t => t === 'income' ? <Tag color="green" style={{ fontSize: 11 }}>THU</Tag> : <Tag color="red" style={{ fontSize: 11 }}>CHI</Tag> },
         {
@@ -191,7 +192,7 @@ const TabDailyReport = () => {
             <Card style={{ marginBottom: 16 }}>
                 <Row gutter={12} align="middle">
                     <Col><Text strong>Ngày: </Text>
-                        <DatePicker value={date} onChange={d => setDate(d || dayjs())} format="DD/MM/YYYY" allowClear={false} />
+                        <DatePicker value={date} onChange={d => setDate(d || dayjs().tz(VN_TZ))} format="DD/MM/YYYY" allowClear={false} />
                     </Col>
 
                 </Row>
@@ -296,7 +297,7 @@ const TabCashflow = () => {
     const columns = [
         {
             title: 'Giờ', dataIndex: 'time', width: 110,
-            render: v => dayjs(v).format('DD/MM HH:mm')
+            render: v => fmtDTShort(v)
         },
         {
             title: 'Loại', dataIndex: 'rowType', width: 70,

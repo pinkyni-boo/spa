@@ -1,22 +1,35 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, dayjsLocalizer, Views } from 'react-big-calendar';
 import dayjs from 'dayjs';
+import isBetween from 'dayjs/plugin/isBetween';
+import 'dayjs/locale/vi';
 import withDragAndDropLib from 'react-big-calendar/lib/addons/dragAndDrop';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Spin, App, Tabs, Button, Popover, Tag } from 'antd';
 import { LeftOutlined, RightOutlined, CalendarOutlined, ClockCircleOutlined, UserOutlined, PhoneOutlined, SkinOutlined } from '@ant-design/icons';
 import theme from '../../../theme';
-// import { adminBookingService } from '../../../services/adminBookingService';
+// dateHelper đã setup toCalendarDate (UTC+7 manual offset) — import đủ dùng
+import { VN_TZ, toCalendarDate } from '../../../config/dateHelper';
+
+// Tính giờ VN bằng offset cứng +7h (không dùng dayjs plugins)
+const _vnStr = (ms) => { const d = new Date(ms + 7*3600000); const p = n => String(n).padStart(2,'0'); return `${d.getUTCFullYear()}-${p(d.getUTCMonth()+1)}-${p(d.getUTCDate())}T${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`; };
+// vnNow() — giờ VN hiện tại dưới dạng fake-local Date (cùng hệ toạ độ với toCalendarDate)
+const vnNow = () => new Date(_vnStr(Date.now()));
+// vnDay(date, h, m) — ngày VN + giờ cụ thể dưới dạng fake-local Date
+const vnDay = (date, h, m) => {
+    const ms = (date instanceof Date ? date : new Date(date)).getTime();
+    const datePart = _vnStr(ms).slice(0, 10);
+    return new Date(`${datePart}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`);
+};
+
+dayjs.extend(isBetween);
+dayjs.locale('vi');
 
 // FIX: Robust check for Vite + CommonJS interop (Handles Double Default)
 let withDragAndDrop = withDragAndDropLib;
 if (withDragAndDrop.default) withDragAndDrop = withDragAndDrop.default;
 if (withDragAndDrop.default) withDragAndDrop = withDragAndDrop.default; // Double check
-
-// LOCALE SETUP
-import 'dayjs/locale/vi';
-dayjs.locale('vi');
 
 const DnDCalendar = withDragAndDrop(Calendar);
 const localizer = dayjsLocalizer(dayjs);
@@ -152,6 +165,11 @@ const DnDCalendarView = ({ date, views, events, resources, onNavigate, onEventDr
     }, [resources, activeTab]);
 
 
+    // Calendar time bounds — use vnDay() so it's in fake-local (VN) coordinate system
+    // This aligns with event.start/end from toCalendarDate(), regardless of browser timezone
+    const calMin = React.useMemo(() => vnDay(date, 9, 0), [date]);
+    const calMax = React.useMemo(() => vnDay(date, 20, 30), [date]);
+
     // --- SYNC SEARCH SCROLL ---
     useEffect(() => {
         if (highlightBookingId) {
@@ -186,10 +204,10 @@ const DnDCalendarView = ({ date, views, events, resources, onNavigate, onEventDr
         setTimeout(() => {
             const container = document.querySelector('.rbc-time-content');
             if (!container) return;
-            // Each 30-min slot = 60px (min-height). Calendar starts at 08:00
+            // Each 30-min slot = 60px (min-height). Calendar starts at 09:00
             const [hh, mm] = highlightTime.split(':').map(Number);
-            const totalMinutesFrom8 = (hh - 8) * 60 + (mm || 0);
-            const px = Math.max(0, (totalMinutesFrom8 / 30) * 60 - 60); // 1 slot = 60px, offset -60 so it appears near top
+            const totalMinutesFrom9 = (hh - 9) * 60 + (mm || 0);
+            const px = Math.max(0, (totalMinutesFrom9 / 30) * 60 - 60); // 1 slot = 60px, offset -60 so it appears near top
             container.scrollTo({ top: px, behavior: 'smooth' });
         }, 150);
     }, [highlightTime]);
@@ -249,7 +267,9 @@ const DnDCalendarView = ({ date, views, events, resources, onNavigate, onEventDr
             boxSizing: 'border-box',
         };
 
-        const now = dayjs();
+        // now() as fake-local so comparison with event.start (also fake-local) is consistent
+        // on ANY browser timezone — not just VN
+        const now = dayjs(vnNow());
         const start = dayjs(event.start);
         
         let className = `booking-highlight-${event.id}`;
@@ -417,8 +437,10 @@ const DnDCalendarView = ({ date, views, events, resources, onNavigate, onEventDr
         const targetResources = filteredResources; // [CHANGED] Use filtered
         if (!targetResources || targetResources.length === 0) return "Không có phòng trong khu vực này.";
         
-        const startOfDay = dayjs(date).hour(9).minute(0);
-        const endOfDay = dayjs(date).hour(18).minute(0);
+        // Use fake-local for startOfDay/endOfDay so comparisons with b.start/b.end
+        // (which are also fake-local from toCalendarDate) work on any browser timezone
+        const startOfDay = dayjs(vnDay(date, 9, 0));
+        const endOfDay = dayjs(vnDay(date, 20, 0));
         const suggestions = []; 
         
         const totalRooms = targetResources.length;
@@ -815,7 +837,7 @@ const DnDCalendarView = ({ date, views, events, resources, onNavigate, onEventDr
                 }
              `}</style>
 
-             <div style={{ minHeight: 500, height: 500, overflow: 'hidden' }}>
+             <div style={{ height: 'calc(100vh - 280px)', minHeight: 700, overflow: 'hidden' }}>
                 <DnDCalendar
                     localizer={localizer}
                     events={events} // Events passed are all events
@@ -837,8 +859,8 @@ const DnDCalendarView = ({ date, views, events, resources, onNavigate, onEventDr
                     // Customization
                     step={30}
                     timeslots={2}
-                    min={new Date(2000, 0, 1, 8, 0, 0)} // 8:00 AM
-                    max={new Date(2000, 0, 1, 21, 0, 0)} // 21:00 - buffer để thấy rõ 20:00
+                    min={calMin}
+                    max={calMax}
                     slotPropGetter={slotPropGetter}
                     
                     formats={{
