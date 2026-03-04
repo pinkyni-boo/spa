@@ -32,15 +32,7 @@
 | bcryptjs | 3 |
 | express-rate-limit | 8 |
 | multer | 2 |
-| dotenv / cors / axios | latest |
-
-### Testing
-
-| Thư viện | Phiên bản |
-|---|---|
-| Jest | 30 |
-| Supertest | 7 |
-| mongodb-memory-server | 11 |
+| dotenv / cors | latest |
 
 ---
 
@@ -73,7 +65,6 @@ spa/
 │   ├── routes/
 │   │   └── api.js               # Toàn bộ API routes
 │   ├── validations/             # Joi schemas
-│   ├── tests/                   # Jest + Supertest
 │   ├── data/                    # Seed JSON files
 │   ├── scripts/                 # Dev/migration scripts
 │   ├── uploads/                 # Multer upload folder
@@ -193,8 +184,6 @@ Client chạy tại `http://localhost:5173` (hoặc `5174` nếu port đã bận
 |---|---|
 | `npm run dev` | Khởi động server bằng nodemon |
 | `npm start` | Chạy production |
-| `npm test` | Chạy toàn bộ test suite (Jest, in-band) |
-| `npm run test:watch` | Chạy test ở watch mode |
 
 ### `client/package.json`
 
