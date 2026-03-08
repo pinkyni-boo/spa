@@ -34,12 +34,31 @@ window.fetch = async (...args) => {
 
   // Chỉ xử lý các API call, bỏ qua static assets
   const url = requestUrl;
-  if (response.status === 401 && url.includes('/api/')) {
+  // Tự động logout khi token hết hạn / không hợp lệ
+  if ((response.status === 401 || response.status === 403) && url.includes('/api/')) {
     const isLoginPage = window.location.pathname === '/login';
     if (!isLoginPage) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      // 401: luôn logout. 403: chỉ logout nếu token thực sự hết hạn
+      // (tránh logout khi 403 là do thiếu quyền role)
+      let shouldLogout = response.status === 401;
+      if (!shouldLogout) {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          shouldLogout = true;
+        } else {
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            shouldLogout = !payload.exp || payload.exp * 1000 < Date.now();
+          } catch {
+            shouldLogout = true;
+          }
+        }
+      }
+      if (shouldLogout) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
     }
   }
 

@@ -20,7 +20,10 @@ const allowedOrigins = [
 app.use(cors({
   origin: (origin, callback) => {
     // Cho phép request không có origin (Postman, server-to-server)
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    if (!origin) return callback(null, true);
+    // Cho phép tất cả origin từ mạng LAN (192.168.x.x, 172.x.x.x, 10.x.x.x)
+    if (/^http:\/\/(192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.|10\.)/.test(origin)) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -100,7 +103,7 @@ app.post('/login', authLimiter, async (req, res) => {
             managedBranches: user.managedBranches?.map(b => b._id.toString()) || []
         }, 
         process.env.JWT_SECRET || 'miu_spa_secret_2024',
-        { expiresIn: '7d' }
+        { expiresIn: '30d' }
       );
 
       ActionLogController.createLog(req, user, 'AUTH_LOGIN', 'User', user._id, user.username);
@@ -128,7 +131,7 @@ app.post('/login', authLimiter, async (req, res) => {
 });
 
 // --- KHỞI ĐỘNG SERVER ---
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server Spa đang chạy tại http://localhost:${PORT}`);
 });
 

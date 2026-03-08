@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Row, Col, Carousel, Card, Input, Form, Divider, Image, App, Select } from 'antd';
+import { Typography, Button, Carousel, Card, Input, Form, Divider, Image, App, Select } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { CaretRightOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import royalLuxuryTheme from '../theme';
@@ -58,42 +58,44 @@ const Home = () => {
     },
     carouselImage: {
       width: '100%',
-      height: '600px',
+      height: '55vw',
+      minHeight: '260px',
+      maxHeight: '600px',
       objectFit: 'cover',
-      filter: 'brightness(0.9)', // Slight dim for better text contrast if needed
+      filter: 'brightness(0.9)',
     },
     // 2. WELCOME SECTION
     welcomeSection: {
-      padding: '80px 20px',
+      padding: '60px 20px',
       textAlign: 'center',
       backgroundColor: '#FFFFFF',
     },
     welcomeTitle: {
       fontFamily: royalLuxuryTheme.fonts.heading,
       color: royalLuxuryTheme.colors.text.main,
-      fontSize: '42px',
+      fontSize: 'clamp(22px, 5vw, 42px)',
       textTransform: 'uppercase',
-      marginBottom: '20px',
+      marginBottom: '16px',
     },
     welcomeDesc: {
       fontFamily: royalLuxuryTheme.fonts.body,
       color: royalLuxuryTheme.colors.text.secondary,
-      fontSize: '16px',
+      fontSize: 'clamp(14px, 2vw, 16px)',
       maxWidth: '800px',
       margin: '0 auto',
       lineHeight: '1.8',
     },
     // 3. SERVICE LIST
     serviceSection: {
-      padding: '80px 20px',
-      backgroundColor: royalLuxuryTheme.colors.primary[50], // Silk White
+      padding: '50px 16px',
+      backgroundColor: royalLuxuryTheme.colors.primary[50],
     },
     sectionTitle: {
       fontFamily: royalLuxuryTheme.fonts.heading,
       color: royalLuxuryTheme.colors.primary[600],
-      fontSize: '36px',
+      fontSize: 'clamp(20px, 4.5vw, 36px)',
       textAlign: 'center',
-      marginBottom: '50px',
+      marginBottom: '32px',
       textTransform: 'uppercase',
     },
     serviceCard: {
@@ -105,54 +107,56 @@ const Home = () => {
     serviceImageWrapper: {
       overflow: 'hidden',
       borderRadius: '2px',
-      marginBottom: '20px',
+      marginBottom: '16px',
       boxShadow: royalLuxuryTheme.shadows.soft,
+      aspectRatio: '4/3',
+      width: '100%',
     },
     serviceImage: {
       width: '100%',
-      height: '350px',
+      height: 'clamp(180px, 40vw, 350px)',
       objectFit: 'cover',
       transition: 'transform 0.5s ease',
     },
     serviceItemTitle: {
       fontFamily: royalLuxuryTheme.fonts.heading,
-      fontSize: '24px',
+      fontSize: 'clamp(16px, 3vw, 24px)',
       color: royalLuxuryTheme.colors.text.main,
-      marginBottom: '10px',
+      marginBottom: '8px',
     },
     serviceItemDesc: {
       color: royalLuxuryTheme.colors.text.secondary,
-      fontSize: '15px',
-      padding: '0 15px',
+      fontSize: 'clamp(13px, 2vw, 15px)',
+      padding: '0 8px',
     },
     // 4. PROMOTIONS
     promoSection: {
-      padding: '80px 20px',
-      backgroundColor: royalLuxuryTheme.colors.text.main, // Dark background
+      padding: '60px 20px',
+      backgroundColor: royalLuxuryTheme.colors.text.main,
       textAlign: 'center',
       color: '#FFFFFF',
       backgroundImage: 'linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1540555700478-4be289fbecef?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&q=80")',
       backgroundSize: 'cover',
-      backgroundAttachment: 'fixed',
+      backgroundAttachment: 'scroll',
       backgroundPosition: 'center',
     },
     promoTitle: {
       fontFamily: royalLuxuryTheme.fonts.heading,
-      color: '#D4AF37', // Bright Gold
-      fontSize: '32px',
-      marginBottom: '20px',
+      color: '#D4AF37',
+      fontSize: 'clamp(18px, 4vw, 32px)',
+      marginBottom: '16px',
       textTransform: 'uppercase',
       letterSpacing: '2px',
     },
     // 5. CONSULTATION FORM
     formSection: {
-      padding: '80px 20px',
+      padding: '50px 16px',
       backgroundColor: '#FFFFFF',
     },
     formContainer: {
       maxWidth: '600px',
       margin: '0 auto',
-      padding: '40px',
+      padding: 'clamp(20px, 5vw, 40px)',
       border: `1px solid ${royalLuxuryTheme.colors.primary[200]}`,
       borderRadius: '4px',
       boxShadow: royalLuxuryTheme.shadows.elegant,
@@ -201,7 +205,7 @@ const Home = () => {
           <Title level={1} style={{ 
             color: '#FFFFFF', 
             fontFamily: royalLuxuryTheme.fonts.heading, 
-            fontSize: '48px', 
+            fontSize: 'clamp(22px, 6vw, 48px)', 
             margin: 0,
             textTransform: 'uppercase',
             letterSpacing: '5px'
@@ -210,7 +214,7 @@ const Home = () => {
           </Title>
           <Text style={{ 
             color: '#FFFFFF', 
-            fontSize: '18px', 
+            fontSize: 'clamp(12px, 3.5vw, 18px)', 
             fontFamily: royalLuxuryTheme.fonts.sans,
             letterSpacing: '2px',
             textTransform: 'uppercase'
@@ -221,7 +225,7 @@ const Home = () => {
       </div>
 
       {/* 2. WELCOME SLOGAN */}
-      <div style={styles.welcomeSection}>
+      <div style={styles.welcomeSection} className="home-welcome">
         <Text style={{ fontFamily: royalLuxuryTheme.fonts.sans, color: royalLuxuryTheme.colors.primary[400], letterSpacing: '4px', textTransform: 'uppercase', fontSize: '13px', display: 'block', marginBottom: '15px' }}>
           Welcome to MIU SPA
         </Text>
@@ -239,54 +243,49 @@ const Home = () => {
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <Title level={2} style={styles.sectionTitle}>Dịch Vụ Tiêu Biểu</Title>
           
-          <Row gutter={[32, 48]}>
-            <Col xs={24} md={8}>
-              <div style={styles.serviceCard} onClick={() => navigate('/services')}>
-                <div style={styles.serviceImageWrapper}>
-                  <img src="https://images.unsplash.com/photo-1519823551278-64ac92734fb1?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Gội đầu" style={{ width: '100%', height: '350px', objectFit: 'cover', transition: 'transform 0.5s ease' }} 
-                       onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                       onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                  />
-                </div>
-                <Title level={3} style={styles.serviceItemTitle}>Gội Đầu Dưỡng Sinh</Title>
-                <Paragraph style={styles.serviceItemDesc}>Thư giãn sâu vùng đầu cổ, kết hợp thảo dược giúp tóc chắc khỏe.</Paragraph>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'clamp(12px, 3vw, 32px)' }}>
+            <div style={styles.serviceCard} onClick={() => navigate('/services')}>
+              <div style={styles.serviceImageWrapper}>
+                <img src="https://images.unsplash.com/photo-1519823551278-64ac92734fb1?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Gội đầu" style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s ease', display: 'block' }}
+                     onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                     onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                />
               </div>
-            </Col>
-            
-            <Col xs={24} md={8}>
-              <div style={styles.serviceCard} onClick={() => navigate('/services')}>
-                <div style={styles.serviceImageWrapper}>
-                   <img src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Massage" style={{ width: '100%', height: '350px', objectFit: 'cover', transition: 'transform 0.5s ease' }} 
-                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                   />
-                </div>
-                <Title level={3} style={styles.serviceItemTitle}>Massage Body Đá Nóng</Title>
-                <Paragraph style={styles.serviceItemDesc}>Kích thích lưu thông khí huyết, giảm đau nhức cơ xương khớp hiệu quả.</Paragraph>
-              </div>
-            </Col>
+              <Title level={3} style={styles.serviceItemTitle}>Gội Đầu Dưỡng Sinh</Title>
+              <Paragraph style={styles.serviceItemDesc}>Thư giãn sâu vùng đầu cổ, kết hợp thảo dược giúp tóc chắc khỏe.</Paragraph>
+            </div>
 
-            <Col xs={24} md={8}>
-              <div style={styles.serviceCard} onClick={() => navigate('/services')}>
-                <div style={styles.serviceImageWrapper}>
-                   <img src="https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Facial" style={{ width: '100%', height: '350px', objectFit: 'cover', transition: 'transform 0.5s ease' }} 
-                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                   />
-                </div>
-                <Title level={3} style={styles.serviceItemTitle}>Trị Liệu Chuyên Sâu</Title>
-                <Paragraph style={styles.serviceItemDesc}>Liệu trình chăm sóc da mặt và cổ vai gáy được thiết kế riêng biệt.</Paragraph>
+            <div style={styles.serviceCard} onClick={() => navigate('/services')}>
+              <div style={styles.serviceImageWrapper}>
+                <img src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Massage" style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s ease', display: 'block' }}
+                     onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                     onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                />
               </div>
-            </Col>
-          </Row>
+              <Title level={3} style={styles.serviceItemTitle}>Massage Body Đá Nóng</Title>
+              <Paragraph style={styles.serviceItemDesc}>Kích thích lưu thông khí huyết, giảm đau nhức cơ xương khớp hiệu quả.</Paragraph>
+            </div>
 
-          <div style={{ textAlign: 'center', marginTop: '50px' }}>
+            <div style={styles.serviceCard} onClick={() => navigate('/services')}>
+              <div style={styles.serviceImageWrapper}>
+                <img src="https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Facial" style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s ease', display: 'block' }}
+                     onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                     onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                />
+              </div>
+              <Title level={3} style={styles.serviceItemTitle}>Trị Liệu Chuyên Sâu</Title>
+              <Paragraph style={styles.serviceItemDesc}>Liệu trình chăm sóc da mặt và cổ vai gáy được thiết kế riêng biệt.</Paragraph>
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'center', marginTop: '40px' }}>
             <Button 
               type="default" 
               size="large"
+              className="home-service-btn"
               style={{ 
-                height: '50px', 
-                padding: '0 40px', 
+                height: '46px', 
+                padding: '0 32px', 
                 fontSize: '14px', 
                 textTransform: 'uppercase', 
                 borderColor: royalLuxuryTheme.colors.primary[600], 
@@ -303,18 +302,18 @@ const Home = () => {
       </div>
 
       {/* 4. PROMOTIONS */}
-      <div style={styles.promoSection}>
+      <div style={styles.promoSection} className="home-promo">
         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
           <Title level={2} style={styles.promoTitle}>"Rạng rỡ mỗi ngày – Nhận ngay ưu đãi đặc quyền"</Title>
-          <Paragraph style={{ fontSize: '18px', color: 'rgba(255,255,255,0.9)', marginBottom: '40px' }}>
+          <Paragraph style={{ fontSize: 'clamp(14px, 2.5vw, 18px)', color: 'rgba(255,255,255,0.9)', marginBottom: '32px' }}>
             Đăng ký hội viên ngay hôm nay để nhận ưu đãi lên đến 30% cho lần trải nghiệm đầu tiên.
           </Paragraph>
           <Button 
             type="primary" 
             size="large"
             style={{ 
-              height: '50px', 
-              padding: '0 40px', 
+              height: '46px', 
+              padding: '0 32px', 
               backgroundColor: '#D4AF37', 
               color: '#000', 
               borderColor: '#D4AF37',
@@ -399,6 +398,18 @@ const Home = () => {
         </div>
       </div>
 
+      <style>{`
+        @media (max-width: 768px) {
+          .ant-carousel .slick-slide { touch-action: pan-y !important; }
+          .ant-carousel .slick-list { touch-action: pan-y !important; }
+        }
+        @media (max-width: 480px) {
+          .home-welcome { padding: 36px 16px !important; }
+          .home-promo { padding: 40px 16px !important; }
+          .home-promo p { font-size: 14px !important; }
+          .home-service-btn { height: 42px !important; padding: 0 24px !important; font-size: 13px !important; }
+        }
+      `}</style>
     </div>
   );
 };

@@ -12,7 +12,9 @@ const VoucherCard = ({ offer, index }) => {
       display: 'flex',
       width: '100%',
       maxWidth: 600,
-      height: 220,
+      height: 'auto',
+      minHeight: 220,
+      flexDirection: 'row',
       borderRadius: 16,
       overflow: 'hidden',
       boxShadow: '0 10px 40px rgba(0, 0, 0, 0.12)',
@@ -20,7 +22,7 @@ const VoucherCard = ({ offer, index }) => {
       border: `1px solid ${theme.colors.primary[200]}`,
       cursor: 'pointer',
       transition: 'all 0.3s ease'
-    }}
+    }} className="voucher-card"
     onMouseOver={e => { 
       e.currentTarget.style.transform = 'translateY(-6px)'; 
       e.currentTarget.style.boxShadow = '0 20px 50px rgba(212, 175, 55, 0.2)';
@@ -39,8 +41,9 @@ const VoucherCard = ({ offer, index }) => {
         justifyContent: 'center',
         alignItems: 'center',
         position: 'relative',
-        color: theme.colors.neutral[50]
-      }}>
+        color: theme.colors.neutral[50],
+        minHeight: 220
+      }} className="voucher-badge">
         {/* Decorative pattern */}
         <div style={{
           position: 'absolute',
@@ -117,7 +120,7 @@ const VoucherCard = ({ offer, index }) => {
         justifyContent: 'center',
         borderLeft: `2px dashed ${theme.colors.primary[200]}`,
         background: theme.colors.neutral[50]
-      }}>
+      }} className="voucher-content">
         {/* Subtitle */}
         <span style={{
           fontSize: 11,
@@ -275,6 +278,7 @@ const Incentives = () => {
   }
 
   return (
+    <>
     <section style={{
       padding: '80px 0 100px',
       background: `linear-gradient(180deg, ${theme.colors.neutral[100]} 0%, ${theme.colors.neutral[50]} 100%)`,
@@ -321,10 +325,10 @@ const Incentives = () => {
         {promotions.length > 0 ? (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
             gap: 32,
             justifyItems: 'center'
-          }}>
+          }} className="vouchers-grid">
             {promotions.map((offer, index) => (
               <VoucherCard key={offer.id} offer={offer} index={index} />
             ))}
@@ -356,6 +360,38 @@ const Incentives = () => {
         </div>
       </div>
     </section>
+    
+    <style>{`
+      @media (max-width: 768px) {
+        .vouchers-grid {
+          grid-template-columns: 1fr !important;
+        }
+        .voucher-card {
+          flex-direction: column;
+          max-width: 100% !important;
+          min-height: auto !important;
+        }
+        .voucher-badge {
+          width: 100% !important;
+          min-height: 100px !important;
+        }
+        .voucher-content {
+          border-left: none !important;
+          border-top: 2px dashed ${theme.colors.primary[200]} !important;
+          padding: 20px !important;
+        }
+      }
+      
+      @media (max-width: 480px) {
+        .vouchers-grid {
+          gap: 20px !important;
+        }
+        .voucher-card {
+          max-width: 100% !important;
+        }
+      }
+    `}</style>
+    </>
   );
 };
 

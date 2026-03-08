@@ -161,7 +161,7 @@ const ComboHeader = ({ activeTab, setActiveTab }) => (
         position: 'relative',
         width: '100%',
         height: '50vh',
-        minHeight: 400,
+        minHeight: 'clamp(200px, 40vw, 400px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -208,7 +208,7 @@ const ComboHeader = ({ activeTab, setActiveTab }) => (
         <h1
           style={{
             color: theme.colors.neutral[50],
-            fontSize: 48,
+            fontSize: 'clamp(20px, 5vw, 48px)',
             fontFamily: theme.fonts.heading,
             fontWeight: 500,
             lineHeight: 1.1,
@@ -229,7 +229,7 @@ const ComboHeader = ({ activeTab, setActiveTab }) => (
         <h2
           style={{
             color: 'rgba(255,255,255,0.9)',
-            fontSize: 20,
+            fontSize: 'clamp(12px, 2.5vw, 20px)',
             fontWeight: 300,
             letterSpacing: 1,
             maxWidth: 600,
@@ -245,7 +245,7 @@ const ComboHeader = ({ activeTab, setActiveTab }) => (
     {/* Intro Section */}
     <section
       style={{
-        padding: '64px 16px',
+        padding: 'clamp(24px, 6vw, 64px) 16px',
         background: theme.colors.neutral[50],
       }}
     >
@@ -364,9 +364,9 @@ const Combo = () => {
           scrollMarginTop: 180
         }}
       >
-        <div style={{
+        <div className="combo-cards-grid" style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
           gap: 30,
           maxWidth: 1100,
           margin: '0 auto'
@@ -378,7 +378,7 @@ const Combo = () => {
                 position: 'relative',
                 width: '100%',
                 aspectRatio: '3/4',
-                minHeight: 350,
+                minHeight: 'clamp(200px, 50vw, 350px)',
                 maxWidth: 320,
                 margin: '0 auto',
                 borderRadius: 20,
@@ -429,6 +429,7 @@ const Combo = () => {
                   height: '100%',
                   justifyContent: 'flex-end'
                 }}
+                className="combo-card-content"
               >
                 {/* Tag badge */}
                 <div style={{
@@ -482,22 +483,23 @@ const Combo = () => {
                 {/* Giá nổi bật */}
                 <div style={{
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
+                  alignItems: 'baseline',
+                  gap: 8,
                   marginBottom: 12,
                   marginTop: 4,
-                  justifyContent: 'flex-start'
+                  justifyContent: 'flex-start',
+                  flexWrap: 'wrap'
                 }}>
                   <span style={{
                     color: theme.colors.neutral[300],
                     textDecoration: 'line-through',
-                    fontSize: 16,
+                    fontSize: 'clamp(12px, 3vw, 16px)',
                     fontWeight: 400
                   }}>
                     {combo.originalPrice}
                   </span>
                   <span style={{
-                    fontSize: 36,
+                    fontSize: 'clamp(20px, 5vw, 36px)',
                     fontFamily: theme.fonts.heading,
                     fontWeight: 'bold',
                     color: theme.colors.primary[400],
@@ -532,6 +534,32 @@ const Combo = () => {
           ))}
         </div>
       </section>
+      <style>{`
+        @media (max-width: 768px) {
+          #combos {
+            padding: 0 16px !important;
+          }
+          .combo-cards-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 14px !important;
+          }
+          .combo-card-content {
+            padding: 16px 14px 14px 14px !important;
+          }
+        }
+        @media (max-width: 480px) {
+          #combos {
+            padding: 0 12px !important;
+          }
+          .combo-cards-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 10px !important;
+          }
+          .combo-card-content {
+            padding: 12px 10px 12px 10px !important;
+          }
+        }
+      `}</style>
     </>
   );
 };

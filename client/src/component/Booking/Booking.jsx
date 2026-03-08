@@ -179,8 +179,9 @@ const Booking = () => {
         onCancel={closeBooking}
         footer={null}
         closable={false}
-        width={750} 
+        width={750}
         centered
+        style={{ maxWidth: '96vw' }}
         modalRender={(modal) => (
           <div style={{ backgroundColor: 'transparent', padding: 0 }}>
             {React.cloneElement(modal, { style: { ...modal.props.style, boxShadow: 'none', background: 'transparent' } })}
@@ -190,7 +191,7 @@ const Booking = () => {
           mask: {
             backdropFilter: 'blur(8px)',
             backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          }
+          },
         }}
       >
         {/* KHỐI CUSTOM CỦA BẠN */}
@@ -218,7 +219,7 @@ const Booking = () => {
           />
 
           {/* Header Section */}
-          <div style={{ 
+          <div className="booking-header" style={{ 
             textAlign: 'center', 
             padding: '25px 20px 18px', 
             borderBottom: '1px solid #3a3528' 
@@ -248,7 +249,7 @@ const Booking = () => {
           >
             <Row>
               {/* Cột Trái: Thông tin khách hàng */}
-              <Col xs={24} md={10} style={{ 
+              <Col xs={10} md={10} className="booking-col-left" style={{ 
                 padding: '25px 25px', 
                 borderRight: '1px solid #3a3528', 
                 backgroundColor: '#181611' 
@@ -288,7 +289,7 @@ const Booking = () => {
               </Col>
 
               {/* Cột Phải: Chọn Dịch Vụ & Giờ (CORE LOGIC) */}
-              <Col xs={24} md={14} style={{ padding: '25px 30px' }}>
+              <Col xs={14} md={14} className="booking-col-right" style={{ padding: '25px 30px' }}>
 
                 {/* [NEW] CHI NHÁNH - BẮT BUỘC */}
                 <Form.Item 
@@ -368,7 +369,7 @@ const Booking = () => {
                 </Form.Item>
 
                 {/* KHU VỰC HIỂN THỊ GIỜ TRỐNG (DYNAMIC SLOT) */}
-                <div style={{ minHeight: '120px' }}>
+                <div className="booking-slots-area" style={{ minHeight: '120px' }}>
                   <Text style={{ color: theme.colors.primary[400], fontSize: '9px', letterSpacing: '1.5px', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>
                     Available Time Slots
                   </Text>
@@ -474,6 +475,82 @@ const Booking = () => {
         </div>
       </Modal>
       <style>{`
+        /* ===== MOBILE BOOKING FORM ===== */
+        @media (max-width: 768px) {
+          .booking-header {
+            padding: 10px 36px 8px 12px !important;
+          }
+          .booking-header .ant-typography[class*="h"] {
+            font-size: 13px !important;
+            margin-bottom: 1px !important;
+          }
+          .booking-header span {
+            font-size: 10px !important;
+          }
+          .booking-col-left {
+            padding: 10px 8px 10px 10px !important;
+            border-right: 1px solid #3a3528 !important;
+            border-bottom: none !important;
+          }
+          .booking-col-left .ant-typography[class*="h"] {
+            font-size: 10px !important;
+            margin-bottom: 6px !important;
+          }
+          .booking-col-left .ant-form-item {
+            margin-bottom: 6px !important;
+          }
+          .booking-col-left .ant-form-item-label label span {
+            font-size: 8px !important;
+            letter-spacing: 0.5px !important;
+          }
+          .booking-col-left .ant-input {
+            font-size: 11px !important;
+            padding: 3px 0 !important;
+          }
+          .booking-col-right {
+            padding: 10px 10px 10px 8px !important;
+          }
+          .booking-col-right .ant-form-item {
+            margin-bottom: 6px !important;
+          }
+          .booking-col-right .ant-form-item-label label span {
+            font-size: 8px !important;
+            letter-spacing: 0.5px !important;
+          }
+          .booking-col-right .ant-select-selector,
+          .booking-col-right .ant-picker {
+            font-size: 11px !important;
+            padding: 2px 0 !important;
+          }
+          .booking-col-right .ant-select-selection-item,
+          .booking-col-right .ant-select-selection-placeholder,
+          .booking-col-right .ant-picker-input input {
+            font-size: 11px !important;
+          }
+          .booking-slots-area {
+            min-height: unset !important;
+          }
+          .booking-slots-area > span {
+            font-size: 7px !important;
+          }
+          .booking-slots-area > div {
+            max-height: 72px !important;
+            gap: 4px !important;
+          }
+          .booking-slots-area .ant-btn {
+            font-size: 10px !important;
+            height: 24px !important;
+            min-width: 46px !important;
+            padding: 0 4px !important;
+          }
+          .booking-col-right .ant-btn[type="submit"],
+          .booking-col-right .ant-btn-primary:last-child {
+            height: 36px !important;
+            margin-top: 8px !important;
+            font-size: 10px !important;
+            letter-spacing: 0.5px !important;
+          }
+        }
         /* Giữ nguyên CSS cũ */
         .ant-input::placeholder, 
         .ant-select-selection-placeholder, 

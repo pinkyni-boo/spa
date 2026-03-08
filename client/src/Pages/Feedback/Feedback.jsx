@@ -10,7 +10,14 @@ const { Title, Text, Paragraph } = Typography;
 const Feedback = () => {
   const [feedbacks, setFeedbacks] = useState([]);
   const [results, setResults] = useState([]); // [NEW] Before/After
-  const [facilityImages, setFacilityImages] = useState([]); // [NEW] Space
+  const FALLBACK_FACILITY = [
+    "https://images.unsplash.com/photo-1600334129128-685c5582fd35?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1552693673-1bf958298935?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+  ];
+  const [facilityImages, setFacilityImages] = useState(FALLBACK_FACILITY);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,17 +46,9 @@ const Feedback = () => {
             
             setResults(resultItems);
             
-            // If Admin has uploaded facility images, use them. Otherwise fallback to placeholders.
+            // Only override fallback if admin uploaded facility images
             if (facilityItems.length > 0) {
                 setFacilityImages(facilityItems.map(i => i.imageUrl));
-            } else {
-                setFacilityImages([
-                    "https://images.unsplash.com/photo-1600334129128-685c5582fd35?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-                    "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-                    "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-                    "https://images.unsplash.com/photo-1552693673-1bf958298935?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-                    "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
-                ]);
             }
         }
       } catch (error) {
@@ -118,6 +117,7 @@ const Feedback = () => {
   };
 
   return (
+    <>
     <div style={styles.pageContainer}>
       
       {/* 1. HERO BANNER */}
@@ -214,7 +214,10 @@ const Feedback = () => {
           <div style={styles.divider}></div>
         </div>
        
-        <div style={{ columns: '3 250px', gap: '16px' }}>
+        <div style={{ 
+          columns: '3 250px', 
+          gap: '16px' 
+        }} className="facility-gallery">
            {facilityImages.map((img, idx) => (
               <div key={idx} style={{ marginBottom: '16px', breakInside: 'avoid' }}>
                  <Image src={img} width="100%" style={{ borderRadius: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
@@ -223,6 +226,41 @@ const Feedback = () => {
         </div>
       </div>
     </div>
+    
+    <style>{`
+      @media (max-width: 768px) {
+        .feedback-banner {
+          height: 300px !important;
+        }
+        .feedback-results {
+          display: flex !important;
+          flex-direction: column !important;
+        }
+        .feedback-card {
+          flex-direction: column !important;
+          height: auto !important;
+        }
+        .facility-gallery {
+          columns: 2 !important;
+        }
+      }
+      
+      @media (max-width: 480px) {
+        .feedback-banner {
+          height: 250px !important;
+        }
+        .feedback-banner h1 {
+          font-size: 28px !important;
+        }
+        .feedback-section {
+          padding: 40px 16px 0 !important;
+        }
+        .facility-gallery {
+          columns: 1 !important;
+        }
+      }
+    `}</style>
+    </>
   );
 };
 

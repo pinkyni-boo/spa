@@ -86,7 +86,7 @@ const ServicePage = () => {
       {/* Hero Section */}
       <div style={{
         width: '100%',
-        height: 350,
+        height: 'clamp(160px, 40vw, 350px)',
         background: `linear-gradient(rgba(28,31,26,0.5),rgba(28,31,26,0.5)), url('https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=2070&auto=format&fit=crop') center/cover`,
         display: 'flex',
         flexDirection: 'column',
@@ -96,13 +96,13 @@ const ServicePage = () => {
         <Title style={{
           color: theme.colors.neutral[50],
           fontFamily: theme.fonts.heading,
-          fontSize: 48,
+          fontSize: 'clamp(20px, 5.5vw, 48px)',
           marginBottom: 0,
           letterSpacing: 3
         }}>DỊCH VỤ</Title>
         <Text style={{
           color: theme.colors.neutral[50],
-          fontSize: 20,
+          fontSize: 'clamp(12px, 2.8vw, 20px)',
           fontStyle: 'italic',
           fontFamily: theme.fonts.body
         }}>Nâng niu vẻ đẹp tự nhiên của bạn</Text>
@@ -141,16 +141,16 @@ const ServicePage = () => {
 
       {/* Service Grid */}
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
-        <Row gutter={[32, 32]}>
+        <Row gutter={[{ xs: 12, md: 32 }, { xs: 16, md: 32 }]}>
           {filteredServices.map(service => (
-            <Col xs={24} md={12} lg={8} key={service.id}>
+            <Col xs={12} md={12} lg={8} key={service.id}>
               <Card
                 hoverable
                 cover={
                   <img
                     alt={service.title}
                     src={service.image}
-                    style={{ height: 240, objectFit: 'cover', borderTopLeftRadius: theme.borderRadius.md, borderTopRightRadius: theme.borderRadius.md }}
+                    style={{ height: 'clamp(120px, 32vw, 240px)', objectFit: 'cover', borderTopLeftRadius: theme.borderRadius.md, borderTopRightRadius: theme.borderRadius.md }}
                   />
                 }
                 style={{
@@ -160,23 +160,25 @@ const ServicePage = () => {
                   border: `1px solid ${theme.colors.primary[100]}`
                 }}
               >
-                <Title level={4} style={{
+                <Title level={4} className="service-card-title" style={{
                   color: theme.colors.primary[400],
                   fontFamily: theme.fonts.heading,
                   letterSpacing: 1,
                   marginBottom: 8
                 }}>{service.title}</Title>
-                <Paragraph style={{
+                <Paragraph className="service-card-desc" style={{
                   minHeight: 60,
                   color: theme.colors.text.secondary,
                   fontFamily: theme.fonts.body
                 }}>{service.desc}</Paragraph>
                 <Divider style={{ margin: '12px 0', borderColor: theme.colors.primary[100] }} />
+                <div className="service-card-footer" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '2px 0' }}>
                 <Text strong style={{ color: theme.colors.text.gold }}>{service.duration}</Text>
                 <span style={{ margin: '0 8px', color: theme.colors.primary[400] }}>•</span>
                 <Text strong style={{ color: theme.colors.primary[400] }}>{service.price}</Text>
+                </div>
                 
-                <div style={{ marginTop: 16, display: 'flex', gap: '10px' }}>
+                <div className="service-card-actions" style={{ marginTop: 16, display: 'flex', gap: '10px', alignItems: 'center' }}>
                   <Button 
                     type="link" 
                     onClick={() => navigate(`/service/${service.id}`)}
@@ -229,8 +231,8 @@ const ServicePage = () => {
       <div style={{
         width: '100%',
         background: theme.colors.neutral[50],
-        padding: '100px 0',
-        marginTop: 64,
+        padding: 'clamp(40px, 8vw, 100px) 0',
+        marginTop: 48,
         textAlign: 'center',
         display: 'flex',
         justifyContent: 'center'
@@ -238,7 +240,7 @@ const ServicePage = () => {
         <div style={{
           width: '90%',
           maxWidth: '1400px',
-          padding: '80px 40px',
+          padding: 'clamp(32px, 6vw, 80px) clamp(20px, 4vw, 40px)',
           border: `1.5px solid ${theme.colors.primary[400]}`,
           position: 'relative',
           backgroundColor: theme.colors.neutral[100],
@@ -259,7 +261,7 @@ const ServicePage = () => {
           }}>
             <span className="material-symbols-outlined" style={{
               color: theme.colors.primary[400],
-              fontSize: '45px'
+              fontSize: 'clamp(28px, 5vw, 45px)'
             }}>
               spa
             </span>
@@ -268,11 +270,11 @@ const ServicePage = () => {
           <Title level={2} style={{
             color: theme.colors.text.main,
             fontFamily: theme.fonts.heading,
-            fontSize: '42px',
-            letterSpacing: '5px',
+            fontSize: 'clamp(20px, 4vw, 42px)',
+            letterSpacing: 'clamp(1px, 1vw, 5px)',
             textTransform: 'uppercase',
             fontWeight: 400,
-            marginBottom: '32px',
+            marginBottom: '24px',
             width: '100%'
           }}>
             Trải nghiệm sự khác biệt
@@ -280,12 +282,12 @@ const ServicePage = () => {
 
           <Paragraph style={{
             color: theme.colors.text.secondary,
-            fontSize: '20px',
-            lineHeight: '2.2',
+            fontSize: 'clamp(14px, 2vw, 20px)',
+            lineHeight: '2',
             maxWidth: '800px',
-            margin: '0 auto 56px auto',
+            margin: '0 auto 40px auto',
             fontFamily: theme.fonts.body,
-            letterSpacing: '0.8px'
+            letterSpacing: '0.5px'
           }}>
             Chào mừng bạn đến với không gian thư giãn đẳng cấp. Đặt lịch ngay hôm nay để nhận đặc quyền
             <span style={{
@@ -367,6 +369,48 @@ const ServicePage = () => {
           .ant-tabs-tab-active .ant-tabs-tab-btn {
             color: ${theme.colors.primary[400]} !important;
             font-weight: bold;
+          }
+          @media (max-width: 767px) {
+            .ant-card-body {
+              padding: 10px !important;
+            }
+            .service-card-title {
+              font-size: 13px !important;
+              margin-bottom: 4px !important;
+              letter-spacing: 0 !important;
+              line-height: 1.3 !important;
+            }
+            .service-card-desc {
+              font-size: 11px !important;
+              min-height: unset !important;
+              display: -webkit-box !important;
+              -webkit-line-clamp: 2 !important;
+              -webkit-box-orient: vertical !important;
+              overflow: hidden !important;
+              margin-bottom: 0 !important;
+            }
+            .service-card-footer {
+              font-size: 11px !important;
+              display: flex !important;
+              flex-direction: column !important;
+              gap: 2px !important;
+              align-items: flex-start !important;
+            }
+            .service-card-footer .ant-typography {
+              font-size: 11px !important;
+            }
+            .service-card-footer span[style] {
+              display: none !important;
+            }
+            .service-card-actions {
+              flex-direction: column !important;
+              gap: 6px !important;
+              margin-top: 10px !important;
+            }
+            .service-card-actions .ant-btn-primary {
+              margin-left: 0 !important;
+              width: 100% !important;
+            }
           }
         `}
       </style>

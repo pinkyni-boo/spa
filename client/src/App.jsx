@@ -61,18 +61,29 @@ const MainContent = () => {
     return () => window.removeEventListener('app:data-mutated', refreshCurrentRoute);
   }, []);
 
-    // Robust Auth Check
+    // Robust Auth Check — also validates token expiry client-side
     const checkAuth = () => {
         const userStr = localStorage.getItem('user');
-        if (!userStr) return false;
+        const token = localStorage.getItem('token');
+        if (!userStr || !token) return false;
         
         try {
             const user = JSON.parse(userStr);
-            // Validate user object has required fields
-            return user && user.id && user.role;
+            if (!user || !user.id || !user.role) return false;
+
+            // Decode JWT payload (no signature check needed, server will verify)
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            if (payload.exp && payload.exp * 1000 < Date.now()) {
+                // Token đã hết hạn — xoá và yêu cầu đăng nhập lại
+                localStorage.removeItem('user');
+                localStorage.removeItem('token');
+                return false;
+            }
+
+            return true;
         } catch (e) {
-            // Invalid JSON, clear it
             localStorage.removeItem('user');
+            localStorage.removeItem('token');
             return false;
         }
     };
