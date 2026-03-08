@@ -82,6 +82,15 @@ body {
   .ant-picker-input input {
     font-size: 16px !important;
   }
+
+  /* Dropdown options — giữ nhỏ gọn, chỉ cần font-size >= 16px ở input để chống zoom */
+  .ant-select-dropdown .ant-select-item,
+  .ant-select-dropdown .ant-select-item-option-content {
+    font-size: 13px !important;
+    padding: 6px 12px !important;
+    min-height: 32px !important;
+    line-height: 1.4 !important;
+  }
 }
 
 /* ADDITIONAL MOBILE FIX */
