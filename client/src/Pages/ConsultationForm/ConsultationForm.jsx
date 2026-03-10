@@ -8,12 +8,12 @@ import {
     CalendarOutlined, CheckCircleOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import API_URL from '../../config/api.js';
+import { getCachedBranches, hasBranchesCache, loadBranches } from '../../services/publicBranchService';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
-
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '');
 
 const ConsultationForm = () => {
     const { message } = App.useApp();
@@ -21,21 +21,32 @@ const ConsultationForm = () => {
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
-    const [branches, setBranches] = useState([]);
+    const [branches, setBranches] = useState(() => getCachedBranches());
+    const [branchesLoading, setBranchesLoading] = useState(() => !hasBranchesCache());
     const [services, setServices] = useState([]);
 
     useEffect(() => {
-        // Lấy danh sách chi nhánh
-        fetch(`${API_URL}/api/branches`)
-            .then(r => r.json())
-            .then(d => { if (d.success) setBranches(d.branches || []); })
-            .catch(() => {});
+        let mounted = true;
+
+        loadBranches()
+            .then((nextBranches) => {
+                if (!mounted) return;
+                setBranches(nextBranches);
+            })
+            .catch(() => {})
+            .finally(() => {
+                if (mounted) setBranchesLoading(false);
+            });
 
         // Lấy danh sách dịch vụ
         fetch(`${API_URL}/api/services?type=service`)
             .then(r => r.json())
             .then(d => { if (d.success) setServices(d.services || []); })
             .catch(() => {});
+
+        return () => {
+            mounted = false;
+        };
     }, []);
 
     // Unique categories from services
@@ -182,15 +193,25 @@ const ConsultationForm = () => {
                         </Select>
                     </Form.Item>
 
-                    {branches.length > 0 && (
-                        <Form.Item name="preferredBranch" label="Chi nhánh gần nhất">
-                            <Select placeholder="Chọn chi nhánh" size="large" allowClear>
-                                {branches.map(b => (
-                                    <Option key={b._id} value={b._id}>{b.name} — {b.address}</Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
-                    )}
+                    <Form.Item name="preferredBranch" label="Chi nhánh gần nhất">
+                        <Select
+                            size="large"
+                            allowClear
+                            loading={branchesLoading}
+                            placeholder={
+                                branchesLoading
+                                    ? 'Đang tải chi nhánh...'
+                                    : branches.length > 0
+                                    ? 'Chọn chi nhánh'
+                                    : 'Chưa có chi nhánh'
+                            }
+                            disabled={branchesLoading || branches.length === 0}
+                        >
+                            {branches.map(b => (
+                                <Option key={b._id} value={b._id}>{b.name} — {b.address}</Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
 
                     <Form.Item
                         name="concern"

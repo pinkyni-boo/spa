@@ -3,8 +3,8 @@ import { Typography, Button, Carousel, Card, Input, Form, Divider, Image, App, S
 import { useNavigate } from 'react-router-dom';
 import { CaretRightOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import royalLuxuryTheme from '../theme';
-
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '');
+import API_URL from '../config/api.js';
+import { getCachedBranches, hasBranchesCache, loadBranches } from '../services/publicBranchService';
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
@@ -16,13 +16,25 @@ const Home = () => {
   const [consultForm] = Form.useForm();
   const [consultLoading, setConsultLoading] = useState(false);
   const [consultDone, setConsultDone] = useState(false);
-  const [branches, setBranches] = useState([]);
+  const [branches, setBranches] = useState(() => getCachedBranches());
+  const [branchesLoading, setBranchesLoading] = useState(() => !hasBranchesCache());
 
   useEffect(() => {
-    fetch(`${API_URL}/api/branches`)
-      .then(r => r.json())
-      .then(d => { if (d.success) setBranches(d.branches || []); })
-      .catch(() => {});
+    let mounted = true;
+
+    loadBranches()
+      .then((nextBranches) => {
+        if (!mounted) return;
+        setBranches(nextBranches);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (mounted) setBranchesLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const handleConsultSubmit = async (values) => {
@@ -370,18 +382,27 @@ const Home = () => {
               >
                 <TextArea rows={4} />
               </Form.Item>
-              {branches.length > 0 && (
-                <Form.Item
-                  name="preferredBranch"
-                  label={<span style={{ fontWeight: 600 }}>Chi nhánh</span>}
+              <Form.Item
+                name="preferredBranch"
+                label={<span style={{ fontWeight: 600 }}>Chi nhánh</span>}
+              >
+                <Select
+                  allowClear
+                  loading={branchesLoading}
+                  placeholder={
+                    branchesLoading
+                      ? 'Đang tải chi nhánh...'
+                      : branches.length > 0
+                      ? 'Chọn chi nhánh gần nhất'
+                      : 'Chưa có chi nhánh'
+                  }
+                  disabled={branchesLoading || branches.length === 0}
                 >
-                  <Select allowClear placeholder="Chọn chi nhánh gần nhất">
-                    {branches.map(b => (
-                      <Option key={b._id} value={b._id}>{b.name}</Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              )}
+                  {branches.map(b => (
+                    <Option key={b._id} value={b._id}>{b.name}</Option>
+                  ))}
+                </Select>
+              </Form.Item>
               <Form.Item style={{ marginBottom: 0 }}>
                 <Button
                   type="primary"

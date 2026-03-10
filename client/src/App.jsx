@@ -36,6 +36,7 @@ import InvoiceManager from './Pages/Admin/InvoiceManager/InvoiceManager.jsx';
 import ConsultationManager from './Pages/Admin/ConsultationManager/ConsultationManager.jsx';
 import ConsultationForm from './Pages/ConsultationForm/ConsultationForm.jsx';
 import AdminSidebar from './Pages/Admin/Global/AdminSidebar.jsx';
+import { prefetchBranches } from './services/publicBranchService.js';
 
 const { Content, Header } = Layout;
 const { Title } = Typography;
@@ -60,6 +61,12 @@ const MainContent = () => {
     window.addEventListener('app:data-mutated', refreshCurrentRoute);
     return () => window.removeEventListener('app:data-mutated', refreshCurrentRoute);
   }, []);
+
+  useEffect(() => {
+    if (!isAdmin && !isLogin) {
+      prefetchBranches();
+    }
+  }, [isAdmin, isLogin]);
 
     // Robust Auth Check — also validates token expiry client-side
     const checkAuth = () => {

@@ -4,7 +4,7 @@ import { PhoneOutlined, ArrowRightOutlined, CloseOutlined, DownOutlined, CheckCi
 import { useBooking } from './BookingContext';
 import theme from '../../theme';
 import { bookingService } from '../../services/bookingService';
-import { branchService } from '../../services/branchService'; // [NEW] Import branchService
+import { getCachedBranches, hasBranchesCache, loadBranches } from '../../services/publicBranchService';
 import dayjs from 'dayjs';
 import { VN_TZ, dayjsVN } from '../../config/dateHelper';
 
@@ -31,7 +31,8 @@ const Booking = () => {
   const [showSlots, setShowSlots] = useState(false); 
 
   // [NEW] Branch State
-  const [branches, setBranches] = useState([]);
+  const [branches, setBranches] = useState(() => getCachedBranches());
+  const [branchesLoading, setBranchesLoading] = useState(() => !hasBranchesCache());
   const [selectedBranch, setSelectedBranch] = useState(null);
 
   // [NEW] Services State (fetched from API)
@@ -40,17 +41,23 @@ const Booking = () => {
   // [NEW] Fetch Branches on Init
   useEffect(() => {
     if (isBookingOpen) {
-        branchService.getAllBranches().then(res => {
-            if (res.success) {
-                setBranches(res.branches || []);
-                // Optional: Auto-select if only 1 branch
-                if (res.branches?.length === 1) {
-                    const b = res.branches[0]._id || res.branches[0];
+        let mounted = true;
+
+        loadBranches()
+            .then((nextBranches) => {
+                if (!mounted) return;
+                setBranches(nextBranches);
+
+                if (nextBranches?.length === 1) {
+                    const b = nextBranches[0]._id || nextBranches[0];
                     setSelectedBranch(b);
                     form.setFieldsValue({ branchId: b });
                 }
-            }
-        });
+            })
+            .catch(() => {})
+            .finally(() => {
+                if (mounted) setBranchesLoading(false);
+            });
 
         // Fetch services from API
         fetch(`${(import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '')}/api/services?type=service`)
@@ -61,6 +68,10 @@ const Booking = () => {
                 }
             })
             .catch(() => {});
+
+        return () => {
+            mounted = false;
+        };
     }
   }, [isBookingOpen]); 
 
@@ -299,7 +310,9 @@ const Booking = () => {
                   style={{ marginBottom: '15px' }}
                 >
                   <Select 
-                    placeholder="Choose location..." 
+                    loading={branchesLoading}
+                    placeholder={branchesLoading ? 'Loading branches...' : 'Choose location...'} 
+                    disabled={branchesLoading || branches.length === 0}
                     variant="borderless"
                     suffixIcon={<DownOutlined style={{ color: theme.colors.primary[400] }} />}
                     style={{ borderBottom: '1px solid #3a3528', padding: '2px 0', fontSize: '13px' }}
